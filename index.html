@@ -466,6 +466,7 @@
 
   // ─── LOAD DATA ───────────────────────────────────────────────────
   async function loadTransactions() {
+    document.getElementById('tx-list').innerHTML = '<div class="loading">Connecting to database...</div>';
     try {
       const { data, error } = await db
         .from('transactions')
@@ -478,8 +479,9 @@
       renderAll();
       updateTimestamp();
     } catch (e) {
+      const msg = e?.message || e?.error_description || JSON.stringify(e) || 'Unknown error';
       document.getElementById('tx-list').innerHTML =
-        '<div class="empty-state"><div class="icon">⚠️</div><p>Could not load data.<br>Check your Supabase credentials.</p></div>';
+        '<div class="empty-state"><div class="icon">⚠️</div><p style="font-size:13px;word-break:break-all;"><b>Error:</b> ' + msg + '</p></div>';
     }
   }
 
@@ -581,7 +583,9 @@
       toggleForm();
       showToast(currentType === 'income' ? '✓ Income added!' : '✓ Expense added!');
     } catch (e) {
-      showToast('Failed to save. Try again.');
+      const msg = e?.message || e?.error_description || JSON.stringify(e) || 'Unknown error';
+      showToast('Error: ' + msg);
+      console.error('Save error:', e);
     } finally {
       isSaving = false;
       btn.disabled = false;
