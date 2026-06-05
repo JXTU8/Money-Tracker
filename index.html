@@ -308,7 +308,10 @@
 <!-- ─── MAIN APP ──────────────────────────────────────────────────────── -->
 <header>
   <h1>💰 Money Record</h1>
-  <span id="last-updated">Loading...</span>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span id="last-updated" style="font-size:12px;color:#6b7280;">Loading...</span>
+    <button onclick="resetCredentials()" title="Change Supabase credentials" style="background:none;border:1px solid rgba(0,0,0,0.15);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;color:#6b7280;">⚙ Reset</button>
+  </div>
 </header>
 
 <main>
@@ -439,6 +442,15 @@
     localStorage.setItem('sb_url', url);
     localStorage.setItem('sb_key', key);
     initSupabase(url, key);
+  }
+
+  function resetCredentials() {
+    if (!confirm('This will clear your saved credentials and show the setup screen again. Your data in Supabase is NOT deleted.')) return;
+    localStorage.removeItem('sb_url');
+    localStorage.removeItem('sb_key');
+    document.getElementById('input-url').value = '';
+    document.getElementById('input-key').value = '';
+    document.getElementById('setup-overlay').style.display = 'flex';
   }
 
   function initSupabase(url, key) {
