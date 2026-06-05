@@ -229,8 +229,14 @@
     /* ─── TRANSACTION CARD ────────────────────────────────── */
     .transaction-list { display: flex; flex-direction: column; gap: 8px; }
     .tx-wrapper { position: relative; overflow: hidden; border-radius: var(--radius); }
-    .tx-swipe-bg { position: absolute; right: 0; top: 0; bottom: 0; width: 80px; background: var(--red); display: flex; align-items: center; justify-content: center; font-size: 22px; border-radius: var(--radius); cursor: pointer; }
-    .tx-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 12px 14px; display: flex; align-items: center; gap: 10px; position: relative; cursor: pointer; touch-action: pan-y; will-change: transform; transition: border-color .15s; }
+    .tx-swipe-bg { position: absolute; right: 0; top: 0; bottom: 0; width: 88px; background: transparent; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); cursor: pointer; overflow: hidden; }
+    .tx-swipe-bg .bin-icon { font-size: 24px; display: block; transition: transform 0.15s ease; z-index: 1; pointer-events: none; }
+    .tx-swipe-bg.hard-swipe { background: rgba(226,75,74,0.12); }
+    .tx-swipe-bg.exploding .bin-icon { animation: binPop 0.35s cubic-bezier(.36,.07,.19,.97) forwards; }
+    @keyframes binPop { 0%{transform:scale(1);opacity:1} 40%{transform:scale(2.8);opacity:1} 100%{transform:scale(3.5);opacity:0} }
+    .tx-wrapper.collapsing { animation: collapseRow 0.35s ease forwards; pointer-events:none; overflow:hidden; }
+    @keyframes collapseRow { from{max-height:100px;opacity:1;margin-bottom:8px} to{max-height:0;opacity:0;margin-bottom:0} }
+    .tx-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 12px 14px; display: flex; align-items: center; gap: 10px; position: relative; cursor: pointer; touch-action: pan-y; will-change: transform; transition: border-color .15s; width: 100%; box-sizing: border-box; }
     .tx-card:hover { border-color: rgba(0,0,0,.2); }
     [data-theme="dark"] .tx-card:hover { border-color: rgba(255,255,255,.2); }
     .tx-card.is-pending { opacity: .8; }
@@ -452,6 +458,7 @@
     <div class="balance-label">Balance</div>
     <div class="balance-amount" id="balance">RM 0.00</div>
     <div class="balance-sub" id="balance-sub">This month</div>
+    <div class="balance-compare" id="balance-compare"></div>
   </div>
   <div class="stats-row">
     <div class="stat-card income"><div class="stat-label">↑ Income</div><div class="stat-amount" id="total-income">RM 0.00</div></div>
@@ -463,6 +470,7 @@
     <button class="tab-btn active" id="tab-txs"    onclick="switchTab('txs')">Transactions</button>
     <button class="tab-btn"        id="tab-charts" onclick="switchTab('charts')">📊 Charts</button>
     <button class="tab-btn"        id="tab-budget" onclick="switchTab('budget')">🎯 Budget</button>
+    <button class="tab-btn"        id="tab-goals"  onclick="switchTab('goals')">🏦 Goals</button>
   </div>
 
   <!-- ── TRANSACTIONS PANEL ──────────────────────────── -->
@@ -547,6 +555,29 @@
       <button class="budget-save-btn" onclick="saveBudgets()">Save limits</button>
     </div>
   </div>
+
+  <!-- ── GOALS PANEL ───────────────────────────────────── -->
+  <div class="panel" id="panel-goals">
+    <div id="goals-list"><div class="loading">Loading goals…</div></div>
+    <div class="goal-form-card">
+      <h3>New savings goal</h3>
+      <div class="goal-form-row">
+        <div class="form-group">
+          <label>Emoji</label>
+          <input type="text" id="new-goal-emoji" class="goal-emoji-field" placeholder="🎯" maxlength="2" />
+        </div>
+        <div class="form-group" style="flex:3">
+          <label>Goal name</label>
+          <input type="text" id="new-goal-name" placeholder="e.g. New laptop, Vacation…" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Target amount (RM)</label>
+        <input type="number" id="new-goal-target" placeholder="5000" min="1" step="1" />
+      </div>
+      <button class="budget-save-btn" onclick="addGoal()">＋ Create goal</button>
+    </div>
+  </div>
 </main>
 
 <div class="toast" id="toast"></div>
@@ -579,12 +610,14 @@ let isAllTime = false;
 let budgets      = {};
 let customCats   = [];
 let recTemplates = [];
+let goals        = [];
 
 /* ─── localStorage KEYS ────────────────────────────────────────────── */
 const LS_BUDGETS   = 'money_budgets';
 const LS_CATS      = 'money_custom_cats';
 const LS_REC       = 'money_rec';
 const LS_PENDING   = 'money_pending';   // ← offline queue
+const LS_GOALS     = 'money_goals';
 
 /* ══════════════════════════════════════════════════════════════════════
    OFFLINE QUEUE
@@ -709,12 +742,14 @@ function loadSettings() {
   budgets      = JSON.parse(localStorage.getItem(LS_BUDGETS) || '{}');
   customCats   = JSON.parse(localStorage.getItem(LS_CATS)    || '[]');
   recTemplates = JSON.parse(localStorage.getItem(LS_REC)     || '[]');
+  goals        = JSON.parse(localStorage.getItem(LS_GOALS)   || '[]');
   document.getElementById('dark-toggle').checked = localStorage.getItem('money_dark') === 'true';
 }
 function saveSettings() {
   localStorage.setItem(LS_BUDGETS, JSON.stringify(budgets));
   localStorage.setItem(LS_CATS,    JSON.stringify(customCats));
   localStorage.setItem(LS_REC,     JSON.stringify(recTemplates));
+  localStorage.setItem(LS_GOALS,   JSON.stringify(goals));
 }
 
 /* ─── DARK MODE ────────────────────────────────────────────────────── */
@@ -827,6 +862,86 @@ async function loadTransactions() {
   }
 }
 
+/* ─── SAVINGS GOALS ────────────────────────────────────────────────── */
+function renderGoals() {
+  const panel = document.getElementById('panel-goals');
+  if (!panel || !panel.classList.contains('open')) return;
+  const container = document.getElementById('goals-list');
+  if (!goals.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">🏦</div><p>No savings goals yet.<br>Create one below to start tracking!</p></div>';
+    return;
+  }
+  container.innerHTML = goals.map((g, i) => {
+    const saved = g.saved || 0;
+    const pct   = Math.min(100, (saved / g.target) * 100);
+    const done  = pct >= 100;
+    const remain = Math.max(0, g.target - saved);
+    return `<div class="goal-card${done ? ' goal-done' : ''}">
+      <div class="goal-header">
+        <span class="goal-emoji">${esc(g.emoji || '🎯')}</span>
+        <div class="goal-info">
+          <div class="goal-name">${esc(g.name)}</div>
+          <div class="goal-amounts">${fmt(saved)} of ${fmt(g.target)}${done ? '' : ` · RM ${remain.toFixed(2)} to go`}</div>
+        </div>
+        <button class="goal-del" onclick="deleteGoal(${i})" title="Delete">×</button>
+      </div>
+      <div class="goal-bar-bg"><div class="goal-bar-fill" style="width:${pct}%"></div></div>
+      <div class="goal-footer">
+        <span class="goal-pct">${pct.toFixed(0)}% complete</span>
+        ${done
+          ? '<span style="color:var(--green);font-size:12px;font-weight:600">🎊 Goal reached!</span>'
+          : `<div class="goal-add-row">
+               <button class="goal-quick" onclick="addToGoal(${i},10)">+RM10</button>
+               <button class="goal-quick" onclick="addToGoal(${i},50)">+RM50</button>
+               <button class="goal-quick" onclick="addToGoal(${i},100)">+RM100</button>
+               <input class="goal-custom" type="number" id="gi-${i}" placeholder="custom" min="0" step="0.01" />
+               <button class="goal-add-btn" onclick="addCustomToGoal(${i})">Add</button>
+             </div>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addToGoal(i, amount) {
+  if (!goals[i]) return;
+  goals[i].saved = Math.min(goals[i].target, (goals[i].saved || 0) + amount);
+  saveSettings();
+  renderGoals();
+  const done = goals[i].saved >= goals[i].target;
+  showToast(done ? `🎊 Goal "${goals[i].name}" complete!` : `+${fmt(amount)} added to "${goals[i].name}"`);
+}
+
+function addCustomToGoal(i) {
+  const input = document.getElementById('gi-' + i);
+  const val   = parseFloat(input ? input.value : 0);
+  if (!val || val <= 0) { showToast('Enter a valid amount'); return; }
+  addToGoal(i, val);
+  if (input) input.value = '';
+}
+
+function deleteGoal(i) {
+  if (!confirm(`Delete goal "${goals[i].name}"? Your progress will be lost.`)) return;
+  goals.splice(i, 1);
+  saveSettings();
+  renderGoals();
+  showToast('Goal removed');
+}
+
+function addGoal() {
+  const name   = document.getElementById('new-goal-name').value.trim();
+  const target = parseFloat(document.getElementById('new-goal-target').value);
+  const emoji  = document.getElementById('new-goal-emoji').value.trim() || '🎯';
+  if (!name)              { showToast('Enter a goal name'); return; }
+  if (!target || target <= 0) { showToast('Enter a target amount'); return; }
+  goals.push({ id: 'g_' + Date.now(), name, target, saved: 0, emoji });
+  saveSettings();
+  document.getElementById('new-goal-name').value   = '';
+  document.getElementById('new-goal-target').value = '';
+  document.getElementById('new-goal-emoji').value  = '';
+  renderGoals();
+  showToast(`✓ "${name}" goal created!`);
+}
+
 /* ─── RENDER ───────────────────────────────────────────────────────── */
 function renderAll() {
   updateSummary(); renderList(); renderCharts(); renderBudget();
@@ -835,9 +950,28 @@ function updateSummary() {
   const txs = monthTxs();
   const inc = txs.filter(t=>t.type==='income').reduce((s,t)=>s+ +t.amount,0);
   const exp = txs.filter(t=>t.type==='expense').reduce((s,t)=>s+ +t.amount,0);
-  document.getElementById('balance').textContent      = fmt(inc - exp);
+  const bal = inc - exp;
+  document.getElementById('balance').textContent       = fmt(bal);
   document.getElementById('total-income').textContent  = fmt(inc);
   document.getElementById('total-expense').textContent = fmt(exp);
+
+  /* ── Month vs last month comparison ── */
+  const cmp = document.getElementById('balance-compare');
+  if (cmp && !isAllTime) {
+    let lm = viewMonth - 1, ly = viewYear;
+    if (lm < 0) { lm = 11; ly--; }
+    const lmTxs = allTxsWithPending().filter(t => {
+      const d = new Date(t.date + 'T00:00:00');
+      return d.getFullYear() === ly && d.getMonth() === lm;
+    });
+    if (!lmTxs.length) { cmp.textContent = ''; return; }
+    const lmInc = lmTxs.filter(t=>t.type==='income').reduce((s,t)=>s+ +t.amount,0);
+    const lmExp = lmTxs.filter(t=>t.type==='expense').reduce((s,t)=>s+ +t.amount,0);
+    const delta = bal - (lmInc - lmExp);
+    if (Math.abs(delta) < 0.01) cmp.textContent = '= Same as last month';
+    else if (delta > 0) cmp.textContent = `↑ RM ${Math.abs(delta).toFixed(2)} better than last month`;
+    else cmp.textContent = `↓ RM ${Math.abs(delta).toFixed(2)} less than last month`;
+  } else if (cmp) { cmp.textContent = ''; }
 }
 
 function getVisible() {
@@ -878,7 +1012,7 @@ function renderList() {
     const clickAct = t.isPending ? '' : `openEditModal('${t.id}')`;
     return `
     <div class="tx-wrapper" id="wrap-${t.id}">
-      <div class="tx-swipe-bg" onclick="${swipeAct}">🗑</div>
+      <div class="tx-swipe-bg" id="bg-${t.id}" onclick="${swipeAct}"><span class="bin-icon">🗑</span></div>
       <div class="tx-card${t.isPending?' is-pending':''}" id="card-${t.id}" onclick="${clickAct}">
         <div class="tx-icon ${t.type}">${t.type==='income'?'↑':'↓'}</div>
         <div class="tx-info">
@@ -908,31 +1042,101 @@ function getBudgetWarn(t) {
 
 /* ─── SWIPE TO DELETE ──────────────────────────────────────────────── */
 function attachSwipe(id) {
-  const card = document.getElementById('card-' + id);
-  if (!card) return;
-  let startX=0,startY=0,curX=0,swiping=false,intentSet=false,isHoriz=false;
-  const THRESHOLD = 70;
+  const card    = document.getElementById('card-' + id);
+  const wrapper = document.getElementById('wrap-' + id);
+  const bg      = document.getElementById('bg-'   + id);
+  if (!card || !wrapper || !bg) return;
+
+  let startX=0, startY=0, curX=0, swiping=false, intentSet=false, isHoriz=false, deleted=false;
+
+  const SOFT = 88;   // reveal bin and hold
+  const HARD = 200;  // hard swipe — expand bin and delete
+
+  function getDeleteAction() {
+    const t = card.getAttribute('onclick') || '';
+    return bg.getAttribute('onclick') || '';
+  }
+
+  async function triggerDelete() {
+    if (deleted) return;
+    deleted = true;
+    /* 1 — slide card fully off screen */
+    card.style.transition = 'transform 0.22s ease';
+    card.style.transform  = `translateX(-110%)`;
+    /* 2 — make bg red-tinted and explode the bin */
+    bg.classList.add('hard-swipe', 'exploding');
+    /* 3 — collapse the row after animation */
+    setTimeout(() => {
+      wrapper.classList.add('collapsing');
+      /* 4 — fire the actual delete */
+      const action = bg.getAttribute('onclick');
+      if (action) {
+        setTimeout(() => { try { eval(action); } catch(e){} }, 180);
+      }
+    }, 300);
+  }
+
   card.addEventListener('touchstart', e => {
-    startX=e.touches[0].clientX; startY=e.touches[0].clientY;
-    curX=0; swiping=true; intentSet=false; isHoriz=false;
-    card.style.transition='none';
-  },{passive:true});
+    if (deleted) return;
+    startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+    curX = 0; swiping = true; intentSet = false; isHoriz = false;
+    card.style.transition = 'none';
+    bg.classList.remove('hard-swipe');
+  }, { passive: true });
+
   card.addEventListener('touchmove', e => {
-    if(!swiping)return;
-    const dx=e.touches[0].clientX-startX, dy=e.touches[0].clientY-startY;
-    if(!intentSet&&(Math.abs(dx)>6||Math.abs(dy)>6)){intentSet=true; isHoriz=Math.abs(dx)>Math.abs(dy);}
-    if(!isHoriz)return;
+    if (!swiping || deleted) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+    if (!intentSet && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+      intentSet = true;
+      isHoriz = Math.abs(dx) > Math.abs(dy);
+    }
+    if (!isHoriz) return;
     e.preventDefault();
-    curX=Math.min(0,dx);
-    card.style.transform=`translateX(${Math.max(-THRESHOLD*1.3,curX)}px)`;
-  },{passive:false});
-  card.addEventListener('touchend',()=>{
-    if(!swiping)return; swiping=false;
-    card.style.transition='transform .2s ease';
-    if(curX<-THRESHOLD){
-      card.style.transform='translateX(-80px)';
-      setTimeout(()=>{if(card.isConnected)card.style.transform='';},3200);
-    }else card.style.transform='';
+    curX = Math.min(0, dx);
+    const clamped = Math.max(-HARD - 20, curX);
+    card.style.transform = `translateX(${clamped}px)`;
+
+    /* Scale the bin icon as user drags — gives tactile feedback */
+    const progress = Math.min(1, Math.abs(curX) / HARD);
+    const binIcon  = bg.querySelector('.bin-icon');
+    if (binIcon) binIcon.style.transform = `scale(${1 + progress * 0.6})`;
+
+    /* Tint the background red when past SOFT threshold */
+    bg.classList.toggle('hard-swipe', Math.abs(curX) > SOFT);
+  }, { passive: false });
+
+  card.addEventListener('touchend', async () => {
+    if (!swiping || deleted) return;
+    swiping = false;
+
+    if (curX < -HARD) {
+      /* Hard swipe — auto delete */
+      await triggerDelete();
+    } else if (curX < -SOFT) {
+      /* Soft swipe — snap open showing bin */
+      card.style.transition = 'transform 0.2s ease';
+      card.style.transform  = `translateX(-${SOFT}px)`;
+      bg.classList.add('hard-swipe');
+      /* Auto-close after 3s if not tapped */
+      setTimeout(() => {
+        if (!deleted && card.isConnected) {
+          card.style.transition = 'transform 0.25s ease';
+          card.style.transform  = '';
+          bg.classList.remove('hard-swipe');
+          const binIcon = bg.querySelector('.bin-icon');
+          if (binIcon) binIcon.style.transform = '';
+        }
+      }, 3000);
+    } else {
+      /* Snap back */
+      card.style.transition = 'transform 0.2s ease';
+      card.style.transform  = '';
+      bg.classList.remove('hard-swipe');
+      const binIcon = bg.querySelector('.bin-icon');
+      if (binIcon) binIcon.style.transform = '';
+    }
   });
 }
 
@@ -987,8 +1191,8 @@ function saveBudgets(){
 
 /* ─── TABS ─────────────────────────────────────────────────────────── */
 function switchTab(tab){
-  ['txs','charts','budget'].forEach(t=>{document.getElementById(`tab-${t}`).classList.toggle('active',t===tab);document.getElementById(`panel-${t}`).classList.toggle('open',t===tab);});
-  if(tab==='charts')renderCharts();if(tab==='budget')renderBudget();
+  ['txs','charts','budget','goals'].forEach(t=>{document.getElementById(`tab-${t}`).classList.toggle('active',t===tab);document.getElementById(`panel-${t}`).classList.toggle('open',t===tab);});
+  if(tab==='charts')renderCharts();if(tab==='budget')renderBudget();if(tab==='goals')renderGoals();
 }
 
 /* ─── FORM ─────────────────────────────────────────────────────────── */
