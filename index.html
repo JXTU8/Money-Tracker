@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Money Record</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    /* ─── PASTE YOUR SUPABASE CREDENTIALS BELOW ─────────────────────── */
+    /* Find them in Supabase → Project Settings → API                     */
+
+    :root {
+      --green: #1D9E75;
+      --green-light: #E1F5EE;
+      --red: #E24B4A;
+      --red-light: #FCEBEB;
+      --blue: #378ADD;
+      --blue-light: #E6F1FB;
+      --bg: #f4f5f7;
+      --card: #ffffff;
+      --text: #1a1a1a;
+      --muted: #6b7280;
+      --border: rgba(0,0,0,0.1);
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ─── HEADER ──────────────────────────────────────── */
+    header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header h1 { font-size: 18px; font-weight: 600; }
+    header span { font-size: 12px; color: var(--muted); }
+
+    /* ─── MAIN LAYOUT ──────────────────────────────────── */
+    main { max-width: 480px; margin: 0 auto; padding: 16px; }
+
+    /* ─── BALANCE CARD ─────────────────────────────────── */
+    .balance-card {
+      background: linear-gradient(135deg, #0F6E56 0%, #1D9E75 100%);
+      border-radius: var(--radius);
+      padding: 24px;
+      color: white;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    .balance-label { font-size: 13px; opacity: 0.8; margin-bottom: 6px; }
+    .balance-amount { font-size: 36px; font-weight: 700; letter-spacing: -1px; }
+
+    .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .stat-card { background: var(--card); border-radius: var(--radius); padding: 14px 16px; border: 1px solid var(--border); }
+    .stat-card .stat-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+    .stat-card .stat-amount { font-size: 20px; font-weight: 600; }
+    .stat-card.income .stat-amount { color: var(--green); }
+    .stat-card.expense .stat-amount { color: var(--red); }
+
+    /* ─── ADD FORM ─────────────────────────────────────── */
+    .add-btn {
+      width: 100%;
+      padding: 13px;
+      background: var(--text);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: opacity 0.15s;
+    }
+    .add-btn:hover { opacity: 0.85; }
+
+    .form-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: 18px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .form-card.open { display: block; }
+    .form-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 5px; }
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      background: white;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .form-group input:focus,
+    .form-group select:focus { border-color: var(--blue); }
+
+    .type-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .type-btn {
+      padding: 9px;
+      border-radius: 8px;
+      border: 1.5px solid var(--border);
+      background: white;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: var(--muted);
+    }
+    .type-btn.active-income { border-color: var(--green); background: var(--green-light); color: var(--green); }
+    .type-btn.active-expense { border-color: var(--red); background: var(--red-light); color: var(--red); }
+
+    .form-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .btn-save {
+      flex: 1;
+      padding: 11px;
+      background: var(--text);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-save:hover { opacity: 0.85; }
+    .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-cancel {
+      padding: 11px 16px;
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    /* ─── TRANSACTION LIST ─────────────────────────────── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .section-header h2 { font-size: 15px; font-weight: 600; }
+    .filter-btn {
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: white;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+    .filter-btn.active { background: var(--text); color: white; border-color: var(--text); }
+
+    .filter-row { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+
+    .transaction-list { display: flex; flex-direction: column; gap: 8px; }
+    .tx-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.15s;
+    }
+    .tx-card:hover { border-color: rgba(0,0,0,0.2); }
+
+    .tx-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .tx-icon.income { background: var(--green-light); }
+    .tx-icon.expense { background: var(--red-light); }
+
+    .tx-info { flex: 1; min-width: 0; }
+    .tx-desc { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tx-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .tx-right { text-align: right; flex-shrink: 0; }
+    .tx-amount { font-size: 15px; font-weight: 600; }
+    .tx-amount.income { color: var(--green); }
+    .tx-amount.expense { color: var(--red); }
+    .tx-delete {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 16px;
+      padding: 4px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .tx-card:hover .tx-delete { opacity: 1; }
+    .tx-delete:hover { color: var(--red); }
+
+    /* ─── EMPTY / LOADING ──────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+    }
+    .empty-state .icon { font-size: 36px; margin-bottom: 10px; }
+    .empty-state p { font-size: 14px; }
+
+    .loading { text-align: center; padding: 30px; color: var(--muted); font-size: 14px; }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #1a1a1a;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+      z-index: 100;
+      transition: transform 0.3s;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ─── SETUP OVERLAY ────────────────────────────────── */
+    .setup-overlay {
+      position: fixed;
+      inset: 0;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      padding: 24px;
+    }
+    .setup-box { max-width: 380px; width: 100%; }
+    .setup-box h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .setup-box p { font-size: 14px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+    .setup-field { margin-bottom: 12px; }
+    .setup-field label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 5px; }
+    .setup-field input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: monospace; }
+    .setup-save { width: 100%; padding: 12px; background: var(--text); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; margin-top: 4px; }
+    .setup-hint { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+
+    @media (max-width: 500px) {
+      main { padding: 12px; }
+      .balance-amount { font-size: 30px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── SETUP SCREEN (shown if no credentials saved) ─────────────────── -->
+<div class="setup-overlay" id="setup-overlay">
+  <div class="setup-box">
+    <div style="font-size: 32px; margin-bottom: 12px;">💰</div>
+    <h2>Connect to Supabase</h2>
+    <p>Enter your Supabase credentials to connect the app to your database. You only need to do this once.</p>
+    <div class="setup-field">
+      <label>Project URL</label>
+      <input type="text" id="input-url" placeholder="https://xxxxxxxxxxxx.supabase.co" />
+    </div>
+    <div class="setup-field">
+      <label>Anon Public Key</label>
+      <input type="text" id="input-key" placeholder="eyJhbGciOiJIUzI1NiIs..." />
+    </div>
+    <button class="setup-save" onclick="saveCredentials()">Save & Connect</button>
+    <p class="setup-hint">Find these in Supabase → Project Settings → API. Your credentials are stored only in your browser (localStorage).</p>
+  </div>
+</div>
+
+<!-- ─── MAIN APP ──────────────────────────────────────────────────────── -->
+<header>
+  <h1>💰 Money Record</h1>
+  <span id="last-updated">Loading...</span>
+</header>
+
+<main>
+  <!-- Balance -->
+  <div class="balance-card">
+    <div class="balance-label">Total Balance</div>
+    <div class="balance-amount" id="balance">RM 0.00</div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card income">
+      <div class="stat-label">↑ Total Income</div>
+      <div class="stat-amount" id="total-income">RM 0.00</div>
+    </div>
+    <div class="stat-card expense">
+      <div class="stat-label">↓ Total Expenses</div>
+      <div class="stat-amount" id="total-expense">RM 0.00</div>
+    </div>
+  </div>
+
+  <!-- Add Button -->
+  <button class="add-btn" id="add-toggle-btn" onclick="toggleForm()">
+    <span id="add-btn-icon">＋</span>
+    <span id="add-btn-text">Add Transaction</span>
+  </button>
+
+  <!-- Add Form -->
+  <div class="form-card" id="form-card">
+    <h3>New Transaction</h3>
+
+    <div class="form-group">
+      <label>Type</label>
+      <div class="type-toggle">
+        <button class="type-btn active-income" id="btn-income" onclick="setType('income')">↑ Income</button>
+        <button class="type-btn" id="btn-expense" onclick="setType('expense')">↓ Expense</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Description</label>
+      <input type="text" id="f-desc" placeholder="e.g. Salary, Groceries, Petrol..." />
+    </div>
+
+    <div class="form-group">
+      <label>Amount (RM)</label>
+      <input type="number" id="f-amount" placeholder="0.00" min="0" step="0.01" />
+    </div>
+
+    <div class="form-group">
+      <label>Category</label>
+      <select id="f-category">
+        <option value="">-- Select category --</option>
+        <optgroup label="Income">
+          <option value="Salary">Salary</option>
+          <option value="Freelance">Freelance</option>
+          <option value="Business">Business</option>
+          <option value="Investment">Investment</option>
+          <option value="Gift">Gift</option>
+          <option value="Other Income">Other Income</option>
+        </optgroup>
+        <optgroup label="Expenses">
+          <option value="Food & Drinks">Food & Drinks</option>
+          <option value="Groceries">Groceries</option>
+          <option value="Transport">Transport</option>
+          <option value="Utilities">Utilities</option>
+          <option value="Shopping">Shopping</option>
+          <option value="Healthcare">Healthcare</option>
+          <option value="Entertainment">Entertainment</option>
+          <option value="Education">Education</option>
+          <option value="Rent">Rent</option>
+          <option value="Other Expense">Other Expense</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Date</label>
+      <input type="date" id="f-date" />
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-cancel" onclick="toggleForm()">Cancel</button>
+      <button class="btn-save" id="save-btn" onclick="saveTransaction()">Save Transaction</button>
+    </div>
+  </div>
+
+  <!-- Transaction List -->
+  <div class="section-header">
+    <h2>Transactions</h2>
+  </div>
+  <div class="filter-row">
+    <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" onclick="setFilter('income', this)">Income</button>
+    <button class="filter-btn" onclick="setFilter('expense', this)">Expense</button>
+  </div>
+
+  <div class="transaction-list" id="tx-list">
+    <div class="loading">Loading transactions...</div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ─── STATE ──────────────────────────────────────────────────────
+  let db = null;
+  let allTransactions = [];
+  let currentFilter = 'all';
+  let currentType = 'income';
+  let isSaving = false;
+
+  // ─── INIT ────────────────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    const url = localStorage.getItem('sb_url');
+    const key = localStorage.getItem('sb_key');
+    if (url && key) {
+      initSupabase(url, key);
+    }
+    // Set today's date as default
+    document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+  });
+
+  function saveCredentials() {
+    const url = document.getElementById('input-url').value.trim();
+    const key = document.getElementById('input-key').value.trim();
+    if (!url || !key) { showToast('Please fill in both fields'); return; }
+    if (!url.includes('supabase.co')) { showToast('URL should look like https://xxx.supabase.co'); return; }
+    localStorage.setItem('sb_url', url);
+    localStorage.setItem('sb_key', key);
+    initSupabase(url, key);
+  }
+
+  function initSupabase(url, key) {
+    try {
+      db = window.supabase.createClient(url, key);
+      document.getElementById('setup-overlay').style.display = 'none';
+      loadTransactions();
+    } catch (e) {
+      showToast('Connection failed. Check your credentials.');
+    }
+  }
+
+  // ─── LOAD DATA ───────────────────────────────────────────────────
+  async function loadTransactions() {
+    try {
+      const { data, error } = await db
+        .from('transactions')
+        .select('*')
+        .order('date', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      allTransactions = data || [];
+      renderAll();
+      updateTimestamp();
+    } catch (e) {
+      document.getElementById('tx-list').innerHTML =
+        '<div class="empty-state"><div class="icon">⚠️</div><p>Could not load data.<br>Check your Supabase credentials.</p></div>';
+    }
+  }
+
+  // ─── RENDER ──────────────────────────────────────────────────────
+  function renderAll() {
+    updateSummary();
+    renderList();
+  }
+
+  function updateSummary() {
+    const income = allTransactions.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+    const expense = allTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+    const balance = income - expense;
+    document.getElementById('balance').textContent = fmt(balance);
+    document.getElementById('total-income').textContent = fmt(income);
+    document.getElementById('total-expense').textContent = fmt(expense);
+  }
+
+  function renderList() {
+    const list = document.getElementById('tx-list');
+    const filtered = currentFilter === 'all' ? allTransactions : allTransactions.filter(t => t.type === currentFilter);
+
+    if (filtered.length === 0) {
+      list.innerHTML = '<div class="empty-state"><div class="icon">' + (currentFilter === 'income' ? '📥' : currentFilter === 'expense' ? '📤' : '📋') + '</div><p>No transactions yet.<br>Tap "+ Add Transaction" to start.</p></div>';
+      return;
+    }
+
+    list.innerHTML = filtered.map(t => `
+      <div class="tx-card">
+        <div class="tx-icon ${t.type}">${t.type === 'income' ? '↑' : '↓'}</div>
+        <div class="tx-info">
+          <div class="tx-desc">${esc(t.description)}</div>
+          <div class="tx-meta">${t.category ? esc(t.category) + ' · ' : ''}${formatDate(t.date)}</div>
+        </div>
+        <div class="tx-right">
+          <div class="tx-amount ${t.type}">${t.type === 'income' ? '+' : '-'}${fmt(t.amount)}</div>
+        </div>
+        <button class="tx-delete" onclick="deleteTransaction('${t.id}')" title="Delete">✕</button>
+      </div>
+    `).join('');
+  }
+
+  // ─── FORM ────────────────────────────────────────────────────────
+  function toggleForm() {
+    const card = document.getElementById('form-card');
+    const isOpen = card.classList.contains('open');
+    card.classList.toggle('open');
+    document.getElementById('add-btn-icon').textContent = isOpen ? '＋' : '✕';
+    document.getElementById('add-btn-text').textContent = isOpen ? 'Add Transaction' : 'Cancel';
+    if (!isOpen) {
+      document.getElementById('f-desc').focus();
+    } else {
+      clearForm();
+    }
+  }
+
+  function setType(type) {
+    currentType = type;
+    document.getElementById('btn-income').className = 'type-btn' + (type === 'income' ? ' active-income' : '');
+    document.getElementById('btn-expense').className = 'type-btn' + (type === 'expense' ? ' active-expense' : '');
+  }
+
+  function clearForm() {
+    document.getElementById('f-desc').value = '';
+    document.getElementById('f-amount').value = '';
+    document.getElementById('f-category').value = '';
+    document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+    setType('income');
+  }
+
+  async function saveTransaction() {
+    if (isSaving) return;
+    const desc = document.getElementById('f-desc').value.trim();
+    const amount = parseFloat(document.getElementById('f-amount').value);
+    const category = document.getElementById('f-category').value;
+    const date = document.getElementById('f-date').value;
+
+    if (!desc) { showToast('Please enter a description'); document.getElementById('f-desc').focus(); return; }
+    if (!amount || amount <= 0) { showToast('Please enter a valid amount'); document.getElementById('f-amount').focus(); return; }
+    if (!date) { showToast('Please select a date'); return; }
+
+    isSaving = true;
+    const btn = document.getElementById('save-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+      const { data, error } = await db.from('transactions').insert([{
+        description: desc,
+        amount: amount,
+        type: currentType,
+        category: category || null,
+        date: date
+      }]).select();
+
+      if (error) throw error;
+      allTransactions.unshift(data[0]);
+      renderAll();
+      toggleForm();
+      showToast(currentType === 'income' ? '✓ Income added!' : '✓ Expense added!');
+    } catch (e) {
+      showToast('Failed to save. Try again.');
+    } finally {
+      isSaving = false;
+      btn.disabled = false;
+      btn.textContent = 'Save Transaction';
+    }
+  }
+
+  async function deleteTransaction(id) {
+    if (!confirm('Delete this transaction?')) return;
+    try {
+      const { error } = await db.from('transactions').delete().eq('id', id);
+      if (error) throw error;
+      allTransactions = allTransactions.filter(t => t.id !== id);
+      renderAll();
+      showToast('Deleted');
+    } catch (e) {
+      showToast('Could not delete. Try again.');
+    }
+  }
+
+  // ─── FILTER ──────────────────────────────────────────────────────
+  function setFilter(filter, el) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    renderList();
+  }
+
+  // ─── UTILS ───────────────────────────────────────────────────────
+  function fmt(n) {
+    return 'RM ' + Math.abs(Number(n)).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function formatDate(d) {
+    if (!d) return '';
+    const dt = new Date(d + 'T00:00:00');
+    return dt.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function updateTimestamp() {
+    const now = new Date();
+    document.getElementById('last-updated').textContent =
+      'Updated ' + now.toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  let toastTimer;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+  }
+</script>
+</body>
+</html>
