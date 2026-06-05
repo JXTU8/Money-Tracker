@@ -229,7 +229,7 @@
     /* ─── TRANSACTION CARD ────────────────────────────────── */
     .transaction-list { display: flex; flex-direction: column; gap: 8px; }
     .tx-wrapper { position: relative; overflow: hidden; border-radius: var(--radius); }
-    .tx-swipe-bg { position: absolute; right: 0; top: 0; bottom: 0; width: 88px; background: transparent; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); cursor: pointer; overflow: hidden; }
+    .tx-swipe-bg { position: absolute; right: 0; top: 0; bottom: 0; width: 88px; background: transparent; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); cursor: pointer; overflow: hidden; opacity: 0; }
     .tx-swipe-bg .bin-icon { font-size: 24px; display: block; transition: transform 0.15s ease; z-index: 1; pointer-events: none; }
     .tx-swipe-bg.hard-swipe { background: rgba(226,75,74,0.12); }
     .tx-swipe-bg.exploding .bin-icon { animation: binPop 0.35s cubic-bezier(.36,.07,.19,.97) forwards; }
@@ -1098,12 +1098,13 @@ function attachSwipe(id) {
     const clamped = Math.max(-HARD - 20, curX);
     card.style.transform = `translateX(${clamped}px)`;
 
-    /* Scale the bin icon as user drags — gives tactile feedback */
-    const progress = Math.min(1, Math.abs(curX) / HARD);
+    /* Reveal bin + scale as user drags */
+    const progress = Math.min(1, Math.abs(curX) / SOFT);
+    bg.style.opacity = String(Math.min(1, progress * 1.4));
     const binIcon  = bg.querySelector('.bin-icon');
-    if (binIcon) binIcon.style.transform = `scale(${1 + progress * 0.6})`;
+    if (binIcon) binIcon.style.transform = `scale(${1 + Math.min(1, Math.abs(curX) / HARD) * 0.6})`;
 
-    /* Tint the background red when past SOFT threshold */
+    /* Tint background red when past SOFT threshold */
     bg.classList.toggle('hard-swipe', Math.abs(curX) > SOFT);
   }, { passive: false });
 
@@ -1124,6 +1125,7 @@ function attachSwipe(id) {
         if (!deleted && card.isConnected) {
           card.style.transition = 'transform 0.25s ease';
           card.style.transform  = '';
+          bg.style.opacity = '0';
           bg.classList.remove('hard-swipe');
           const binIcon = bg.querySelector('.bin-icon');
           if (binIcon) binIcon.style.transform = '';
@@ -1133,6 +1135,7 @@ function attachSwipe(id) {
       /* Snap back */
       card.style.transition = 'transform 0.2s ease';
       card.style.transform  = '';
+      bg.style.opacity = '0';
       bg.classList.remove('hard-swipe');
       const binIcon = bg.querySelector('.bin-icon');
       if (binIcon) binIcon.style.transform = '';
