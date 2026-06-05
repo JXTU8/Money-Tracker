@@ -423,13 +423,14 @@
   let currentType = 'income';
   let isSaving = false;
 
+  // ─── CREDENTIALS ─────────────────────────────────────────────────
+  const SB_URL = 'https://tbdkcevprbqtjegotila.supabase.co';
+  const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRiZGtjZXZwcmJxdGplZ290aWxhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NzU4MTksImV4cCI6MjA5NjE1MTgxOX0.CPmUGpueHph60_p0CnkZJgMJ_ECihaEnhXzyZ4JEET4';
+
   // ─── INIT ────────────────────────────────────────────────────────
   window.addEventListener('DOMContentLoaded', () => {
-    const url = localStorage.getItem('sb_url');
-    const key = localStorage.getItem('sb_key');
-    if (url && key) {
-      initSupabase(url, key);
-    }
+    document.getElementById('setup-overlay').style.display = 'none';
+    initSupabase(SB_URL, SB_KEY);
     // Set today's date as default
     document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
   });
