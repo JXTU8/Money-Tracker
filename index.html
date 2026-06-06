@@ -1876,7 +1876,7 @@ function toggleForm() {
   card.classList.toggle('open');
   document.getElementById('add-icon').textContent = open ? '＋' : '✕';
   document.getElementById('add-text').textContent = open ? 'Add Transaction' : 'Cancel';
-  if (!open) document.getElementById('f-amount').focus(); else clearForm();
+  if (!open) { setType(currentType); document.getElementById('f-amount').focus(); } else clearForm();
 }
 function setType(type) {
   currentType = type;

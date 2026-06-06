@@ -1,12 +1,13 @@
-/* ─── Money Record — Service Worker v4 ───────────────────────────────
-   Changes from v3:
+/* ─── Money Record — Service Worker v5 ───────────────────────────────
+   Changes from v4:
+   ✅ Cache version bumped to v5 — clears stale v4 cache on update
    ✅ Cache-first for static + CDN assets (faster loads, better offline)
    ✅ CDN scripts (Supabase, Chart.js) pre-cached at install
    ✅ Non-GET requests skip the cache handler entirely
    ✅ CDN cache failure doesn't block install
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v4';
+const CACHE = 'money-app-v5';
 
 const STATIC_ASSETS = [
   '/',
