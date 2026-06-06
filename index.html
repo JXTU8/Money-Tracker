@@ -389,10 +389,47 @@
     .setup-save { width: 100%; padding: 12px; background: var(--text); color: var(--card); border: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; margin-top: 4px; font-family: inherit; }
     .setup-hint { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
 
+    /* ─── CUSTOM CONFIRM MODAL ────────────────────────────── */
+    .confirm-content { padding: 4px 0 22px; text-align: center; }
+    .confirm-icon    { font-size: 36px; margin-bottom: 14px; line-height: 1; }
+    .confirm-heading { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+    .confirm-body    { font-size: 14px; color: var(--muted); line-height: 1.55; max-width: 280px; margin: 0 auto; }
+    .confirm-actions { display: flex; flex-direction: column; gap: 10px; }
+    .confirm-ok {
+      padding: 14px; border: none; border-radius: var(--radius);
+      font-size: 15px; font-weight: 600; cursor: pointer;
+      transition: opacity .15s; font-family: inherit; width: 100%;
+    }
+    .confirm-ok.danger  { background: var(--red);  color: white; }
+    .confirm-ok.primary { background: var(--text); color: var(--card); }
+    .confirm-ok:hover   { opacity: .85; }
+    .confirm-cancel {
+      padding: 14px; border: 1.5px solid var(--border); border-radius: var(--radius);
+      background: transparent; color: var(--muted);
+      font-size: 15px; cursor: pointer; transition: all .15s; font-family: inherit; width: 100%;
+    }
+    .confirm-cancel:hover { background: var(--bg); color: var(--text); border-color: var(--text); }
+
     @media (max-width: 500px) { main { padding: 10px; } .balance-amount { font-size: 28px; } }
   </style>
 </head>
 <body>
+
+<!-- ─── CUSTOM CONFIRM MODAL ──────────────────────────────── -->
+<div class="backdrop" id="confirm-backdrop" role="alertdialog" aria-modal="true" aria-labelledby="confirm-heading" aria-describedby="confirm-body">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="confirm-content">
+      <div class="confirm-icon"    id="confirm-icon"    aria-hidden="true"></div>
+      <h3  class="confirm-heading" id="confirm-heading"></h3>
+      <p   class="confirm-body"    id="confirm-body"></p>
+    </div>
+    <div class="confirm-actions">
+      <button class="confirm-ok"     id="confirm-ok-btn"></button>
+      <button class="confirm-cancel" id="confirm-cancel-btn">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <!-- ─── SETUP ───────────────────────────────────────────────── -->
 <div class="setup-overlay" id="setup-overlay" role="dialog" aria-modal="true" aria-labelledby="setup-title">
@@ -824,6 +861,41 @@ function showSyncBanner(on) {
   document.getElementById('sync-banner').classList.toggle('show', on);
 }
 
+/* ─── CUSTOM CONFIRM — replaces browser confirm() ────────── */
+let _confirmCb = null;
+
+function showConfirm(message, onConfirm, { title = 'Are you sure?', confirmText = 'Confirm', icon = '❓', danger = true } = {}) {
+  document.getElementById('confirm-icon').textContent    = icon;
+  document.getElementById('confirm-heading').textContent = title;
+  document.getElementById('confirm-body').textContent    = message;
+  const okBtn = document.getElementById('confirm-ok-btn');
+  okBtn.textContent = confirmText;
+  okBtn.className   = 'confirm-ok ' + (danger ? 'danger' : 'primary');
+  _confirmCb = onConfirm;
+  document.getElementById('confirm-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Focus the cancel button by default — safer for destructive actions
+  setTimeout(() => document.getElementById('confirm-cancel-btn').focus(), 50);
+}
+
+function _closeConfirm() {
+  document.getElementById('confirm-backdrop').classList.remove('open');
+  document.body.style.overflow = '';
+  _confirmCb = null;
+}
+
+function _executeConfirm() {
+  const cb = _confirmCb;
+  _closeConfirm();
+  if (cb) {
+    const result = cb();
+    // Handle async callbacks gracefully
+    if (result && typeof result.catch === 'function') {
+      result.catch(err => showToast('Error: ' + (err?.message || 'Unknown')));
+    }
+  }
+}
+
 /* ─── CHART.JS LAZY LOADER — FIX ─────────────────────────── */
 function loadChartJS() {
   if (chartJsLoaded) return Promise.resolve();
@@ -973,6 +1045,12 @@ window.addEventListener('DOMContentLoaded', () => {
     if (btn) removeCustomCat(parseInt(btn.dataset.idx));
   });
 
+  document.getElementById('confirm-ok-btn').addEventListener('click', _executeConfirm);
+  document.getElementById('confirm-cancel-btn').addEventListener('click', _closeConfirm);
+  document.getElementById('confirm-backdrop').addEventListener('click', e => {
+    if (e.target === document.getElementById('confirm-backdrop')) _closeConfirm();
+  });
+
   // ── Setup overlay ────────────────────────────────────────
   document.getElementById('setup-save-btn').addEventListener('click', saveCredentials);
 
@@ -1003,7 +1081,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // ── Keyboard shortcuts ───────────────────────────────────
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && document.getElementById('form-card').classList.contains('open') && !isSaving) saveTransaction();
-    if (e.key === 'Escape') { closeEditModal(); closeSettingsModal(); }
+    if (e.key === 'Escape') { closeEditModal(); closeSettingsModal(); _closeConfirm(); }
   });
 
   // ── Service worker ───────────────────────────────────────
@@ -1048,9 +1126,11 @@ function saveCredentials() {
   initSupabase(url, key);
 }
 function resetCredentials() {
-  if (!confirm('Shows the setup screen again. Your Supabase data is NOT deleted.')) return;
-  closeSettingsModal();
-  document.getElementById('setup-overlay').classList.add('open');
+  showConfirm(
+    'Your Supabase data is NOT deleted. You\'ll re-enter your credentials once.',
+    () => { closeSettingsModal(); document.getElementById('setup-overlay').classList.add('open'); },
+    { title: 'Reset connection?', confirmText: 'Reset', icon: '🔌', danger: false }
+  );
 }
 function initSupabase(url, key) {
   try {
@@ -1254,11 +1334,11 @@ function addCustomToGoal(i) {
   if (input) input.value = '';
 }
 function deleteGoal(i) {
-  if (!confirm(`Delete goal "${goals[i].name}"? Your progress will be lost.`)) return;
-  goals.splice(i, 1);
-  saveSettings();
-  renderGoals();
-  showToast('Goal removed');
+  showConfirm(
+    `"${goals[i].name}" and all saved progress will be permanently lost.`,
+    () => { goals.splice(i, 1); saveSettings(); renderGoals(); showToast('Goal removed'); },
+    { title: 'Delete goal?', confirmText: 'Delete', icon: '🏦', danger: true }
+  );
 }
 function addGoal() {
   const name   = document.getElementById('new-goal-name').value.trim();
@@ -1707,11 +1787,11 @@ async function saveTransaction() {
 
 /* ─── CANCEL PENDING ──────────────────────────────────────── */
 function cancelPending(tempId) {
-  if (!confirm('Remove this pending transaction?')) return;
-  dequeue(tempId);
-  updatePendingUI();
-  renderAll();
-  showToast('Pending transaction removed');
+  showConfirm(
+    'This entry is still waiting to sync. Removing it means it will never reach Supabase.',
+    () => { dequeue(tempId); updatePendingUI(); renderAll(); showToast('Pending transaction removed'); },
+    { title: 'Remove pending entry?', confirmText: 'Remove', icon: '⏳', danger: true }
+  );
 }
 
 /* ─── EDIT MODAL ──────────────────────────────────────────── */
@@ -1757,13 +1837,19 @@ async function saveEdit() {
   finally { btn.disabled = false; btn.textContent = 'Update'; }
 }
 async function deleteFromEditModal() {
-  if (!editingId || !confirm('Delete this transaction?')) return;
-  await deleteTransaction(editingId);
-  closeEditModal();
+  if (!editingId) return;
+  showConfirm(
+    'This action cannot be undone.',
+    async () => { await deleteTransaction(editingId); closeEditModal(); },
+    { title: 'Delete transaction?', confirmText: 'Delete', icon: '🗑', danger: true }
+  );
 }
 async function confirmDelete(id) {
-  if (!confirm('Delete this transaction?')) return;
-  await deleteTransaction(id);
+  showConfirm(
+    'This action cannot be undone.',
+    () => deleteTransaction(id),
+    { title: 'Delete transaction?', confirmText: 'Delete', icon: '🗑', danger: true }
+  );
 }
 async function deleteTransaction(id) {
   try {
@@ -1833,20 +1919,26 @@ function importCSV(file) {
         imported.push({ date: date.trim(), type: type.trim().toLowerCase(), category: category.trim() || null, description: description.trim(), amount: amt });
       }
       if (!imported.length) { showToast('No valid rows found in CSV'); return; }
-      if (!confirm(`Import ${imported.length} transaction${imported.length > 1 ? 's' : ''}?`)) return;
-      if (!navigator.onLine || !db) {
-        imported.forEach(payload => {
-          const tempId = 'pending_import_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5);
-          enqueue({ ...payload, tempId, isPending: true, createdLocal: new Date().toISOString() });
-        });
-        updatePendingUI(); renderAll();
-        showToast(`💾 ${imported.length} rows queued (offline)`);
-      } else {
-        const { error } = await db.from('transactions').insert(imported);
-        if (error) throw error;
-        await loadTransactions();
-        showToast(`✓ Imported ${imported.length} transaction${imported.length > 1 ? 's' : ''}`);
-      }
+
+      showConfirm(
+        `${imported.length} transaction${imported.length > 1 ? 's' : ''} will be added to your records.`,
+        async () => {
+          if (!navigator.onLine || !db) {
+            imported.forEach(payload => {
+              const tempId = 'pending_import_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5);
+              enqueue({ ...payload, tempId, isPending: true, createdLocal: new Date().toISOString() });
+            });
+            updatePendingUI(); renderAll();
+            showToast(`💾 ${imported.length} rows queued (offline)`);
+          } else {
+            const { error } = await db.from('transactions').insert(imported);
+            if (error) throw error;
+            await loadTransactions();
+            showToast(`✓ Imported ${imported.length} transaction${imported.length > 1 ? 's' : ''}`);
+          }
+        },
+        { title: `Import ${imported.length} transaction${imported.length > 1 ? 's' : ''}?`, confirmText: 'Import', icon: '📥', danger: false }
+      );
     } catch (err) {
       showToast('Import failed: ' + (err?.message || 'Unknown error'));
     }
@@ -1945,18 +2037,24 @@ function importSettings(file) {
     try {
       const data = JSON.parse(e.target.result);
       if (!data.version) { showToast('Unrecognised settings file'); return; }
-      if (!confirm('This will replace your current budgets, categories, goals and recurring templates. Continue?')) return;
-      if (data.budgets)      budgets      = data.budgets;
-      if (data.customCats)   customCats   = data.customCats;
-      if (data.recTemplates) recTemplates = data.recTemplates;
-      if (data.goals)        goals        = data.goals;
-      saveSettings();
-      buildCategorySelects();
-      renderCustomCatsList();
-      renderRecurringList();
-      renderBudget();
-      if (document.getElementById('panel-goals').classList.contains('open')) renderGoals();
-      showToast('✓ Settings imported');
+
+      showConfirm(
+        'Budgets, categories, goals and recurring templates will be replaced.',
+        () => {
+          if (data.budgets)      budgets      = data.budgets;
+          if (data.customCats)   customCats   = data.customCats;
+          if (data.recTemplates) recTemplates = data.recTemplates;
+          if (data.goals)        goals        = data.goals;
+          saveSettings();
+          buildCategorySelects();
+          renderCustomCatsList();
+          renderRecurringList();
+          renderBudget();
+          if (document.getElementById('panel-goals').classList.contains('open')) renderGoals();
+          showToast('✓ Settings imported');
+        },
+        { title: 'Import settings?', confirmText: 'Import', icon: '⬇', danger: false }
+      );
     } catch { showToast('Failed to parse settings file'); }
     document.getElementById('settings-import-input').value = '';
   };
