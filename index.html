@@ -410,6 +410,41 @@
     }
     .confirm-cancel:hover { background: var(--bg); color: var(--text); border-color: var(--text); }
 
+    /* ─── DATE GROUP HEADER ──────────────────────────────────── */
+    .date-group-hdr {
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      padding: 10px 2px 4px; text-transform: uppercase; letter-spacing: .6px;
+    }
+    .date-group-hdr:first-child { padding-top: 2px; }
+    /* ─── DESKTOP DELETE BUTTON ──────────────────────────────── */
+    .tx-delete-btn {
+      display: none; background: none; border: none; color: var(--muted);
+      cursor: pointer; padding: 4px 6px; border-radius: 6px;
+      font-size: 15px; line-height: 1; flex-shrink: 0;
+      transition: color .15s, background .15s;
+    }
+    @media (hover: hover) {
+      .tx-card:hover .tx-delete-btn,
+      .tx-card:focus-within .tx-delete-btn { display: flex; align-items: center; }
+    }
+    .tx-delete-btn:hover { color: var(--red); background: var(--red-light); }
+    /* ─── SCREEN READER ONLY ─────────────────────────────────── */
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    /* ─── UPDATE BANNER ──────────────────────────────────────── */
+    .update-banner {
+      background: var(--blue); color: white; padding: 8px 16px;
+      font-size: 13px; position: sticky; top: 0; z-index: 25;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .update-banner button {
+      background: white; color: var(--blue); border: none; border-radius: 6px;
+      padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+    }
+    /* ─── BALANCE FORECAST ───────────────────────────────────── */
+    .balance-forecast { font-size: 11px; opacity: .65; margin-top: 4px; }
+    /* ─── PULL TO REFRESH ────────────────────────────────────── */
+    .ptr-indicator { display: none; text-align: center; font-size: 13px; color: var(--muted); padding: 8px 0; }
+    .ptr-indicator.show { display: block; }
     @media (max-width: 500px) { main { padding: 10px; } .balance-amount { font-size: 28px; } }
   </style>
 </head>
@@ -466,8 +501,9 @@
       <button class="btn-cancel" id="e-cancel-btn">Cancel</button>
       <button class="btn-save"   id="e-save-btn">Update</button>
     </div>
-    <div style="margin-top:12px;text-align:center">
-      <button id="e-delete-btn" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:4px 8px;font-family:inherit">🗑 Delete transaction</button>
+    <div style="margin-top:12px;display:flex;justify-content:center;gap:20px">
+      <button id="e-duplicate-btn" style="background:none;border:none;color:var(--blue);font-size:13px;cursor:pointer;padding:4px 8px;font-family:inherit">⊕ Duplicate</button>
+      <button id="e-delete-btn" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:4px 8px;font-family:inherit">🗑 Delete</button>
     </div>
   </div>
 </div>
@@ -564,6 +600,8 @@
   Back online — syncing your offline transactions…
 </div>
 
+<div id="tx-announce" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+<div class="ptr-indicator" id="ptr-indicator">↻ Release to refresh…</div>
 <main>
   <!-- Month nav -->
   <div class="month-nav">
@@ -582,6 +620,7 @@
     <div class="balance-amount" id="balance">RM 0.00</div>
     <div class="balance-sub" id="balance-sub">This month</div>
     <div class="balance-compare" id="balance-compare"></div>
+    <div class="balance-forecast" id="balance-forecast"></div>
   </div>
   <div class="stats-row">
     <div class="stat-card income"><div class="stat-label">↑ Income</div><div class="stat-amount" id="total-income">RM 0.00</div></div>
@@ -606,8 +645,8 @@
       <h3>New Transaction</h3>
       <div class="form-group"><label>Type</label>
         <div class="type-toggle">
-          <button class="type-btn active-income" id="btn-income"  data-ftype="income"  aria-pressed="true">↑ Income</button>
-          <button class="type-btn"               id="btn-expense" data-ftype="expense" aria-pressed="false">↓ Expense</button>
+          <button class="type-btn"                id="btn-income"  data-ftype="income"  aria-pressed="false">↑ Income</button>
+          <button class="type-btn active-expense" id="btn-expense" data-ftype="expense" aria-pressed="true">↓ Expense</button>
         </div>
       </div>
       <div class="form-group"><label for="f-category">Category</label><select id="f-category"></select></div>
@@ -748,7 +787,7 @@ const DEF_EXPENSE = ['Food & Drinks','Groceries','Transport','Utilities','Shoppi
 let db           = null;
 let allTxs       = [];
 let currentFilter = 'all';
-let currentType   = 'income';
+let currentType   = 'expense';
 let editType      = 'income';
 let editingId     = null;
 let isSaving      = false;
@@ -967,6 +1006,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // ── Add form ─────────────────────────────────────────────
   document.getElementById('add-btn').addEventListener('click', toggleForm);
+  ['f-amount','e-amount'].forEach(id => {
+    const _amtEl = document.getElementById(id);
+    if (_amtEl) _amtEl.addEventListener('input', () => {
+      if (parseFloat(_amtEl.value) < 0) _amtEl.value = Math.abs(parseFloat(_amtEl.value)) || '';
+    });
+  });
   document.getElementById('btn-cancel').addEventListener('click', toggleForm);
   document.getElementById('save-btn').addEventListener('click', saveTransaction);
 
@@ -981,7 +1026,10 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('f-recurring').addEventListener('change', e => toggleRecOpts(e.target.checked));
 
   // ── Search & filter ──────────────────────────────────────
-  document.getElementById('search-input').addEventListener('input', e => onSearch(e.target.value));
+  let _srchT;
+  document.getElementById('search-input').addEventListener('input', e => {
+    clearTimeout(_srchT); _srchT = setTimeout(() => onSearch(e.target.value), 200);
+  });
   document.getElementById('search-clear').addEventListener('click', clearSearch);
   document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
 
@@ -998,6 +1046,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('e-cancel-btn').addEventListener('click', closeEditModal);
   document.getElementById('e-save-btn').addEventListener('click', saveEdit);
   document.getElementById('e-delete-btn').addEventListener('click', deleteFromEditModal);
+  document.getElementById('e-duplicate-btn').addEventListener('click', duplicateTransaction);
 
   // FIX: data-etype for edit type buttons
   document.querySelectorAll('[data-etype]').forEach(btn => {
@@ -1053,6 +1102,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // ── Setup overlay ────────────────────────────────────────
   document.getElementById('setup-save-btn').addEventListener('click', saveCredentials);
+  ['edit-backdrop','settings-backdrop','confirm-backdrop'].forEach(makeFocusTrap);
 
   // ── CSV import ───────────────────────────────────────────
   document.getElementById('csv-import-btn').addEventListener('click', () => {
@@ -1082,11 +1132,51 @@ window.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && document.getElementById('form-card').classList.contains('open') && !isSaving) saveTransaction();
     if (e.key === 'Escape') { closeEditModal(); closeSettingsModal(); _closeConfirm(); }
+    // 'N' shortcut opens the Add form when no modal/input is active
+    if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const _tag = document.activeElement?.tagName?.toLowerCase();
+      const _inInput = ['input','textarea','select'].includes(_tag);
+      const _modalOpen = ['edit-backdrop','settings-backdrop','confirm-backdrop'].some(
+        id => document.getElementById(id)?.classList.contains('open')
+      );
+      if (!_inInput && !_modalOpen && !document.getElementById('form-card').classList.contains('open')) {
+        e.preventDefault(); toggleForm();
+      }
+    }
   });
+
+  // ── Pull to refresh (mobile) ──────────────────────────────
+  let _ptrY = 0, _ptrOn = false;
+  document.addEventListener('touchstart', e => {
+    if (window.scrollY <= 0 && !document.body.style.overflow.includes('hidden')) {
+      _ptrY = e.touches[0].clientY; _ptrOn = true;
+    }
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (_ptrOn && e.touches[0].clientY - _ptrY > 50)
+      document.getElementById('ptr-indicator')?.classList.add('show');
+  }, { passive: true });
+  document.addEventListener('touchend', async e => {
+    document.getElementById('ptr-indicator')?.classList.remove('show');
+    if (!_ptrOn) return; _ptrOn = false;
+    if (e.changedTouches[0].clientY - _ptrY > 80) { showToast('↻ Refreshing…'); await loadTransactions(); }
+  }, { passive: true });
 
   // ── Service worker ───────────────────────────────────────
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const _nw = reg.installing;
+        _nw.addEventListener('statechange', () => {
+          if (_nw.state === 'installed' && navigator.serviceWorker.controller) {
+            const _b = document.createElement('div');
+            _b.className = 'update-banner';
+            _b.innerHTML = '🆕 App update ready — <button onclick="location.reload()">Refresh now</button>';
+            document.body.prepend(_b);
+          }
+        });
+      });
+    }).catch(() => {});
   }
 });
 
@@ -1355,8 +1445,79 @@ function addGoal() {
   showToast(`✓ "${name}" goal created!`);
 }
 
+/* ─── DATE GROUPING HELPERS ─────────────────────────────── */
+function groupByDate(txs) {
+  const groups = {}, order = [];
+  txs.forEach(t => {
+    const key = t.date || 'unknown';
+    if (!groups[key]) { groups[key] = []; order.push(key); }
+    groups[key].push(t);
+  });
+  return order.map(k => ({ date: k, txs: groups[k] }));
+}
+function labelDate(ds) {
+  if (!ds || ds === 'unknown') return 'Unknown date';
+  const d = new Date(ds + 'T00:00:00');
+  if (isNaN(d)) return ds;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yest  = new Date(today); yest.setDate(today.getDate() - 1);
+  if (d.getTime() === today.getTime()) return 'Today';
+  if (d.getTime() === yest.getTime())  return 'Yesterday';
+  const opts = { weekday: 'short', day: 'numeric', month: 'short' };
+  if (d.getFullYear() !== today.getFullYear()) opts.year = 'numeric';
+  return d.toLocaleDateString('en-MY', opts);
+}
+
+/* ─── SCREEN READER ANNOUNCE ─────────────────────────── */
+function announceToSR(msg) {
+  const el = document.getElementById('tx-announce');
+  if (!el) return;
+  el.textContent = '';
+  requestAnimationFrame(() => { el.textContent = msg; });
+}
+
+/* ─── FOCUS TRAP ─────────────────────────────────────── */
+function makeFocusTrap(backdropId) {
+  document.getElementById(backdropId).addEventListener('keydown', e => {
+    if (e.key !== 'Tab') return;
+    const bd = document.getElementById(backdropId);
+    if (!bd.classList.contains('open')) return;
+    const sel = 'button:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
+    const focusable = Array.from(bd.querySelectorAll(sel)).filter(el => el.offsetParent !== null);
+    if (!focusable.length) return;
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+    else            { if (document.activeElement === last)  { e.preventDefault(); first.focus(); } }
+  });
+}
+
+/* ─── DUPLICATE TRANSACTION ──────────────────────────── */
+async function duplicateTransaction() {
+  const t = allTxs.find(x => x.id === editingId);
+  if (!t) return;
+  closeEditModal();
+  const payload = { description: t.description, amount: t.amount, type: t.type, category: t.category || null, date: todayStr() };
+  if (!navigator.onLine || !db) {
+    const tempId = 'pending_dup_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    enqueue({ ...payload, tempId, isPending: true, createdLocal: new Date().toISOString() });
+    updatePendingUI(); renderAll();
+    showToast('💾 Duplicate saved locally');
+  } else {
+    try {
+      const { data, error } = await db.from('transactions').insert([payload]).select();
+      if (error) throw error;
+      allTxs.unshift(data[0]); renderAll();
+      showToast('✓ Transaction duplicated');
+    } catch (err) { showToast('Error: ' + (err?.message || 'Unknown')); }
+  }
+}
+
 /* ─── RENDER ──────────────────────────────────────────────── */
-function renderAll() { updateSummary(); renderList(); renderCharts(); renderBudget(); }
+let _renderTimer;
+function renderAll() {
+  clearTimeout(_renderTimer);
+  _renderTimer = setTimeout(() => { updateSummary(); renderList(); renderCharts(); renderBudget(); }, 50);
+}
 
 function updateSummary() {
   const txs = monthTxs();
@@ -1366,6 +1527,19 @@ function updateSummary() {
   document.getElementById('balance').textContent       = fmt(bal);
   document.getElementById('total-income').textContent  = fmt(inc);
   document.getElementById('total-expense').textContent = fmt(exp);
+
+  // Spending forecast for current month
+  const _fnow = new Date();
+  const _forecastEl = document.getElementById('balance-forecast');
+  if (_forecastEl) {
+    const _isCur = !isAllTime && viewYear === _fnow.getFullYear() && viewMonth === _fnow.getMonth();
+    if (_isCur && exp > 0) {
+      const _dim = new Date(viewYear, viewMonth + 1, 0).getDate();
+      const _dp  = Math.max(1, _fnow.getDate());
+      _forecastEl.textContent = '~' + fmt((exp / _dp) * _dim) + ' projected spend this month';
+    } else { _forecastEl.textContent = ''; }
+  }
+
   const cmp = document.getElementById('balance-compare');
   if (cmp && !isAllTime) {
     let lm = viewMonth - 1, ly = viewYear;
@@ -1422,39 +1596,48 @@ function renderList() {
     return;
   }
 
-  list.innerHTML = visible.map(t => {
-    const isRec   = !t.isPending && isRecurringTx(t);
-    const cat     = t.category ? esc(t.category) + ' · ' : '';
-    const budWarn = getBudgetWarn(t);
-    return `
-    <div class="tx-wrapper" id="wrap-${t.id}">
-      <div class="tx-swipe-bg" id="bg-${t.id}"><span class="bin-icon">🗑</span></div>
-      <div class="tx-card${t.isPending?' is-pending':''}" id="card-${t.id}">
-        <div class="tx-icon ${t.type}">${t.type==='income'?'↑':'↓'}</div>
-        <div class="tx-info">
-          <div class="tx-desc">
-            ${esc(t.description || 'No description')}
-            ${t.isPending ? '<span class="badge pending">⏳ pending sync</span>' : ''}
-            ${isRec ? '<span class="badge rec">↻ recurring</span>' : ''}
+  // Render transactions grouped by date
+  const _grps = groupByDate(visible);
+  list.innerHTML = _grps.map(({ date, txs: _gt }) =>
+    '<div class="date-group-hdr">' + labelDate(date) + '</div>' +
+    _gt.map(t => {
+      const isRec   = !t.isPending && isRecurringTx(t);
+      const cat     = t.category ? esc(t.category) + ' · ' : '';
+      const budWarn = getBudgetWarn(t);
+      return `
+      <div class="tx-wrapper" id="wrap-${t.id}">
+        <div class="tx-swipe-bg" id="bg-${t.id}"><span class="bin-icon">🗑</span></div>
+        <div class="tx-card${t.isPending?' is-pending':''}" id="card-${t.id}">
+          <div class="tx-icon ${t.type}" aria-hidden="true">${t.type==='income'?'↑':'↓'}</div>
+          <div class="tx-info">
+            <div class="tx-desc">
+              ${esc(t.description || 'No description')}
+              ${t.isPending ? '<span class="badge pending">⏳ pending sync</span>' : ''}
+              ${isRec ? '<span class="badge rec">↻ recurring</span>' : ''}
+            </div>
+            <div class="tx-meta">${cat}${formatDate(t.date)}</div>
+            ${budWarn ? `<div class="budget-alert">⚠ ${budWarn}</div>` : ''}
           </div>
-          <div class="tx-meta">${cat}${formatDate(t.date)}</div>
-          ${budWarn ? `<div class="budget-alert">⚠ ${budWarn}</div>` : ''}
+          <div class="tx-right">
+            <div class="tx-amount ${t.type}" aria-label="${t.type} ${fmt(t.amount)}">${t.type==='income'?'+':'-'}${fmt(t.amount)}</div>
+          </div>
+          ${!t.isPending ? `<button class="tx-delete-btn" id="del-${t.id}" aria-label="Delete ${esc(t.description||'transaction')}">🗑</button>` : ''}
         </div>
-        <div class="tx-right">
-          <div class="tx-amount ${t.type}">${t.type==='income'?'+':'-'}${fmt(t.amount)}</div>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+      </div>`;
+    }).join('')
+  ).join('');
 
-  // FIX: attach listeners from callback maps — no onclick needed
+  // Attach event listeners
   visible.forEach(t => {
-    const card = document.getElementById('card-' + t.id);
-    const bg   = document.getElementById('bg-'   + t.id);
-    if (card && txClickCallbacks[t.id])  card.addEventListener('click', txClickCallbacks[t.id]);
-    if (bg   && txDeleteCallbacks[t.id]) bg.addEventListener('click',   txDeleteCallbacks[t.id]);
+    const card   = document.getElementById('card-' + t.id);
+    const bg     = document.getElementById('bg-'   + t.id);
+    const delBtn = document.getElementById('del-'  + t.id);
+    if (card && txClickCallbacks[t.id])    card.addEventListener('click', txClickCallbacks[t.id]);
+    if (bg   && txDeleteCallbacks[t.id])   bg.addEventListener('click',   txDeleteCallbacks[t.id]);
+    if (delBtn && txDeleteCallbacks[t.id]) delBtn.addEventListener('click', e => { e.stopPropagation(); txDeleteCallbacks[t.id](); });
     attachSwipe(t.id);
   });
+  announceToSR(visible.length + ' transaction' + (visible.length !== 1 ? 's' : '') + ' shown');
 
   // FIX: Load more button appended after list
   if (hasMoreTxs && !searchQ) {
@@ -1605,7 +1788,7 @@ function renderBarChart() {
     let m = viewMonth - i, y = viewYear;
     if (m < 0) { m += 12; y--; }
     labels.push(`${MSHORT[m]} ${y}`);
-    const mT = allTxs.filter(t => { const d = new Date(t.date+'T00:00:00'); return d.getFullYear()===y && d.getMonth()===m; });
+    const mT = allTxsWithPending().filter(t => { const d = new Date(t.date+'T00:00:00'); return d.getFullYear()===y && d.getMonth()===m; });
     incs.push(mT.filter(t=>t.type==='income').reduce((s,t)=>s+ +t.amount,0));
     exps.push(mT.filter(t=>t.type==='expense').reduce((s,t)=>s+ +t.amount,0));
   }
@@ -1701,6 +1884,7 @@ function setType(type) {
   document.getElementById('btn-expense').className = 'type-btn' + (type==='expense' ? ' active-expense' : '');
   document.getElementById('btn-income').setAttribute('aria-pressed',  type==='income'  ? 'true' : 'false');
   document.getElementById('btn-expense').setAttribute('aria-pressed', type==='expense' ? 'true' : 'false');
+  buildCategorySelect('f-category', type);
 }
 function quickAdd(v) {
   const el = document.getElementById('f-amount');
@@ -1713,18 +1897,20 @@ function clearForm() {
   document.getElementById('f-date').value = todayStr();
   document.getElementById('f-recurring').checked = false;
   document.getElementById('freq-wrap').classList.remove('show');
-  setType('income');
+  setType('expense');
+}
+function buildCategorySelect(id, type) {
+  const cats = type === 'income'
+    ? [...DEF_INCOME,  ...customCats.filter(c=>c.type==='income').map(c=>c.name)]
+    : [...DEF_EXPENSE, ...customCats.filter(c=>c.type==='expense').map(c=>c.name)];
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = '<option value="">-- Select category --</option>' +
+    cats.map(c=>`<option>${esc(c)}</option>`).join('');
 }
 function buildCategorySelects() {
-  const incCats = [...DEF_INCOME,  ...customCats.filter(c=>c.type==='income').map(c=>c.name)];
-  const expCats = [...DEF_EXPENSE, ...customCats.filter(c=>c.type==='expense').map(c=>c.name)];
-  const html = `<option value="">-- Select category --</option>
-    <optgroup label="Income">${incCats.map(c=>`<option>${esc(c)}</option>`).join('')}</optgroup>
-    <optgroup label="Expenses">${expCats.map(c=>`<option>${esc(c)}</option>`).join('')}</optgroup>`;
-  ['f-category','e-category'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = html;
-  });
+  buildCategorySelect('f-category', currentType);
+  buildCategorySelect('e-category', editType);
 }
 
 /* ─── SAVE TRANSACTION ────────────────────────────────────── */
@@ -1803,10 +1989,10 @@ function openEditModal(id) {
   document.getElementById('e-amount').value   = t.amount;
   document.getElementById('e-desc').value     = t.description || '';
   document.getElementById('e-date').value     = t.date;
-  buildCategorySelects();
   document.getElementById('e-category').value = t.category || '';
   document.getElementById('edit-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('e-amount').focus(), 80);
 }
 function closeEditModal() {
   document.getElementById('edit-backdrop').classList.remove('open');
@@ -1819,6 +2005,7 @@ function setEditType(type) {
   document.getElementById('e-btn-expense').className = 'type-btn' + (type==='expense' ? ' active-expense' : '');
   document.getElementById('e-btn-income').setAttribute('aria-pressed',  type==='income'  ? 'true' : 'false');
   document.getElementById('e-btn-expense').setAttribute('aria-pressed', type==='expense' ? 'true' : 'false');
+  buildCategorySelect('e-category', type);
 }
 async function saveEdit() {
   if (!editingId) return;
@@ -1924,8 +2111,8 @@ function importCSV(file) {
         `${imported.length} transaction${imported.length > 1 ? 's' : ''} will be added to your records.`,
         async () => {
           if (!navigator.onLine || !db) {
-            imported.forEach(payload => {
-              const tempId = 'pending_import_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5);
+            imported.forEach((payload, _idx) => {
+              const tempId = 'pending_import_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7) + '_' + _idx;
               enqueue({ ...payload, tempId, isPending: true, createdLocal: new Date().toISOString() });
             });
             updatePendingUI(); renderAll();
@@ -2063,7 +2250,7 @@ function importSettings(file) {
 
 /* ─── UTILS ───────────────────────────────────────────────── */
 function fmt(n) { return 'RM ' + Math.abs(+n).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-function formatDate(d) { if (!d) return ''; return new Date(d + 'T00:00:00').toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }); }
+function formatDate(d) { if (!d) return '—'; const _dt = new Date(d + 'T00:00:00'); return isNaN(_dt) ? '—' : _dt.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }); }
 function todayStr()    { return new Date().toISOString().split('T')[0]; }
 function esc(s)        { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function updateTimestamp() { document.getElementById('sync-ts').textContent = 'Synced ' + new Date().toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit' }); }
