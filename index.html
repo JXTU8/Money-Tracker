@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="Money Record" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Chart.js is loaded lazily when the Charts tab is first opened -->
   <style>
     :root {
       --green: #1D9E75; --green-light: #E1F5EE;
@@ -71,8 +71,6 @@
       text-align: center; align-items: center; justify-content: center; gap: 8px;
     }
     .sync-banner.show { display: flex; }
-
-    /* pending badge pill in header */
     #pending-pill {
       display: none; background: var(--amber); color: white;
       font-size: 10px; font-weight: 700; padding: 3px 8px;
@@ -80,7 +78,6 @@
     }
     #pending-pill.show { display: inline-block; }
 
-    /* pulsing dot */
     @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
     .dot-pulse { display:inline-block; width:7px; height:7px; border-radius:50%; background:currentColor; animation: pulse 1.4s infinite; }
 
@@ -107,6 +104,14 @@
       border: 1px solid var(--border); color: var(--muted); transition: all .15s;
     }
     .alltime-chip.on { background: var(--green-light); border-color: var(--green); color: var(--green); }
+    /* FIX: Today button — hidden when on the current month */
+    .today-btn {
+      display: none; font-size: 11px; padding: 2px 8px;
+      border-radius: 10px; cursor: pointer; margin-top: 3px; margin-left: 4px;
+      border: 1px solid var(--green); background: var(--green-light);
+      color: var(--green); font-weight: 500; transition: all .15s;
+    }
+    .today-btn:hover { background: var(--green); color: white; }
 
     /* ─── BALANCE CARD ────────────────────────────────────── */
     .balance-card {
@@ -117,6 +122,7 @@
     .balance-label { font-size: 12px; opacity: .8; margin-bottom: 4px; }
     .balance-amount { font-size: 34px; font-weight: 700; letter-spacing: -1px; }
     .balance-sub { font-size: 11px; opacity: .6; margin-top: 3px; }
+    .balance-compare { font-size: 11px; opacity: .7; margin-top: 4px; }
 
     .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
     .stat-card { background: var(--card); border-radius: var(--radius); padding: 12px 14px; border: 1px solid var(--border); }
@@ -147,6 +153,11 @@
     .chart-card h3 { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 12px; }
     .chart-wrap { position: relative; height: 200px; }
     .chart-empty { text-align: center; padding: 40px 0; color: var(--muted); font-size: 13px; }
+    .chart-partial-notice {
+      display: none; font-size: 11px; color: var(--amber); text-align: center;
+      margin-bottom: 8px; padding: 6px 10px; background: var(--amber-light);
+      border-radius: 8px; border: 1px solid var(--amber);
+    }
 
     /* ─── BUDGET ──────────────────────────────────────────── */
     .budget-progress-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; }
@@ -162,9 +173,60 @@
     .budget-setup-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
     .budget-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
     .budget-row label { flex: 1; font-size: 13px; }
-    .budget-row input { width: 90px; padding: 6px 10px; text-align: right; border: 1px solid var(--border); border-radius: 7px; font-size: 13px; background: var(--bg); color: var(--text); }
-    .budget-save-btn { width: 100%; margin-top: 12px; padding: 10px; background: var(--text); color: var(--card); border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity .15s; }
+    .budget-row input { width: 90px; padding: 6px 10px; text-align: right; border: 1px solid var(--border); border-radius: 7px; font-size: 13px; background: var(--bg); color: var(--text); font-family: inherit; }
+    .budget-save-btn { width: 100%; margin-top: 12px; padding: 10px; background: var(--text); color: var(--card); border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity .15s; font-family: inherit; }
     .budget-save-btn:hover { opacity: .85; }
+
+    /* ─── GOALS — FIX: all classes were missing ───────────── */
+    .goal-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 16px;
+      margin-bottom: 10px; transition: border-color .2s;
+    }
+    .goal-card.goal-done { border-color: var(--green); }
+    .goal-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+    .goal-emoji { font-size: 26px; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+    .goal-info { flex: 1; min-width: 0; }
+    .goal-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .goal-amounts { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .goal-del {
+      background: none; border: none; color: var(--muted); font-size: 20px;
+      cursor: pointer; padding: 2px 4px; line-height: 1; border-radius: 6px;
+      transition: color .15s, background .15s; flex-shrink: 0; font-family: inherit;
+    }
+    .goal-del:hover { color: var(--red); background: var(--red-light); }
+    .goal-bar-bg { background: var(--bg); border-radius: 4px; height: 8px; overflow: hidden; margin-bottom: 10px; }
+    .goal-bar-fill { height: 100%; border-radius: 4px; background: var(--green); transition: width .5s ease; }
+    .goal-card.goal-done .goal-bar-fill { background: linear-gradient(90deg, #0F6E56, var(--green)); }
+    .goal-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+    .goal-pct { font-size: 11px; color: var(--muted); font-weight: 500; }
+    .goal-add-row { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+    .goal-quick {
+      padding: 5px 10px; border-radius: 8px; border: 1.5px solid var(--border);
+      background: var(--card); font-size: 12px; font-weight: 600; cursor: pointer;
+      color: var(--text); transition: all .12s; -webkit-tap-highlight-color: transparent;
+      font-family: inherit;
+    }
+    .goal-quick:hover, .goal-quick:active { background: var(--green-light); border-color: var(--green); color: var(--green); }
+    .goal-custom {
+      width: 80px; padding: 5px 8px; border: 1.5px solid var(--border);
+      border-radius: 8px; font-size: 12px; background: var(--card); color: var(--text);
+      outline: none; transition: border-color .15s; font-family: inherit;
+    }
+    .goal-custom:focus { border-color: var(--blue); }
+    .goal-add-btn {
+      padding: 5px 10px; border-radius: 8px; background: var(--text); color: var(--card);
+      border: none; font-size: 12px; font-weight: 500; cursor: pointer;
+      transition: opacity .15s; font-family: inherit;
+    }
+    .goal-add-btn:hover { opacity: .85; }
+    .goal-form-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 16px; margin-top: 10px;
+    }
+    .goal-form-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+    .goal-form-row { display: flex; gap: 10px; }
+    .goal-emoji-field { text-align: center; font-size: 18px; }
 
     /* ─── ADD FORM ────────────────────────────────────────── */
     .add-btn {
@@ -172,6 +234,7 @@
       border: none; border-radius: var(--radius); font-size: 15px; font-weight: 500;
       cursor: pointer; margin-bottom: 12px; display: flex;
       align-items: center; justify-content: center; gap: 8px; transition: opacity .15s;
+      font-family: inherit;
     }
     .add-btn:hover { opacity: .85; }
     .form-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 18px; margin-bottom: 12px; display: none; }
@@ -186,23 +249,22 @@
     }
     .form-group input:focus, .form-group select:focus { border-color: var(--blue); }
     .type-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .type-btn { padding: 9px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--card); font-size: 14px; font-weight: 500; cursor: pointer; transition: all .15s; color: var(--muted); }
+    .type-btn { padding: 9px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--card); font-size: 14px; font-weight: 500; cursor: pointer; transition: all .15s; color: var(--muted); font-family: inherit; }
     .type-btn.active-income  { border-color: var(--green); background: var(--green-light); color: var(--green); }
     .type-btn.active-expense { border-color: var(--red);   background: var(--red-light);   color: var(--red); }
     .quick-add-row { display: flex; gap: 5px; margin-top: 7px; }
-    .quick-add-btn { flex: 1; padding: 7px 0; border-radius: 8px; border: 1.5px solid var(--border); background: var(--card); font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text); transition: all .12s; -webkit-tap-highlight-color: transparent; }
+    .quick-add-btn { flex: 1; padding: 7px 0; border-radius: 8px; border: 1.5px solid var(--border); background: var(--card); font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text); transition: all .12s; -webkit-tap-highlight-color: transparent; font-family: inherit; }
     .quick-add-btn:hover,.quick-add-btn:active { background: var(--green-light); border-color: var(--green); color: var(--green); }
     .recurring-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-bottom: 11px; }
     .recurring-row input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; }
     .freq-select { display: none; }
     .freq-select.show { display: block; }
     .form-actions { display: flex; gap: 8px; margin-top: 14px; }
-    .btn-save { flex: 1; padding: 11px; background: var(--text); color: var(--card); border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity .15s; }
+    .btn-save { flex: 1; padding: 11px; background: var(--text); color: var(--card); border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity .15s; font-family: inherit; }
     .btn-save:hover { opacity: .85; }
     .btn-save:disabled { opacity: .45; cursor: not-allowed; }
-    .btn-cancel { padding: 11px 16px; background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; cursor: pointer; }
+    .btn-cancel { padding: 11px 16px; background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; cursor: pointer; font-family: inherit; }
 
-    /* ─── OFFLINE SAVE HINT ───────────────────────────────── */
     .offline-hint {
       display: none; background: var(--amber-light); border: 1px solid var(--amber);
       color: var(--amber); border-radius: 8px; padding: 8px 12px;
@@ -212,7 +274,7 @@
 
     /* ─── SEARCH ──────────────────────────────────────────── */
     .search-wrap { position: relative; margin-bottom: 10px; }
-    .search-wrap input { width: 100%; padding: 9px 36px 9px 14px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; background: var(--card); color: var(--text); outline: none; transition: border-color .15s; }
+    .search-wrap input { width: 100%; padding: 9px 36px 9px 14px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; background: var(--card); color: var(--text); outline: none; transition: border-color .15s; font-family: inherit; }
     .search-wrap input:focus { border-color: var(--blue); }
     .search-icon { position: absolute; right: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; font-size: 14px; }
     .search-clear { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 4px; display: none; }
@@ -220,10 +282,10 @@
     /* ─── LIST HEADER ─────────────────────────────────────── */
     .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
     .section-header h2 { font-size: 15px; font-weight: 600; }
-    .csv-btn { padding: 5px 11px; background: var(--card); color: var(--muted); border: 1px solid var(--border); border-radius: 7px; font-size: 12px; cursor: pointer; transition: all .15s; }
+    .csv-btn { padding: 5px 11px; background: var(--card); color: var(--muted); border: 1px solid var(--border); border-radius: 7px; font-size: 12px; cursor: pointer; transition: all .15s; font-family: inherit; }
     .csv-btn:hover { background: var(--bg); color: var(--text); }
     .filter-row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
-    .filter-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--card); font-size: 12px; cursor: pointer; color: var(--muted); transition: all .15s; }
+    .filter-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--card); font-size: 12px; cursor: pointer; color: var(--muted); transition: all .15s; font-family: inherit; }
     .filter-btn.active { background: var(--text); color: var(--card); border-color: var(--text); }
 
     /* ─── TRANSACTION CARD ────────────────────────────────── */
@@ -256,6 +318,15 @@
     .badge { display: inline-block; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 4px; margin-left: 5px; vertical-align: middle; letter-spacing: .3px; }
     .badge.rec     { background: var(--amber-light); color: var(--amber); }
     .badge.pending { background: var(--amber); color: white; }
+
+    /* ─── LOAD MORE — FIX: new ────────────────────────────── */
+    .load-more-btn {
+      width: 100%; padding: 11px; margin-top: 4px;
+      background: transparent; color: var(--muted);
+      border: 1px dashed var(--border); border-radius: var(--radius);
+      font-size: 13px; cursor: pointer; transition: all .15s; font-family: inherit;
+    }
+    .load-more-btn:hover { background: var(--card); color: var(--text); border-style: solid; }
 
     /* ─── EMPTY / LOADING ─────────────────────────────────── */
     .empty-state { text-align: center; padding: 36px 20px; color: var(--muted); }
@@ -295,17 +366,15 @@
     .chip-del { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1; padding: 0; }
     .chip-del:hover { color: var(--red); }
     .inline-input-row { display: flex; gap: 8px; }
-    .inline-input-row input { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--bg); color: var(--text); }
-    .inline-input-row button { padding: 8px 14px; background: var(--text); color: var(--card); border: none; border-radius: 8px; font-size: 13px; cursor: pointer; }
+    .inline-input-row input { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--bg); color: var(--text); font-family: inherit; }
+    .inline-input-row button { padding: 8px 14px; background: var(--text); color: var(--card); border: none; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
+    .settings-btn-row { display: flex; gap: 6px; }
 
     /* ─── PENDING PANEL ───────────────────────────────────── */
-    .pending-card {
-      background: var(--amber-light); border: 1px solid var(--amber);
-      border-radius: var(--radius); padding: 12px 14px; margin-bottom: 10px;
-    }
+    .pending-card { background: var(--amber-light); border: 1px solid var(--amber); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 10px; }
     .pending-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
     .pending-card-head span { font-size: 13px; font-weight: 600; color: var(--amber); }
-    .sync-now-btn { padding: 5px 12px; background: var(--amber); color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .sync-now-btn { padding: 5px 12px; background: var(--amber); color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
     .sync-now-btn:disabled { opacity: .5; cursor: not-allowed; }
 
     /* ─── SETUP OVERLAY ───────────────────────────────────── */
@@ -317,7 +386,7 @@
     .setup-field { margin-bottom: 12px; }
     .setup-field label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 5px; }
     .setup-field input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: monospace; background: var(--card); color: var(--text); }
-    .setup-save { width: 100%; padding: 12px; background: var(--text); color: var(--card); border: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; margin-top: 4px; }
+    .setup-save { width: 100%; padding: 12px; background: var(--text); color: var(--card); border: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; margin-top: 4px; font-family: inherit; }
     .setup-hint { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
 
     @media (max-width: 500px) { main { padding: 10px; } .balance-amount { font-size: 28px; } }
@@ -325,69 +394,69 @@
 </head>
 <body>
 
-<!-- ─── SETUP ──────────────────────────────────────────────────────── -->
-<div class="setup-overlay" id="setup-overlay">
+<!-- ─── SETUP ───────────────────────────────────────────────── -->
+<div class="setup-overlay" id="setup-overlay" role="dialog" aria-modal="true" aria-labelledby="setup-title">
   <div class="setup-box">
     <div style="font-size:32px;margin-bottom:12px">💰</div>
-    <h2>Connect to Supabase</h2>
-    <p>Enter your project credentials. You only need to do this once.</p>
-    <div class="setup-field"><label>Project URL</label><input id="input-url" type="text" placeholder="https://xxxx.supabase.co" /></div>
-    <div class="setup-field"><label>Anon Public Key</label><input id="input-key" type="text" placeholder="eyJhbGciOiJIUzI1NiIs..." /></div>
-    <button class="setup-save" onclick="saveCredentials()">Save & Connect</button>
+    <h2 id="setup-title">Connect to Supabase</h2>
+    <p>Enter your project credentials. You only need to do this once — they're saved locally on your device.</p>
+    <div class="setup-field"><label for="input-url">Project URL</label><input id="input-url" type="url" placeholder="https://xxxx.supabase.co" autocomplete="off" /></div>
+    <div class="setup-field"><label for="input-key">Anon Public Key</label><input id="input-key" type="text" placeholder="eyJhbGciOiJIUzI1NiIs…" autocomplete="off" /></div>
+    <button class="setup-save" id="setup-save-btn">Save &amp; Connect</button>
     <p class="setup-hint">Find these in Supabase → Project Settings → API.</p>
   </div>
 </div>
 
-<!-- ─── EDIT MODAL ────────────────────────────────────────────────── -->
-<div class="backdrop" id="edit-backdrop" onclick="closeEdit(event)">
+<!-- ─── EDIT MODAL ──────────────────────────────────────────── -->
+<div class="backdrop" id="edit-backdrop" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
   <div class="sheet">
     <div class="sheet-handle"></div>
     <div class="sheet-header">
-      <h3>Edit Transaction</h3>
-      <button class="sheet-close" onclick="closeEditModal()">×</button>
+      <h3 id="edit-modal-title">Edit Transaction</h3>
+      <button class="sheet-close" id="sheet-close-edit" aria-label="Close">×</button>
     </div>
     <div class="form-group"><label>Type</label>
       <div class="type-toggle">
-        <button class="type-btn" id="e-btn-income"  onclick="setEditType('income')">↑ Income</button>
-        <button class="type-btn" id="e-btn-expense" onclick="setEditType('expense')">↓ Expense</button>
+        <button class="type-btn" id="e-btn-income"  data-etype="income"  aria-pressed="false">↑ Income</button>
+        <button class="type-btn" id="e-btn-expense" data-etype="expense" aria-pressed="false">↓ Expense</button>
       </div>
     </div>
-    <div class="form-group"><label>Category</label><select id="e-category"></select></div>
-    <div class="form-group"><label>Amount (RM)</label><input type="number" id="e-amount" min="0" step="0.01" /></div>
-    <div class="form-group"><label>Description</label><input type="text" id="e-desc" /></div>
-    <div class="form-group"><label>Date</label><input type="date" id="e-date" /></div>
+    <div class="form-group"><label for="e-category">Category</label><select id="e-category"></select></div>
+    <div class="form-group"><label for="e-amount">Amount (RM)</label><input type="number" id="e-amount" min="0" step="0.01" /></div>
+    <div class="form-group"><label for="e-desc">Description</label><input type="text" id="e-desc" /></div>
+    <div class="form-group"><label for="e-date">Date</label><input type="date" id="e-date" /></div>
     <div class="form-actions">
-      <button class="btn-cancel" onclick="closeEditModal()">Cancel</button>
-      <button class="btn-save" id="e-save-btn" onclick="saveEdit()">Update</button>
+      <button class="btn-cancel" id="e-cancel-btn">Cancel</button>
+      <button class="btn-save"   id="e-save-btn">Update</button>
     </div>
     <div style="margin-top:12px;text-align:center">
-      <button onclick="deleteFromEditModal()" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:4px 8px">🗑 Delete transaction</button>
+      <button id="e-delete-btn" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:4px 8px;font-family:inherit">🗑 Delete transaction</button>
     </div>
   </div>
 </div>
 
-<!-- ─── SETTINGS MODAL ───────────────────────────────────────────── -->
-<div class="backdrop" id="settings-backdrop" onclick="closeSettings(event)">
+<!-- ─── SETTINGS MODAL ──────────────────────────────────────── -->
+<div class="backdrop" id="settings-backdrop" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
   <div class="sheet">
     <div class="sheet-handle"></div>
-    <div class="sheet-header"><h3>Settings</h3><button class="sheet-close" onclick="closeSettingsModal()">×</button></div>
+    <div class="sheet-header">
+      <h3 id="settings-modal-title">Settings</h3>
+      <button class="sheet-close" id="sheet-close-settings" aria-label="Close">×</button>
+    </div>
 
     <div class="settings-group">
       <div class="settings-group-label">Appearance</div>
       <div class="settings-row">
         <div class="settings-row-label">Dark mode</div>
-        <label class="toggle"><input type="checkbox" id="dark-toggle" onchange="setDarkMode(this.checked)" /><span class="slider"></span></label>
+        <label class="toggle"><input type="checkbox" id="dark-toggle" /><span class="slider"></span></label>
       </div>
     </div>
 
     <div class="settings-group">
       <div class="settings-group-label">Offline queue</div>
       <div class="settings-row">
-        <div class="settings-row-label">
-          Pending transactions
-          <small id="pending-count-label">None</small>
-        </div>
-        <button class="sync-now-btn" id="manual-sync-btn" onclick="manualSync()">Sync now</button>
+        <div class="settings-row-label">Pending transactions<small id="pending-count-label">None</small></div>
+        <button class="sync-now-btn" id="manual-sync-btn">Sync now</button>
       </div>
     </div>
 
@@ -395,11 +464,11 @@
       <div class="settings-group-label">Custom categories</div>
       <div class="chips-wrap" id="custom-cats-wrap"></div>
       <div class="inline-input-row">
-        <input type="text" id="new-cat-input" placeholder="Category name..." />
-        <button onclick="addCustomCat()">Add</button>
+        <input type="text" id="new-cat-input" placeholder="Category name…" />
+        <button id="new-cat-add-btn">Add</button>
       </div>
       <div style="margin-top:8px">
-        <select id="new-cat-type" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)">
+        <select id="new-cat-type" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-family:inherit">
           <option value="expense">Expense category</option>
           <option value="income">Income category</option>
         </select>
@@ -415,24 +484,40 @@
       <div class="settings-group-label">Data</div>
       <div class="settings-row">
         <div class="settings-row-label">Supabase connection</div>
-        <button class="csv-btn" onclick="resetCredentials()">Reset</button>
+        <button class="csv-btn" id="reset-creds-btn">Reset</button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-label">
+          Settings backup
+          <small>Budgets, categories, goals, templates</small>
+        </div>
+        <div class="settings-btn-row">
+          <button class="csv-btn" id="export-settings-btn" aria-label="Export settings as JSON">⬆ Export</button>
+          <button class="csv-btn" id="import-settings-btn" aria-label="Import settings from JSON">⬇ Import</button>
+        </div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-label">
+          Import transactions
+          <small>CSV: Date, Type, Category, Description, Amount</small>
+        </div>
+        <button class="csv-btn" id="csv-import-btn" aria-label="Import transactions from CSV">⬆ Import</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ─── HEADER ───────────────────────────────────────────────────── -->
+<!-- ─── HEADER ───────────────────────────────────────────────── -->
 <header>
   <h1>💰 Money Record</h1>
   <div class="hdr-actions">
     <span id="sync-ts"></span>
-    <span id="pending-pill" class="show" onclick="openSettingsModal()" title="Tap to sync pending"></span>
-    <button class="icon-btn" onclick="loadTransactions()" title="Refresh">↻</button>
-    <button class="icon-btn" onclick="openSettingsModal()" title="Settings">⚙</button>
+    <span id="pending-pill" title="Tap to sync pending"></span>
+    <button class="icon-btn" id="refresh-btn"  title="Refresh" aria-label="Refresh transactions">↻</button>
+    <button class="icon-btn" id="settings-btn" title="Settings" aria-label="Open settings">⚙</button>
   </div>
 </header>
 
-<!-- ─── OFFLINE / SYNCING BANNERS ───────────────────────────────── -->
 <div class="offline-banner" id="offline-banner">
   <span class="dot-pulse"></span>
   You're offline — new transactions will be saved locally and synced when you reconnect
@@ -445,12 +530,13 @@
 <main>
   <!-- Month nav -->
   <div class="month-nav">
-    <button class="mnav-btn" onclick="shiftMonth(-1)">‹</button>
+    <button class="mnav-btn" id="month-prev" aria-label="Previous month">‹</button>
     <div class="mnav-center">
       <div class="mnav-label" id="month-label">June 2026</div>
-      <span class="alltime-chip" id="alltime-chip" onclick="toggleAllTime()">All time</span>
+      <span class="alltime-chip" id="alltime-chip">All time</span>
+      <button class="today-btn" id="today-btn">Today</button>
     </div>
-    <button class="mnav-btn" onclick="shiftMonth(1)">›</button>
+    <button class="mnav-btn" id="month-next" aria-label="Next month">›</button>
   </div>
 
   <!-- Balance -->
@@ -466,16 +552,16 @@
   </div>
 
   <!-- Tabs -->
-  <div class="tab-bar">
-    <button class="tab-btn active" id="tab-txs"    onclick="switchTab('txs')">Transactions</button>
-    <button class="tab-btn"        id="tab-charts" onclick="switchTab('charts')">📊 Charts</button>
-    <button class="tab-btn"        id="tab-budget" onclick="switchTab('budget')">🎯 Budget</button>
-    <button class="tab-btn"        id="tab-goals"  onclick="switchTab('goals')">🏦 Goals</button>
+  <div class="tab-bar" role="tablist">
+    <button class="tab-btn active" id="tab-txs"    role="tab" aria-selected="true">Transactions</button>
+    <button class="tab-btn"        id="tab-charts" role="tab" aria-selected="false">📊 Charts</button>
+    <button class="tab-btn"        id="tab-budget" role="tab" aria-selected="false">🎯 Budget</button>
+    <button class="tab-btn"        id="tab-goals"  role="tab" aria-selected="false">🏦 Goals</button>
   </div>
 
   <!-- ── TRANSACTIONS PANEL ──────────────────────────── -->
-  <div class="panel open" id="panel-txs">
-    <button class="add-btn" onclick="toggleForm()">
+  <div class="panel open" id="panel-txs" role="tabpanel">
+    <button class="add-btn" id="add-btn">
       <span id="add-icon">＋</span><span id="add-text">Add Transaction</span>
     </button>
 
@@ -483,125 +569,167 @@
       <h3>New Transaction</h3>
       <div class="form-group"><label>Type</label>
         <div class="type-toggle">
-          <button class="type-btn active-income" id="btn-income"  onclick="setType('income')">↑ Income</button>
-          <button class="type-btn"               id="btn-expense" onclick="setType('expense')">↓ Expense</button>
+          <button class="type-btn active-income" id="btn-income"  data-ftype="income"  aria-pressed="true">↑ Income</button>
+          <button class="type-btn"               id="btn-expense" data-ftype="expense" aria-pressed="false">↓ Expense</button>
         </div>
       </div>
-      <div class="form-group"><label>Category</label><select id="f-category"></select></div>
+      <div class="form-group"><label for="f-category">Category</label><select id="f-category"></select></div>
       <div class="form-group">
-        <label>Amount (RM)</label>
+        <label for="f-amount">Amount (RM)</label>
         <input type="number" id="f-amount" placeholder="0.00" min="0" step="0.01" />
         <div class="quick-add-row">
-          <button class="quick-add-btn" onclick="quickAdd(1)">+1</button>
-          <button class="quick-add-btn" onclick="quickAdd(2)">+2</button>
-          <button class="quick-add-btn" onclick="quickAdd(5)">+5</button>
-          <button class="quick-add-btn" onclick="quickAdd(10)">+10</button>
-          <button class="quick-add-btn" onclick="quickAdd(50)">+50</button>
+          <button class="quick-add-btn" data-qadd="1">+1</button>
+          <button class="quick-add-btn" data-qadd="2">+2</button>
+          <button class="quick-add-btn" data-qadd="5">+5</button>
+          <button class="quick-add-btn" data-qadd="10">+10</button>
+          <button class="quick-add-btn" data-qadd="50">+50</button>
         </div>
       </div>
-      <div class="form-group"><label>Description <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label><input type="text" id="f-desc" placeholder="e.g. Salary, Groceries, Petrol…" /></div>
-      <div class="form-group"><label>Date</label><input type="date" id="f-date" /></div>
+      <div class="form-group">
+        <label for="f-desc">Description <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label>
+        <input type="text" id="f-desc" placeholder="e.g. Salary, Groceries, Petrol…" />
+      </div>
+      <div class="form-group"><label for="f-date">Date</label><input type="date" id="f-date" /></div>
       <div class="recurring-row">
-        <input type="checkbox" id="f-recurring" onchange="toggleRecOpts(this.checked)" />
+        <input type="checkbox" id="f-recurring" />
         <label for="f-recurring">Set as recurring</label>
       </div>
       <div class="freq-select" id="freq-wrap">
-        <div class="form-group"><label>Repeat every</label>
-          <select id="f-freq"><option value="daily">Day</option><option value="weekly">Week</option><option value="monthly" selected>Month</option></select>
+        <div class="form-group"><label for="f-freq">Repeat every</label>
+          <select id="f-freq">
+            <option value="daily">Day</option>
+            <option value="weekly">Week</option>
+            <option value="monthly" selected>Month</option>
+          </select>
         </div>
       </div>
-      <!-- Offline hint shown when no connection -->
       <div class="offline-hint" id="form-offline-hint">
         📡 You're offline — this will be saved locally and synced automatically when you reconnect
       </div>
       <div class="form-actions">
-        <button class="btn-cancel" onclick="toggleForm()">Cancel</button>
-        <button class="btn-save" id="save-btn" onclick="saveTransaction()">Save</button>
+        <button class="btn-cancel" id="btn-cancel">Cancel</button>
+        <button class="btn-save"   id="save-btn">Save</button>
       </div>
     </div>
 
     <div class="search-wrap">
-      <input type="text" id="search-input" placeholder="Search description or category…" oninput="onSearch(this.value)" />
-      <span class="search-icon" id="search-icon">🔍</span>
-      <button class="search-clear" id="search-clear" onclick="clearSearch()">✕</button>
+      <input type="text" id="search-input" placeholder="Search description or category…" autocomplete="off" />
+      <span class="search-icon" id="search-icon" aria-hidden="true">🔍</span>
+      <button class="search-clear" id="search-clear" aria-label="Clear search">✕</button>
     </div>
 
     <div class="section-header">
       <h2>Transactions</h2>
-      <button class="csv-btn" onclick="exportCSV()">⬇ Export CSV</button>
+      <button class="csv-btn" id="export-csv-btn" aria-label="Export as CSV">⬇ Export CSV</button>
     </div>
-    <div class="filter-row">
-      <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
-      <button class="filter-btn"        onclick="setFilter('income',this)">Income</button>
-      <button class="filter-btn"        onclick="setFilter('expense',this)">Expense</button>
-      <button class="filter-btn"        onclick="setFilter('recurring',this)">↻ Recurring</button>
-      <button class="filter-btn"        onclick="setFilter('pending',this)" id="filter-pending-btn" style="display:none">⏳ Pending</button>
+    <div class="filter-row" role="group" aria-label="Filter transactions">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn"        data-filter="income">Income</button>
+      <button class="filter-btn"        data-filter="expense">Expense</button>
+      <button class="filter-btn"        data-filter="recurring">↻ Recurring</button>
+      <button class="filter-btn"        data-filter="pending" id="filter-pending-btn" style="display:none">⏳ Pending</button>
     </div>
     <div class="transaction-list" id="tx-list"><div class="loading">Connecting…</div></div>
   </div>
 
   <!-- ── CHARTS PANEL ─────────────────────────────────── -->
-  <div class="panel" id="panel-charts">
+  <div class="panel" id="panel-charts" role="tabpanel">
+    <div class="chart-partial-notice" id="chart-partial-notice">
+      ⚠ Charts show only loaded transactions. Tap "↓ Load older" below for full history.
+    </div>
     <div class="chart-card"><h3>Expenses by category</h3><div class="chart-wrap" id="pie-wrap"><canvas id="pie-chart"></canvas></div></div>
     <div class="chart-card"><h3>Monthly overview — last 6 months</h3><div class="chart-wrap"><canvas id="bar-chart"></canvas></div></div>
   </div>
 
   <!-- ── BUDGET PANEL ──────────────────────────────────── -->
-  <div class="panel" id="panel-budget">
+  <div class="panel" id="panel-budget" role="tabpanel">
     <div id="budget-bars"></div>
     <div class="budget-setup-card">
       <h3>Monthly budget limits</h3>
       <div id="budget-inputs"></div>
-      <button class="budget-save-btn" onclick="saveBudgets()">Save limits</button>
+      <button class="budget-save-btn" id="budget-save-btn">Save limits</button>
     </div>
   </div>
 
   <!-- ── GOALS PANEL ───────────────────────────────────── -->
-  <div class="panel" id="panel-goals">
-    <div id="goals-list"><div class="loading">Loading goals…</div></div>
+  <div class="panel" id="panel-goals" role="tabpanel">
+    <div id="goals-list"></div>
     <div class="goal-form-card">
       <h3>New savings goal</h3>
       <div class="goal-form-row">
         <div class="form-group">
-          <label>Emoji</label>
+          <label for="new-goal-emoji">Emoji</label>
           <input type="text" id="new-goal-emoji" class="goal-emoji-field" placeholder="🎯" maxlength="2" />
         </div>
         <div class="form-group" style="flex:3">
-          <label>Goal name</label>
+          <label for="new-goal-name">Goal name</label>
           <input type="text" id="new-goal-name" placeholder="e.g. New laptop, Vacation…" />
         </div>
       </div>
       <div class="form-group">
-        <label>Target amount (RM)</label>
+        <label for="new-goal-target">Target amount (RM)</label>
         <input type="number" id="new-goal-target" placeholder="5000" min="1" step="1" />
       </div>
-      <button class="budget-save-btn" onclick="addGoal()">＋ Create goal</button>
+      <button class="budget-save-btn" id="add-goal-btn">＋ Create goal</button>
     </div>
   </div>
 </main>
 
-<div class="toast" id="toast"></div>
+<!-- FIX: role="status" + aria-live so screen readers announce toasts -->
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Hidden file inputs for CSV and settings import -->
+<input type="file" id="csv-import-input"      accept=".csv"  style="display:none" aria-hidden="true" />
+<input type="file" id="settings-import-input" accept=".json" style="display:none" aria-hidden="true" />
 
 <script>
-/* ─── CREDENTIALS ──────────────────────────────────────────────────── */
-const SB_URL = 'https://tbdkcevprbqtjegotila.supabase.co';
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRiZGtjZXZwcmJxdGplZ290aWxhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NzU4MTksImV4cCI6MjA5NjE1MTgxOX0.CPmUGpueHph60_p0CnkZJgMJ_ECihaEnhXzyZ4JEET4';
+/* ══════════════════════════════════════════════════════════════════
+   MONEY RECORD — index.html
+   All fixes applied:
+   ✅ No hardcoded credentials (setup overlay stores to localStorage)
+   ✅ Goals panel CSS fully defined
+   ✅ No eval() — callback maps used for swipe-to-delete
+   ✅ Lazy Chart.js (loaded only when Charts tab opens)
+   ✅ Dark mode respects prefers-color-scheme on first visit
+   ✅ Pagination: 100/page + "Load older" button
+   ✅ Recurring transactions work offline (queued)
+   ✅ "Today" button in month nav when not on current month
+   ✅ ARIA labels, roles, aria-pressed, aria-live on key elements
+   ✅ All static onclick removed → addEventListener in DOMContentLoaded
+   ✅ Dynamic lists use event delegation (no more inline handlers)
+   ✅ CSV import (Date,Type,Category,Description,Amount)
+   ✅ Settings backup/restore (JSON export + import)
+   ✅ setFilter no longer needs element reference
+══════════════════════════════════════════════════════════════════ */
 
-/* ─── CATEGORY DEFAULTS ────────────────────────────────────────────── */
+/* ─── CATEGORY DEFAULTS ──────────────────────────────────── */
 const DEF_INCOME  = ['Salary','Freelance','Business','Investment','Gift','Other Income'];
 const DEF_EXPENSE = ['Food & Drinks','Groceries','Transport','Utilities','Shopping',
                      'Healthcare','Entertainment','Education','Rent','Other Expense'];
 
-/* ─── STATE ────────────────────────────────────────────────────────── */
-let db = null;
-let allTxs = [];
+/* ─── STATE ──────────────────────────────────────────────── */
+let db           = null;
+let allTxs       = [];
 let currentFilter = 'all';
 let currentType   = 'income';
 let editType      = 'income';
 let editingId     = null;
 let isSaving      = false;
 let searchQ       = '';
-let pieChart = null, barChart = null;
+let pieChart      = null;
+let barChart      = null;
+
+// FIX: Chart.js lazy loading state
+let chartJsLoaded  = false;
+let chartJsPromise = null;
+
+// FIX: Pagination state
+let txOffset   = 0;
+let hasMoreTxs = false;
+const PAGE_SIZE = 100;
+
+// FIX: Recurring guard — prevents recursive loadTransactions calls
+let recurringProcessing = false;
 
 let viewYear  = new Date().getFullYear();
 let viewMonth = new Date().getMonth();
@@ -612,70 +740,65 @@ let customCats   = [];
 let recTemplates = [];
 let goals        = [];
 
-/* ─── localStorage KEYS ────────────────────────────────────────────── */
-const LS_BUDGETS   = 'money_budgets';
-const LS_CATS      = 'money_custom_cats';
-const LS_REC       = 'money_rec';
-const LS_PENDING   = 'money_pending';   // ← offline queue
-const LS_GOALS     = 'money_goals';
+// FIX: Callback maps replace eval() in swipe-to-delete
+const txClickCallbacks  = {};
+const txDeleteCallbacks = {};
 
-/* ══════════════════════════════════════════════════════════════════════
+/* ─── localStorage KEYS ──────────────────────────────────── */
+const LS_BUDGETS = 'money_budgets';
+const LS_CATS    = 'money_custom_cats';
+const LS_REC     = 'money_rec';
+const LS_PENDING = 'money_pending';
+const LS_GOALS   = 'money_goals';
+const LS_SB_URL  = 'money_sb_url';
+const LS_SB_KEY  = 'money_sb_key';
+
+/* ══════════════════════════════════════════════════════════
    OFFLINE QUEUE
-   Stores transactions added while offline as an array in localStorage.
-   Each item has a `tempId` (e.g. "pending_1717000000000") used as
-   a stable key until it syncs.  After syncing, the real row from
-   Supabase replaces the temp entry.
-═══════════════════════════════════════════════════════════════════════ */
+══════════════════════════════════════════════════════════ */
 function getQueue()      { return JSON.parse(localStorage.getItem(LS_PENDING) || '[]'); }
 function saveQueue(q)    { localStorage.setItem(LS_PENDING, JSON.stringify(q)); }
 function enqueue(item)   { const q = getQueue(); q.unshift(item); saveQueue(q); }
 function dequeue(tempId) { saveQueue(getQueue().filter(t => t.tempId !== tempId)); }
 
-/* Merge pending items into the displayed list */
 function pendingAsTxs() {
   return getQueue().map(p => ({ ...p, id: p.tempId, isPending: true }));
 }
 
 function updatePendingUI() {
   const count = getQueue().length;
-  const pill  = document.getElementById('pending-pill');
-  const btn   = document.getElementById('filter-pending-btn');
-  const manualBtn = document.getElementById('manual-sync-btn');
-  const label = document.getElementById('pending-count-label');
-
+  const pill     = document.getElementById('pending-pill');
+  const btn      = document.getElementById('filter-pending-btn');
+  const syncBtn  = document.getElementById('manual-sync-btn');
+  const label    = document.getElementById('pending-count-label');
   if (count > 0) {
     pill.textContent = `${count} pending`;
     pill.classList.add('show');
-    btn.style.display = 'inline-block';
-    if (manualBtn) manualBtn.disabled = false;
-    if (label) label.textContent = `${count} transaction${count>1?'s':''} queued`;
+    if (btn)     btn.style.display = 'inline-block';
+    if (syncBtn) syncBtn.disabled  = false;
+    if (label)   label.textContent = `${count} transaction${count>1?'s':''} queued`;
   } else {
     pill.classList.remove('show');
-    btn.style.display = 'none';
-    if (manualBtn) manualBtn.disabled = true;
-    if (label) label.textContent = 'None';
+    if (btn)     btn.style.display = 'none';
+    if (syncBtn) syncBtn.disabled  = true;
+    if (label)   label.textContent = 'None';
   }
 }
 
 async function syncQueue() {
   const queue = getQueue();
   if (!queue.length || !navigator.onLine || !db) return 0;
-
   showSyncBanner(true);
   let synced = 0, failed = 0;
-
-  for (const item of [...queue]) { // copy so removals don't skip items
+  for (const item of [...queue]) {
     try {
       const { tempId, isPending, createdLocal, id, ...payload } = item;
       const { error } = await db.from('transactions').insert([payload]);
-      if (!error) { dequeue(tempId); synced++; }
-      else failed++;
-    } catch(e) { failed++; }
+      if (!error) { dequeue(tempId); synced++; } else failed++;
+    } catch { failed++; }
   }
-
   showSyncBanner(false);
   updatePendingUI();
-
   if (synced > 0) {
     showToast(`✅ ${synced} offline transaction${synced>1?'s':''} synced!`);
     await loadTransactions();
@@ -690,7 +813,7 @@ async function manualSync() {
   if (n === 0 && getQueue().length === 0) showToast('Nothing to sync');
 }
 
-/* ─── ONLINE / OFFLINE DETECTION ──────────────────────────────────── */
+/* ─── ONLINE / OFFLINE ────────────────────────────────────── */
 function updateOfflineBanner() {
   const offline = !navigator.onLine;
   document.getElementById('offline-banner').classList.toggle('show', offline);
@@ -701,20 +824,167 @@ function showSyncBanner(on) {
   document.getElementById('sync-banner').classList.toggle('show', on);
 }
 
-/* ─── INIT ─────────────────────────────────────────────────────────── */
+/* ─── CHART.JS LAZY LOADER — FIX ─────────────────────────── */
+function loadChartJS() {
+  if (chartJsLoaded) return Promise.resolve();
+  if (chartJsPromise) return chartJsPromise;
+  chartJsPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+    s.onload  = () => { chartJsLoaded = true; resolve(); };
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  return chartJsPromise;
+}
+
+/* ══════════════════════════════════════════════════════════
+   DOMContentLoaded — wires all event listeners
+   FIX: all inline onclick attributes replaced with listeners
+══════════════════════════════════════════════════════════ */
 window.addEventListener('DOMContentLoaded', () => {
+
+  // ── Settings & dark mode ────────────────────────────────
   loadSettings();
-  applyDarkMode(localStorage.getItem('money_dark') === 'true');
+
+  // FIX: respect prefers-color-scheme on first visit
+  const savedDark = localStorage.getItem('money_dark');
+  if (savedDark !== null) {
+    applyDarkMode(savedDark === 'true');
+    document.getElementById('dark-toggle').checked = savedDark === 'true';
+  } else {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    applyDarkMode(prefersDark);
+    document.getElementById('dark-toggle').checked = prefersDark;
+  }
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    if (localStorage.getItem('money_dark') === null) applyDarkMode(e.matches);
+  });
+
+  // ── UI init ──────────────────────────────────────────────
   updateMonthLabel();
   buildCategorySelects();
   updatePendingUI();
   updateOfflineBanner();
-
-  document.getElementById('setup-overlay').classList.remove('open');
-  initSupabase(SB_URL, SB_KEY);
   document.getElementById('f-date').value = todayStr();
 
-  // Network event listeners
+  // ── FIX: check localStorage for credentials ──────────────
+  const sbUrl = localStorage.getItem(LS_SB_URL);
+  const sbKey = localStorage.getItem(LS_SB_KEY);
+  if (sbUrl && sbKey) {
+    initSupabase(sbUrl, sbKey);
+  } else {
+    document.getElementById('setup-overlay').classList.add('open');
+  }
+
+  // ── Header ──────────────────────────────────────────────
+  document.getElementById('refresh-btn').addEventListener('click', () => loadTransactions());
+  document.getElementById('settings-btn').addEventListener('click', openSettingsModal);
+  document.getElementById('pending-pill').addEventListener('click', openSettingsModal);
+
+  // ── Month nav ────────────────────────────────────────────
+  document.getElementById('month-prev').addEventListener('click', () => shiftMonth(-1));
+  document.getElementById('month-next').addEventListener('click', () => shiftMonth(1));
+  document.getElementById('alltime-chip').addEventListener('click', toggleAllTime);
+  document.getElementById('today-btn').addEventListener('click', goToToday);
+
+  // ── Tabs ─────────────────────────────────────────────────
+  ['txs','charts','budget','goals'].forEach(tab => {
+    document.getElementById('tab-' + tab).addEventListener('click', () => switchTab(tab));
+  });
+
+  // ── Add form ─────────────────────────────────────────────
+  document.getElementById('add-btn').addEventListener('click', toggleForm);
+  document.getElementById('btn-cancel').addEventListener('click', toggleForm);
+  document.getElementById('save-btn').addEventListener('click', saveTransaction);
+
+  // FIX: data-ftype instead of onclick
+  document.querySelectorAll('[data-ftype]').forEach(btn => {
+    btn.addEventListener('click', () => setType(btn.dataset.ftype));
+  });
+  // FIX: data-qadd instead of onclick
+  document.querySelectorAll('[data-qadd]').forEach(btn => {
+    btn.addEventListener('click', () => quickAdd(parseFloat(btn.dataset.qadd)));
+  });
+  document.getElementById('f-recurring').addEventListener('change', e => toggleRecOpts(e.target.checked));
+
+  // ── Search & filter ──────────────────────────────────────
+  document.getElementById('search-input').addEventListener('input', e => onSearch(e.target.value));
+  document.getElementById('search-clear').addEventListener('click', clearSearch);
+  document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
+
+  // FIX: setFilter doesn't need element reference anymore
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => setFilter(btn.dataset.filter));
+  });
+
+  // ── Edit modal ───────────────────────────────────────────
+  document.getElementById('edit-backdrop').addEventListener('click', e => {
+    if (e.target === document.getElementById('edit-backdrop')) closeEditModal();
+  });
+  document.getElementById('sheet-close-edit').addEventListener('click', closeEditModal);
+  document.getElementById('e-cancel-btn').addEventListener('click', closeEditModal);
+  document.getElementById('e-save-btn').addEventListener('click', saveEdit);
+  document.getElementById('e-delete-btn').addEventListener('click', deleteFromEditModal);
+
+  // FIX: data-etype for edit type buttons
+  document.querySelectorAll('[data-etype]').forEach(btn => {
+    btn.addEventListener('click', () => setEditType(btn.dataset.etype));
+  });
+
+  // ── Settings modal ───────────────────────────────────────
+  document.getElementById('settings-backdrop').addEventListener('click', e => {
+    if (e.target === document.getElementById('settings-backdrop')) closeSettingsModal();
+  });
+  document.getElementById('sheet-close-settings').addEventListener('click', closeSettingsModal);
+  document.getElementById('dark-toggle').addEventListener('change', e => setDarkMode(e.target.checked));
+  document.getElementById('manual-sync-btn').addEventListener('click', manualSync);
+  document.getElementById('new-cat-add-btn').addEventListener('click', addCustomCat);
+  document.getElementById('reset-creds-btn').addEventListener('click', resetCredentials);
+  document.getElementById('export-settings-btn').addEventListener('click', exportSettings);
+  document.getElementById('import-settings-btn').addEventListener('click', () => {
+    document.getElementById('settings-import-input').click();
+  });
+  document.getElementById('settings-import-input').addEventListener('change', e => {
+    if (e.target.files[0]) importSettings(e.target.files[0]);
+  });
+
+  // ── Budget & Goals ───────────────────────────────────────
+  document.getElementById('budget-save-btn').addEventListener('click', saveBudgets);
+  document.getElementById('add-goal-btn').addEventListener('click', addGoal);
+
+  // FIX: Event delegation for dynamically rendered goal cards
+  document.getElementById('goals-list').addEventListener('click', e => {
+    const delBtn   = e.target.closest('.goal-del[data-idx]');
+    const quickBtn = e.target.closest('.goal-quick[data-idx]');
+    const addBtn   = e.target.closest('.goal-add-btn[data-idx]');
+    if (delBtn)   deleteGoal(parseInt(delBtn.dataset.idx));
+    if (quickBtn) addToGoal(parseInt(quickBtn.dataset.idx), parseFloat(quickBtn.dataset.amount));
+    if (addBtn)   addCustomToGoal(parseInt(addBtn.dataset.idx));
+  });
+
+  // FIX: Delegation for dynamically rendered settings lists
+  document.getElementById('recurring-list').addEventListener('click', e => {
+    const btn = e.target.closest('[data-remove-tpl]');
+    if (btn) removeRecTemplate(parseInt(btn.dataset.removeTpl));
+  });
+  document.getElementById('custom-cats-wrap').addEventListener('click', e => {
+    const btn = e.target.closest('.chip-del[data-idx]');
+    if (btn) removeCustomCat(parseInt(btn.dataset.idx));
+  });
+
+  // ── Setup overlay ────────────────────────────────────────
+  document.getElementById('setup-save-btn').addEventListener('click', saveCredentials);
+
+  // ── CSV import ───────────────────────────────────────────
+  document.getElementById('csv-import-btn').addEventListener('click', () => {
+    document.getElementById('csv-import-input').click();
+  });
+  document.getElementById('csv-import-input').addEventListener('change', e => {
+    if (e.target.files[0]) importCSV(e.target.files[0]);
+  });
+
+  // ── Network events ───────────────────────────────────────
   window.addEventListener('offline', () => {
     updateOfflineBanner();
     showToast('📡 Went offline — saves will queue locally');
@@ -730,20 +1000,24 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Keyboard
+  // ── Keyboard shortcuts ───────────────────────────────────
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && document.getElementById('form-card').classList.contains('open') && !isSaving) saveTransaction();
     if (e.key === 'Escape') { closeEditModal(); closeSettingsModal(); }
   });
+
+  // ── Service worker ───────────────────────────────────────
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
 });
 
-/* ─── LOCAL SETTINGS ───────────────────────────────────────────────── */
+/* ─── LOCAL SETTINGS ──────────────────────────────────────── */
 function loadSettings() {
   budgets      = JSON.parse(localStorage.getItem(LS_BUDGETS) || '{}');
   customCats   = JSON.parse(localStorage.getItem(LS_CATS)    || '[]');
   recTemplates = JSON.parse(localStorage.getItem(LS_REC)     || '[]');
   goals        = JSON.parse(localStorage.getItem(LS_GOALS)   || '[]');
-  document.getElementById('dark-toggle').checked = localStorage.getItem('money_dark') === 'true';
 }
 function saveSettings() {
   localStorage.setItem(LS_BUDGETS, JSON.stringify(budgets));
@@ -752,20 +1026,25 @@ function saveSettings() {
   localStorage.setItem(LS_GOALS,   JSON.stringify(goals));
 }
 
-/* ─── DARK MODE ────────────────────────────────────────────────────── */
-function applyDarkMode(on) { document.documentElement.setAttribute('data-theme', on ? 'dark' : 'light'); }
+/* ─── DARK MODE — FIX: system preference respected ───────── */
+function applyDarkMode(on) {
+  document.documentElement.setAttribute('data-theme', on ? 'dark' : 'light');
+}
 function setDarkMode(on) {
   localStorage.setItem('money_dark', on);
   applyDarkMode(on);
   if (barChart || pieChart) setTimeout(renderCharts, 100);
 }
 
-/* ─── SUPABASE ─────────────────────────────────────────────────────── */
+/* ─── SUPABASE — FIX: no hardcoded credentials ───────────── */
 function saveCredentials() {
   const url = document.getElementById('input-url').value.trim();
   const key = document.getElementById('input-key').value.trim();
   if (!url || !key) { showToast('Please fill both fields'); return; }
-  if (!url.includes('supabase.co')) { showToast('URL should end with .supabase.co'); return; }
+  if (!url.startsWith('https://')) { showToast('URL must start with https://'); return; }
+  // FIX: store to localStorage before connecting
+  localStorage.setItem(LS_SB_URL, url);
+  localStorage.setItem(LS_SB_KEY, key);
   initSupabase(url, key);
 }
 function resetCredentials() {
@@ -778,30 +1057,48 @@ function initSupabase(url, key) {
     db = window.supabase.createClient(url, key);
     document.getElementById('setup-overlay').classList.remove('open');
     loadTransactions();
-  } catch(e) { showToast('Connection failed. Check credentials.'); }
+  } catch { showToast('Connection failed — check credentials.'); }
 }
 
-/* ─── MONTH NAV ────────────────────────────────────────────────────── */
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+/* ─── MONTH NAV ───────────────────────────────────────────── */
+const MONTHS = ['January','February','March','April','May','June',
+                'July','August','September','October','November','December'];
 const MSHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 function updateMonthLabel() {
   document.getElementById('month-label').textContent = `${MONTHS[viewMonth]} ${viewYear}`;
-  document.getElementById('balance-sub').textContent  = isAllTime ? 'All time' : `${MSHORT[viewMonth]} ${viewYear}`;
+  document.getElementById('balance-sub').textContent = isAllTime ? 'All time' : `${MSHORT[viewMonth]} ${viewYear}`;
   document.getElementById('alltime-chip').classList.toggle('on', isAllTime);
+
+  // FIX: show Today button only when not on the current month
+  const now = new Date();
+  const isCurrentMonth = !isAllTime && viewYear === now.getFullYear() && viewMonth === now.getMonth();
+  document.getElementById('today-btn').style.display = isCurrentMonth ? 'none' : 'inline-block';
 }
 function shiftMonth(dir) {
-  isAllTime = false; viewMonth += dir;
+  isAllTime = false;
+  viewMonth += dir;
   if (viewMonth > 11) { viewMonth = 0; viewYear++; }
-  if (viewMonth < 0)  { viewMonth = 11; viewYear--; }
-  updateMonthLabel(); renderAll();
+  if (viewMonth <  0) { viewMonth = 11; viewYear--; }
+  updateMonthLabel();
+  renderAll();
 }
-function toggleAllTime() { isAllTime = !isAllTime; updateMonthLabel(); renderAll(); }
+function toggleAllTime() {
+  isAllTime = !isAllTime;
+  updateMonthLabel();
+  renderAll();
+}
+// FIX: Jump back to current month
+function goToToday() {
+  const now = new Date();
+  isAllTime = false;
+  viewYear  = now.getFullYear();
+  viewMonth = now.getMonth();
+  updateMonthLabel();
+  renderAll();
+}
 
-/* Returns all txs (server + pending) optionally filtered to the current month */
-function allTxsWithPending() {
-  return [...pendingAsTxs(), ...allTxs];
-}
+function allTxsWithPending() { return [...pendingAsTxs(), ...allTxs]; }
 function monthTxs() {
   const all = allTxsWithPending();
   if (isAllTime) return all;
@@ -811,9 +1108,10 @@ function monthTxs() {
   });
 }
 
-/* ─── RECURRING ────────────────────────────────────────────────────── */
+/* ─── RECURRING — FIX: offline support + no infinite loop ─── */
 async function processRecurring() {
-  if (!recTemplates.length) return;
+  if (recurringProcessing || !recTemplates.length) return;
+  recurringProcessing = true;
   const today = todayStr();
   let count = 0;
   for (const tpl of recTemplates) {
@@ -822,36 +1120,73 @@ async function processRecurring() {
     const now  = new Date(today + 'T00:00:00');
     let due = false;
     if (tpl.frequency === 'daily'   && now > last) due = true;
-    if (tpl.frequency === 'weekly'  && (now - last) >= 7*86400000) due = true;
+    if (tpl.frequency === 'weekly'  && (now - last) >= 7 * 86400000) due = true;
     if (tpl.frequency === 'monthly') {
-      if ((now.getFullYear()*12 + now.getMonth()) > (last.getFullYear()*12 + last.getMonth())) due = true;
+      if ((now.getFullYear() * 12 + now.getMonth()) > (last.getFullYear() * 12 + last.getMonth())) due = true;
     }
     if (due) {
-      tpl.lastCreated = today; count++;
-      await db.from('transactions').insert([{
-        description: tpl.description, amount: tpl.amount,
-        type: tpl.type, category: tpl.category||null, date: today
-      }]).catch(()=>{});
+      tpl.lastCreated = today;
+      count++;
+      const payload = { description: tpl.description, amount: tpl.amount, type: tpl.type, category: tpl.category || null, date: today };
+      // FIX: queue when offline instead of silently failing
+      if (!navigator.onLine || !db) {
+        const tempId = 'pending_rec_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        enqueue({ ...payload, tempId, isPending: true, createdLocal: new Date().toISOString() });
+      } else {
+        await db.from('transactions').insert([payload]).catch(() => {
+          const tempId = 'pending_rec_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+          enqueue({ ...payload, tempId, isPending: true, createdLocal: new Date().toISOString() });
+        });
+      }
     }
   }
-  if (count) { saveSettings(); showToast(`↻ ${count} recurring entry${count>1?'s':''} added`); await loadTransactions(); }
+  recurringProcessing = false;
+  if (count) {
+    saveSettings();
+    updatePendingUI();
+    showToast(`↻ ${count} recurring entr${count>1?'ies':'y'} added`);
+    // FIX: pass skipRecurring=true to prevent recursive call
+    await loadTransactions(false, true);
+  }
 }
 
-/* ─── LOAD ─────────────────────────────────────────────────────────── */
-async function loadTransactions() {
-  document.getElementById('tx-list').innerHTML = '<div class="loading">Loading…</div>';
+/* ─── LOAD — FIX: pagination (100/page) ──────────────────── */
+async function loadTransactions(append = false, skipRecurring = false) {
+  if (!db) return;
+
+  if (!append) {
+    txOffset = 0;
+    if (!allTxs.length) {
+      document.getElementById('tx-list').innerHTML = '<div class="loading">Loading…</div>';
+    }
+  }
+
   try {
-    const { data, error } = await db.from('transactions').select('*')
+    const { data, error } = await db.from('transactions')
+      .select('*')
       .order('date', { ascending: false })
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(txOffset, txOffset + PAGE_SIZE - 1);
+
     if (error) throw error;
-    allTxs = data || [];
+
+    const batch = data || [];
+    hasMoreTxs  = batch.length === PAGE_SIZE;
+
+    if (append) {
+      // Deduplicate by id before merging
+      const existing = new Set(allTxs.map(t => t.id));
+      allTxs = [...allTxs, ...batch.filter(t => !existing.has(t.id))];
+    } else {
+      allTxs = batch;
+    }
+    txOffset = allTxs.length;
+
     renderAll();
     updateTimestamp();
-    await processRecurring();
-  } catch(e) {
+    if (!skipRecurring) await processRecurring();
+  } catch (e) {
     if (!navigator.onLine) {
-      // Offline: show whatever we have in the pending queue
       allTxs = [];
       renderAll();
     } else {
@@ -862,7 +1197,7 @@ async function loadTransactions() {
   }
 }
 
-/* ─── SAVINGS GOALS ────────────────────────────────────────────────── */
+/* ─── SAVINGS GOALS ───────────────────────────────────────── */
 function renderGoals() {
   const panel = document.getElementById('panel-goals');
   if (!panel || !panel.classList.contains('open')) return;
@@ -871,10 +1206,11 @@ function renderGoals() {
     container.innerHTML = '<div class="empty-state"><div class="icon">🏦</div><p>No savings goals yet.<br>Create one below to start tracking!</p></div>';
     return;
   }
+  // FIX: use data-idx attributes — event delegation handles clicks
   container.innerHTML = goals.map((g, i) => {
-    const saved = g.saved || 0;
-    const pct   = Math.min(100, (saved / g.target) * 100);
-    const done  = pct >= 100;
+    const saved  = g.saved || 0;
+    const pct    = Math.min(100, (saved / g.target) * 100);
+    const done   = pct >= 100;
     const remain = Math.max(0, g.target - saved);
     return `<div class="goal-card${done ? ' goal-done' : ''}">
       <div class="goal-header">
@@ -883,7 +1219,7 @@ function renderGoals() {
           <div class="goal-name">${esc(g.name)}</div>
           <div class="goal-amounts">${fmt(saved)} of ${fmt(g.target)}${done ? '' : ` · RM ${remain.toFixed(2)} to go`}</div>
         </div>
-        <button class="goal-del" onclick="deleteGoal(${i})" title="Delete">×</button>
+        <button class="goal-del" data-idx="${i}" aria-label="Delete ${esc(g.name)}">×</button>
       </div>
       <div class="goal-bar-bg"><div class="goal-bar-fill" style="width:${pct}%"></div></div>
       <div class="goal-footer">
@@ -891,11 +1227,11 @@ function renderGoals() {
         ${done
           ? '<span style="color:var(--green);font-size:12px;font-weight:600">🎊 Goal reached!</span>'
           : `<div class="goal-add-row">
-               <button class="goal-quick" onclick="addToGoal(${i},10)">+RM10</button>
-               <button class="goal-quick" onclick="addToGoal(${i},50)">+RM50</button>
-               <button class="goal-quick" onclick="addToGoal(${i},100)">+RM100</button>
-               <input class="goal-custom" type="number" id="gi-${i}" placeholder="custom" min="0" step="0.01" />
-               <button class="goal-add-btn" onclick="addCustomToGoal(${i})">Add</button>
+               <button class="goal-quick" data-idx="${i}" data-amount="10">+RM10</button>
+               <button class="goal-quick" data-idx="${i}" data-amount="50">+RM50</button>
+               <button class="goal-quick" data-idx="${i}" data-amount="100">+RM100</button>
+               <input class="goal-custom" type="number" id="gi-${i}" placeholder="custom" min="0" step="0.01" aria-label="Custom amount" />
+               <button class="goal-add-btn" data-idx="${i}">Add</button>
              </div>`}
       </div>
     </div>`;
@@ -910,7 +1246,6 @@ function addToGoal(i, amount) {
   const done = goals[i].saved >= goals[i].target;
   showToast(done ? `🎊 Goal "${goals[i].name}" complete!` : `+${fmt(amount)} added to "${goals[i].name}"`);
 }
-
 function addCustomToGoal(i) {
   const input = document.getElementById('gi-' + i);
   const val   = parseFloat(input ? input.value : 0);
@@ -918,7 +1253,6 @@ function addCustomToGoal(i) {
   addToGoal(i, val);
   if (input) input.value = '';
 }
-
 function deleteGoal(i) {
   if (!confirm(`Delete goal "${goals[i].name}"? Your progress will be lost.`)) return;
   goals.splice(i, 1);
@@ -926,7 +1260,6 @@ function deleteGoal(i) {
   renderGoals();
   showToast('Goal removed');
 }
-
 function addGoal() {
   const name   = document.getElementById('new-goal-name').value.trim();
   const target = parseFloat(document.getElementById('new-goal-target').value);
@@ -942,20 +1275,17 @@ function addGoal() {
   showToast(`✓ "${name}" goal created!`);
 }
 
-/* ─── RENDER ───────────────────────────────────────────────────────── */
-function renderAll() {
-  updateSummary(); renderList(); renderCharts(); renderBudget();
-}
+/* ─── RENDER ──────────────────────────────────────────────── */
+function renderAll() { updateSummary(); renderList(); renderCharts(); renderBudget(); }
+
 function updateSummary() {
   const txs = monthTxs();
-  const inc = txs.filter(t=>t.type==='income').reduce((s,t)=>s+ +t.amount,0);
-  const exp = txs.filter(t=>t.type==='expense').reduce((s,t)=>s+ +t.amount,0);
+  const inc = txs.filter(t => t.type==='income').reduce((s,t)  => s + +t.amount, 0);
+  const exp = txs.filter(t => t.type==='expense').reduce((s,t) => s + +t.amount, 0);
   const bal = inc - exp;
   document.getElementById('balance').textContent       = fmt(bal);
   document.getElementById('total-income').textContent  = fmt(inc);
   document.getElementById('total-expense').textContent = fmt(exp);
-
-  /* ── Month vs last month comparison ── */
   const cmp = document.getElementById('balance-compare');
   if (cmp && !isAllTime) {
     let lm = viewMonth - 1, ly = viewYear;
@@ -994,6 +1324,16 @@ function renderList() {
   const list    = document.getElementById('tx-list');
   const visible = getVisible();
 
+  // FIX: rebuild callback maps each render — no eval() needed
+  Object.keys(txClickCallbacks).forEach(k => delete txClickCallbacks[k]);
+  Object.keys(txDeleteCallbacks).forEach(k => delete txDeleteCallbacks[k]);
+  visible.forEach(t => {
+    if (!t.isPending) txClickCallbacks[t.id]  = () => openEditModal(t.id);
+    txDeleteCallbacks[t.id] = t.isPending
+      ? () => cancelPending(t.tempId || t.id)
+      : () => confirmDelete(t.id);
+  });
+
   if (!visible.length) {
     const icons = { income:'📥', expense:'📤', recurring:'🔄', pending:'⏳' };
     const icon  = icons[currentFilter] || '📋';
@@ -1003,21 +1343,17 @@ function renderList() {
   }
 
   list.innerHTML = visible.map(t => {
-    const isRec    = !t.isPending && isRecurringTx(t);
-    const cat      = t.category ? esc(t.category) + ' · ' : '';
-    const budWarn  = getBudgetWarn(t);
-    const swipeAct = t.isPending
-      ? `cancelPending('${t.tempId||t.id}')`
-      : `confirmDelete('${t.id}')`;
-    const clickAct = t.isPending ? '' : `openEditModal('${t.id}')`;
+    const isRec   = !t.isPending && isRecurringTx(t);
+    const cat     = t.category ? esc(t.category) + ' · ' : '';
+    const budWarn = getBudgetWarn(t);
     return `
     <div class="tx-wrapper" id="wrap-${t.id}">
-      <div class="tx-swipe-bg" id="bg-${t.id}" onclick="${swipeAct}"><span class="bin-icon">🗑</span></div>
-      <div class="tx-card${t.isPending?' is-pending':''}" id="card-${t.id}" onclick="${clickAct}">
+      <div class="tx-swipe-bg" id="bg-${t.id}"><span class="bin-icon">🗑</span></div>
+      <div class="tx-card${t.isPending?' is-pending':''}" id="card-${t.id}">
         <div class="tx-icon ${t.type}">${t.type==='income'?'↑':'↓'}</div>
         <div class="tx-info">
           <div class="tx-desc">
-            ${esc(t.description||'No description')}
+            ${esc(t.description || 'No description')}
             ${t.isPending ? '<span class="badge pending">⏳ pending sync</span>' : ''}
             ${isRec ? '<span class="badge rec">↻ recurring</span>' : ''}
           </div>
@@ -1031,16 +1367,32 @@ function renderList() {
     </div>`;
   }).join('');
 
-  visible.forEach(t => attachSwipe(t.id));
+  // FIX: attach listeners from callback maps — no onclick needed
+  visible.forEach(t => {
+    const card = document.getElementById('card-' + t.id);
+    const bg   = document.getElementById('bg-'   + t.id);
+    if (card && txClickCallbacks[t.id])  card.addEventListener('click', txClickCallbacks[t.id]);
+    if (bg   && txDeleteCallbacks[t.id]) bg.addEventListener('click',   txDeleteCallbacks[t.id]);
+    attachSwipe(t.id);
+  });
+
+  // FIX: Load more button appended after list
+  if (hasMoreTxs && !searchQ) {
+    const btn = document.createElement('button');
+    btn.className   = 'load-more-btn';
+    btn.textContent = '↓ Load older transactions';
+    btn.addEventListener('click', () => loadTransactions(true));
+    list.appendChild(btn);
+  }
 }
 
 function getBudgetWarn(t) {
-  if (t.isPending || t.type!=='expense' || !t.category || !budgets[t.category]) return '';
-  const spent = monthTxs().filter(x=>!x.isPending&&x.type==='expense'&&x.category===t.category).reduce((s,x)=>s+ +x.amount,0);
+  if (t.isPending || t.type !== 'expense' || !t.category || !budgets[t.category]) return '';
+  const spent = monthTxs().filter(x => !x.isPending && x.type==='expense' && x.category===t.category).reduce((s,x) => s + +x.amount, 0);
   return spent > budgets[t.category] ? `Over ${t.category} budget` : '';
 }
 
-/* ─── SWIPE TO DELETE ──────────────────────────────────────────────── */
+/* ─── SWIPE TO DELETE — FIX: no eval() ───────────────────── */
 function attachSwipe(id) {
   const card    = document.getElementById('card-' + id);
   const wrapper = document.getElementById('wrap-' + id);
@@ -1048,38 +1400,27 @@ function attachSwipe(id) {
   if (!card || !wrapper || !bg) return;
 
   let startX=0, startY=0, curX=0, swiping=false, intentSet=false, isHoriz=false, deleted=false;
-
-  const SOFT = 88;   // reveal bin and hold
-  const HARD = 200;  // hard swipe — expand bin and delete
-
-  function getDeleteAction() {
-    const t = card.getAttribute('onclick') || '';
-    return bg.getAttribute('onclick') || '';
-  }
+  const SOFT = 88;
+  const HARD = 200;
 
   async function triggerDelete() {
     if (deleted) return;
     deleted = true;
-    /* 1 — slide card fully off screen */
     card.style.transition = 'transform 0.22s ease';
-    card.style.transform  = `translateX(-110%)`;
-    /* 2 — make bg red-tinted and explode the bin */
+    card.style.transform  = 'translateX(-110%)';
     bg.classList.add('hard-swipe', 'exploding');
-    /* 3 — collapse the row after animation */
     setTimeout(() => {
       wrapper.classList.add('collapsing');
-      /* 4 — fire the actual delete */
-      const action = bg.getAttribute('onclick');
-      if (action) {
-        setTimeout(() => { try { eval(action); } catch(e){} }, 180);
-      }
+      // FIX: use callback map — no eval()
+      const action = txDeleteCallbacks[id];
+      if (action) setTimeout(action, 180);
     }, 300);
   }
 
   card.addEventListener('touchstart', e => {
     if (deleted) return;
-    startX = e.touches[0].clientX; startY = e.touches[0].clientY;
-    curX = 0; swiping = true; intentSet = false; isHoriz = false;
+    startX=e.touches[0].clientX; startY=e.touches[0].clientY;
+    curX=0; swiping=true; intentSet=false; isHoriz=false;
     card.style.transition = 'none';
     bg.classList.remove('hard-swipe');
   }, { passive: true });
@@ -1090,52 +1431,43 @@ function attachSwipe(id) {
     const dy = e.touches[0].clientY - startY;
     if (!intentSet && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
       intentSet = true;
-      isHoriz = Math.abs(dx) > Math.abs(dy);
+      isHoriz   = Math.abs(dx) > Math.abs(dy);
     }
     if (!isHoriz) return;
     e.preventDefault();
     curX = Math.min(0, dx);
     const clamped = Math.max(-HARD - 20, curX);
     card.style.transform = `translateX(${clamped}px)`;
-
-    /* Reveal bin + scale as user drags */
     const progress = Math.min(1, Math.abs(curX) / SOFT);
     bg.style.opacity = String(Math.min(1, progress * 1.4));
-    const binIcon  = bg.querySelector('.bin-icon');
+    const binIcon = bg.querySelector('.bin-icon');
     if (binIcon) binIcon.style.transform = `scale(${1 + Math.min(1, Math.abs(curX) / HARD) * 0.6})`;
-
-    /* Tint background red when past SOFT threshold */
     bg.classList.toggle('hard-swipe', Math.abs(curX) > SOFT);
   }, { passive: false });
 
   card.addEventListener('touchend', async () => {
     if (!swiping || deleted) return;
     swiping = false;
-
     if (curX < -HARD) {
-      /* Hard swipe — auto delete */
       await triggerDelete();
     } else if (curX < -SOFT) {
-      /* Soft swipe — snap open showing bin */
       card.style.transition = 'transform 0.2s ease';
       card.style.transform  = `translateX(-${SOFT}px)`;
       bg.classList.add('hard-swipe');
-      /* Auto-close after 3s if not tapped */
       setTimeout(() => {
         if (!deleted && card.isConnected) {
           card.style.transition = 'transform 0.25s ease';
           card.style.transform  = '';
-          bg.style.opacity = '0';
+          bg.style.opacity      = '0';
           bg.classList.remove('hard-swipe');
           const binIcon = bg.querySelector('.bin-icon');
           if (binIcon) binIcon.style.transform = '';
         }
       }, 3000);
     } else {
-      /* Snap back */
       card.style.transition = 'transform 0.2s ease';
       card.style.transform  = '';
-      bg.style.opacity = '0';
+      bg.style.opacity      = '0';
       bg.classList.remove('hard-swipe');
       const binIcon = bg.querySelector('.bin-icon');
       if (binIcon) binIcon.style.transform = '';
@@ -1143,164 +1475,237 @@ function attachSwipe(id) {
   });
 }
 
-/* ─── CHARTS ───────────────────────────────────────────────────────── */
-function renderCharts() {
+/* ─── CHARTS — FIX: lazy Chart.js ────────────────────────── */
+async function renderCharts() {
   if (!document.getElementById('panel-charts').classList.contains('open')) return;
-  renderPieChart(); renderBarChart();
+  try {
+    await loadChartJS();
+  } catch {
+    document.getElementById('pie-wrap').innerHTML =
+      '<div class="chart-empty">Could not load Chart.js — check connection</div>';
+    return;
+  }
+  // FIX: show notice when data may be partial due to pagination
+  const notice = document.getElementById('chart-partial-notice');
+  if (notice) notice.style.display = hasMoreTxs ? 'block' : 'none';
+  renderPieChart();
+  renderBarChart();
 }
-const CHART_COLORS=['#1D9E75','#378ADD','#E24B4A','#EF9F27','#9B59B6','#E67E22','#16A085','#E91E63','#2980B9','#D35400'];
+
+const CHART_COLORS = ['#1D9E75','#378ADD','#E24B4A','#EF9F27','#9B59B6','#E67E22','#16A085','#E91E63','#2980B9','#D35400'];
 function chartText() { return document.documentElement.getAttribute('data-theme')==='dark'?'#9ca3af':'#6b7280'; }
 function chartGrid() { return document.documentElement.getAttribute('data-theme')==='dark'?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.07)'; }
 
 function renderPieChart() {
-  // Only use synced txs for charts (not pending)
-  const expenses = monthTxs().filter(t=>t.type==='expense'&&!t.isPending);
-  const catMap={};
-  expenses.forEach(t=>{const c=t.category||'Uncategorised';catMap[c]=(catMap[c]||0)+ +t.amount;});
-  const labels=Object.keys(catMap), values=Object.values(catMap);
-  const wrap=document.getElementById('pie-wrap');
-  if(!labels.length){wrap.innerHTML='<div class="chart-empty">No expense data for this period</div>';if(pieChart){pieChart.destroy();pieChart=null;}return;}
-  if(!wrap.querySelector('canvas'))wrap.innerHTML='<canvas id="pie-chart"></canvas>';
-  const ctx=document.getElementById('pie-chart').getContext('2d');
-  if(pieChart)pieChart.destroy();
-  pieChart=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data:values,backgroundColor:CHART_COLORS.slice(0,labels.length),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{font:{size:11},color:chartText(),boxWidth:12,padding:8}},tooltip:{callbacks:{label:c=>` ${c.label}: RM ${(+c.raw).toFixed(2)}`}}}}});
+  const expenses = monthTxs().filter(t => t.type==='expense' && !t.isPending);
+  const catMap = {};
+  expenses.forEach(t => { const c = t.category||'Uncategorised'; catMap[c] = (catMap[c]||0) + +t.amount; });
+  const labels = Object.keys(catMap), values = Object.values(catMap);
+  const wrap = document.getElementById('pie-wrap');
+  if (!labels.length) {
+    wrap.innerHTML = '<div class="chart-empty">No expense data for this period</div>';
+    if (pieChart) { pieChart.destroy(); pieChart = null; }
+    return;
+  }
+  if (!wrap.querySelector('canvas')) wrap.innerHTML = '<canvas id="pie-chart"></canvas>';
+  const ctx = document.getElementById('pie-chart').getContext('2d');
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: CHART_COLORS.slice(0, labels.length), borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: {
+      legend: { position: 'right', labels: { font: { size: 11 }, color: chartText(), boxWidth: 12, padding: 8 } },
+      tooltip: { callbacks: { label: c => ` ${c.label}: RM ${(+c.raw).toFixed(2)}` } }
+    }}
+  });
 }
 function renderBarChart() {
-  const labels=[],incs=[],exps=[];
-  for(let i=5;i>=0;i--){let m=viewMonth-i,y=viewYear;if(m<0){m+=12;y--;}labels.push(`${MSHORT[m]} ${y}`);const mT=allTxs.filter(t=>{const d=new Date(t.date+'T00:00:00');return d.getFullYear()===y&&d.getMonth()===m;});incs.push(mT.filter(t=>t.type==='income').reduce((s,t)=>s+ +t.amount,0));exps.push(mT.filter(t=>t.type==='expense').reduce((s,t)=>s+ +t.amount,0));}
-  const ctx=document.getElementById('bar-chart').getContext('2d');
-  if(barChart)barChart.destroy();
-  barChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Income',data:incs,backgroundColor:'#1D9E75',borderRadius:4},{label:'Expenses',data:exps,backgroundColor:'#E24B4A',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:11},color:chartText()}}},scales:{x:{ticks:{font:{size:10},color:chartText()},grid:{color:chartGrid()}},y:{ticks:{font:{size:10},color:chartText(),callback:v=>'RM'+v},grid:{color:chartGrid()}}}}});
+  const labels=[], incs=[], exps=[];
+  for (let i = 5; i >= 0; i--) {
+    let m = viewMonth - i, y = viewYear;
+    if (m < 0) { m += 12; y--; }
+    labels.push(`${MSHORT[m]} ${y}`);
+    const mT = allTxs.filter(t => { const d = new Date(t.date+'T00:00:00'); return d.getFullYear()===y && d.getMonth()===m; });
+    incs.push(mT.filter(t=>t.type==='income').reduce((s,t)=>s+ +t.amount,0));
+    exps.push(mT.filter(t=>t.type==='expense').reduce((s,t)=>s+ +t.amount,0));
+  }
+  const ctx = document.getElementById('bar-chart').getContext('2d');
+  if (barChart) barChart.destroy();
+  barChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Income',   data: incs, backgroundColor: '#1D9E75', borderRadius: 4 },
+      { label: 'Expenses', data: exps, backgroundColor: '#E24B4A', borderRadius: 4 }
+    ]},
+    options: { responsive: true, maintainAspectRatio: false, plugins: {
+      legend: { labels: { font: { size: 11 }, color: chartText() } }
+    }, scales: {
+      x: { ticks: { font: { size: 10 }, color: chartText() }, grid: { color: chartGrid() } },
+      y: { ticks: { font: { size: 10 }, color: chartText(), callback: v => 'RM' + v }, grid: { color: chartGrid() } }
+    }}
+  });
 }
 
-/* ─── BUDGET ───────────────────────────────────────────────────────── */
-function allExpenseCats(){return[...DEF_EXPENSE,...customCats.filter(c=>c.type==='expense').map(c=>c.name)];}
-function renderBudget(){
-  if(!document.getElementById('panel-budget').classList.contains('open'))return;
-  const cats=allExpenseCats();
-  const spent={};
-  // Only count synced for budget progress
-  monthTxs().filter(t=>t.type==='expense'&&!t.isPending).forEach(t=>{const c=t.category||'Uncategorised';spent[c]=(spent[c]||0)+ +t.amount;});
-  const setCats=cats.filter(c=>budgets[c]);
-  const barsEl=document.getElementById('budget-bars');
-  if(!setCats.length){barsEl.innerHTML='<div class="empty-state" style="padding:16px 0"><p style="font-size:13px">Set limits below to track spending here.</p></div>';}
-  else{barsEl.innerHTML=setCats.map(cat=>{const s=spent[cat]||0,lim=budgets[cat],pct=Math.min(100,(s/lim)*100),cls=pct>=100?'over':pct>=75?'warn':'ok';return`<div class="budget-progress-card"><div class="budget-progress-head"><span class="budget-cat-name">${esc(cat)}</span><span class="budget-amounts">${fmt(s)} / ${fmt(lim)}</span></div><div class="bbar-bg"><div class="bbar-fill ${cls}" style="width:${pct}%"></div></div></div>`;}).join('');}
-  document.getElementById('budget-inputs').innerHTML=cats.map(cat=>{const sid='bi-'+cat.replace(/[^a-zA-Z0-9]/g,'_');return`<div class="budget-row"><label for="${sid}">${esc(cat)}</label><input id="${sid}" type="number" min="0" step="1" placeholder="—" value="${budgets[cat]||''}" /></div>`;}).join('');
+/* ─── BUDGET ──────────────────────────────────────────────── */
+function allExpenseCats() { return [...DEF_EXPENSE, ...customCats.filter(c=>c.type==='expense').map(c=>c.name)]; }
+function renderBudget() {
+  if (!document.getElementById('panel-budget').classList.contains('open')) return;
+  const cats  = allExpenseCats();
+  const spent = {};
+  monthTxs().filter(t => t.type==='expense' && !t.isPending).forEach(t => {
+    const c = t.category || 'Uncategorised'; spent[c] = (spent[c] || 0) + +t.amount;
+  });
+  const setCats  = cats.filter(c => budgets[c]);
+  const barsEl   = document.getElementById('budget-bars');
+  if (!setCats.length) {
+    barsEl.innerHTML = '<div class="empty-state" style="padding:16px 0"><p style="font-size:13px">Set limits below to track spending here.</p></div>';
+  } else {
+    barsEl.innerHTML = setCats.map(cat => {
+      const s=spent[cat]||0, lim=budgets[cat], pct=Math.min(100,(s/lim)*100);
+      const cls = pct>=100?'over':pct>=75?'warn':'ok';
+      return `<div class="budget-progress-card">
+        <div class="budget-progress-head">
+          <span class="budget-cat-name">${esc(cat)}</span>
+          <span class="budget-amounts">${fmt(s)} / ${fmt(lim)}</span>
+        </div>
+        <div class="bbar-bg"><div class="bbar-fill ${cls}" style="width:${pct}%"></div></div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('budget-inputs').innerHTML = cats.map(cat => {
+    const sid = 'bi-' + cat.replace(/[^a-zA-Z0-9]/g, '_');
+    return `<div class="budget-row">
+      <label for="${sid}">${esc(cat)}</label>
+      <input id="${sid}" type="number" min="0" step="1" placeholder="—" value="${budgets[cat]||''}" />
+    </div>`;
+  }).join('');
 }
-function saveBudgets(){
-  allExpenseCats().forEach(cat=>{const el=document.getElementById('bi-'+cat.replace(/[^a-zA-Z0-9]/g,'_'));const v=el?parseFloat(el.value):0;if(v>0)budgets[cat]=v;else delete budgets[cat];});
-  saveSettings();renderBudget();showToast('✓ Budget limits saved');
+function saveBudgets() {
+  allExpenseCats().forEach(cat => {
+    const el = document.getElementById('bi-' + cat.replace(/[^a-zA-Z0-9]/g, '_'));
+    const v  = el ? parseFloat(el.value) : 0;
+    if (v > 0) budgets[cat] = v; else delete budgets[cat];
+  });
+  saveSettings();
+  renderBudget();
+  showToast('✓ Budget limits saved');
 }
 
-/* ─── TABS ─────────────────────────────────────────────────────────── */
-function switchTab(tab){
-  ['txs','charts','budget','goals'].forEach(t=>{document.getElementById(`tab-${t}`).classList.toggle('active',t===tab);document.getElementById(`panel-${t}`).classList.toggle('open',t===tab);});
-  if(tab==='charts')renderCharts();if(tab==='budget')renderBudget();if(tab==='goals')renderGoals();
+/* ─── TABS ────────────────────────────────────────────────── */
+function switchTab(tab) {
+  ['txs','charts','budget','goals'].forEach(t => {
+    const tabBtn   = document.getElementById('tab-'   + t);
+    const panelEl  = document.getElementById('panel-' + t);
+    const isActive = t === tab;
+    tabBtn.classList.toggle('active', isActive);
+    tabBtn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    panelEl.classList.toggle('open', isActive);
+  });
+  if (tab === 'charts') renderCharts();
+  if (tab === 'budget') renderBudget();
+  if (tab === 'goals')  renderGoals();
 }
 
-/* ─── FORM ─────────────────────────────────────────────────────────── */
-function toggleForm(){
-  const card=document.getElementById('form-card');const open=card.classList.contains('open');
+/* ─── FORM ────────────────────────────────────────────────── */
+function toggleForm() {
+  const card = document.getElementById('form-card');
+  const open = card.classList.contains('open');
   card.classList.toggle('open');
-  document.getElementById('add-icon').textContent=open?'＋':'✕';
-  document.getElementById('add-text').textContent=open?'Add Transaction':'Cancel';
-  if(!open)document.getElementById('f-amount').focus();else clearForm();
+  document.getElementById('add-icon').textContent = open ? '＋' : '✕';
+  document.getElementById('add-text').textContent = open ? 'Add Transaction' : 'Cancel';
+  if (!open) document.getElementById('f-amount').focus(); else clearForm();
 }
-function setType(type){
-  currentType=type;
-  document.getElementById('btn-income').className='type-btn'+(type==='income'?' active-income':'');
-  document.getElementById('btn-expense').className='type-btn'+(type==='expense'?' active-expense':'');
+function setType(type) {
+  currentType = type;
+  document.getElementById('btn-income').className  = 'type-btn' + (type==='income'  ? ' active-income'  : '');
+  document.getElementById('btn-expense').className = 'type-btn' + (type==='expense' ? ' active-expense' : '');
+  document.getElementById('btn-income').setAttribute('aria-pressed',  type==='income'  ? 'true' : 'false');
+  document.getElementById('btn-expense').setAttribute('aria-pressed', type==='expense' ? 'true' : 'false');
 }
-function quickAdd(v){const el=document.getElementById('f-amount');el.value=((parseFloat(el.value)||0)+v).toFixed(2).replace(/\.00$/,'');}
-function toggleRecOpts(on){document.getElementById('freq-wrap').classList.toggle('show',on);}
-function clearForm(){
-  ['f-desc','f-amount'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('f-category').value='';
-  document.getElementById('f-date').value=todayStr();
-  document.getElementById('f-recurring').checked=false;
+function quickAdd(v) {
+  const el = document.getElementById('f-amount');
+  el.value = ((parseFloat(el.value) || 0) + v).toFixed(2).replace(/\.00$/, '');
+}
+function toggleRecOpts(on) { document.getElementById('freq-wrap').classList.toggle('show', on); }
+function clearForm() {
+  ['f-desc','f-amount'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-category').value = '';
+  document.getElementById('f-date').value = todayStr();
+  document.getElementById('f-recurring').checked = false;
   document.getElementById('freq-wrap').classList.remove('show');
   setType('income');
 }
-function buildCategorySelects(){
-  const incCats=[...DEF_INCOME,...customCats.filter(c=>c.type==='income').map(c=>c.name)];
-  const expCats=[...DEF_EXPENSE,...customCats.filter(c=>c.type==='expense').map(c=>c.name)];
-  const html=`<option value="">-- Select category --</option><optgroup label="Income">${incCats.map(c=>`<option>${esc(c)}</option>`).join('')}</optgroup><optgroup label="Expenses">${expCats.map(c=>`<option>${esc(c)}</option>`).join('')}</optgroup>`;
-  ['f-category','e-category'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=html;});
+function buildCategorySelects() {
+  const incCats = [...DEF_INCOME,  ...customCats.filter(c=>c.type==='income').map(c=>c.name)];
+  const expCats = [...DEF_EXPENSE, ...customCats.filter(c=>c.type==='expense').map(c=>c.name)];
+  const html = `<option value="">-- Select category --</option>
+    <optgroup label="Income">${incCats.map(c=>`<option>${esc(c)}</option>`).join('')}</optgroup>
+    <optgroup label="Expenses">${expCats.map(c=>`<option>${esc(c)}</option>`).join('')}</optgroup>`;
+  ['f-category','e-category'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  });
 }
 
-/* ════════════════════════════════════════════════════════════════════
-   SAVE TRANSACTION  — works online and offline
-════════════════════════════════════════════════════════════════════ */
+/* ─── SAVE TRANSACTION ────────────────────────────────────── */
 async function saveTransaction() {
   if (isSaving) return;
-  const amount  = parseFloat(document.getElementById('f-amount').value);
-  const date    = document.getElementById('f-date').value;
+  const amount = parseFloat(document.getElementById('f-amount').value);
+  const date   = document.getElementById('f-date').value;
   if (!amount || amount <= 0) { showToast('Enter a valid amount'); document.getElementById('f-amount').focus(); return; }
-  if (!date)                  { showToast('Select a date'); return; }
+  if (!date) { showToast('Select a date'); return; }
 
   isSaving = true;
   const btn = document.getElementById('save-btn');
   btn.disabled = true; btn.textContent = 'Saving…';
 
-  const isRec = document.getElementById('f-recurring').checked;
-  const freq  = document.getElementById('f-freq').value;
-  const desc  = document.getElementById('f-desc').value.trim();
-  const cat   = document.getElementById('f-category').value;
+  const isRec   = document.getElementById('f-recurring').checked;
+  const freq    = document.getElementById('f-freq').value;
+  const desc    = document.getElementById('f-desc').value.trim();
+  const cat     = document.getElementById('f-category').value;
   const payload = { description: desc, amount, type: currentType, category: cat||null, date };
 
-  // Save recurring template regardless of connectivity
   if (isRec) {
     recTemplates.push({ id: Date.now().toString(), description: desc, amount, type: currentType, category: cat||null, frequency: freq, lastCreated: date });
     saveSettings();
   }
 
-  /* ── OFFLINE PATH ───────────────────────────────────────────────── */
   if (!navigator.onLine) {
-    const tempId = 'pending_' + Date.now();
+    const tempId = 'pending_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
     enqueue({ ...payload, tempId, isPending: true, createdLocal: new Date().toISOString() });
-    updatePendingUI();
-    renderAll();
-    toggleForm();
+    updatePendingUI(); renderAll(); toggleForm();
     showToast('💾 Saved locally — will sync when online');
     isSaving = false; btn.disabled = false; btn.textContent = 'Save';
     return;
   }
 
-  /* ── ONLINE PATH ────────────────────────────────────────────────── */
   try {
     const { data, error } = await db.from('transactions').insert([payload]).select();
     if (error) throw error;
-
     allTxs.unshift(data[0]);
-    renderAll();
-    toggleForm();
-
-    if (currentType === 'expense' && cat && budgets[cat]) {
+    renderAll(); toggleForm();
+    if (currentType==='expense' && cat && budgets[cat]) {
       const spent = monthTxs().filter(t=>!t.isPending&&t.type==='expense'&&t.category===cat).reduce((s,t)=>s+ +t.amount,0);
       if (spent > budgets[cat]) setTimeout(()=>showToast(`⚠ Over ${cat} budget!`),600);
       else showToast('✓ Expense added!');
     } else {
       showToast(currentType==='income' ? '✓ Income added!' : '✓ Expense added!');
     }
-  } catch(e) {
-    // Network failure mid-request — save offline as fallback
+  } catch (e) {
     if (!navigator.onLine || e?.message?.includes('fetch') || e?.message?.includes('network')) {
-      const tempId = 'pending_' + Date.now();
+      const tempId = 'pending_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
       enqueue({ ...payload, tempId, isPending: true, createdLocal: new Date().toISOString() });
-      updatePendingUI();
-      renderAll();
-      toggleForm();
+      updatePendingUI(); renderAll(); toggleForm();
       showToast('💾 Saved locally — will sync when online');
     } else {
-      showToast('Error: ' + (e?.message||'Unknown'));
-      console.error(e);
+      showToast('Error: ' + (e?.message || 'Unknown'));
     }
   } finally {
     isSaving = false; btn.disabled = false; btn.textContent = 'Save';
   }
 }
 
-/* ─── CANCEL PENDING ───────────────────────────────────────────────── */
+/* ─── CANCEL PENDING ──────────────────────────────────────── */
 function cancelPending(tempId) {
   if (!confirm('Remove this pending transaction?')) return;
   dequeue(tempId);
@@ -1309,110 +1714,269 @@ function cancelPending(tempId) {
   showToast('Pending transaction removed');
 }
 
-/* ─── EDIT MODAL ───────────────────────────────────────────────────── */
+/* ─── EDIT MODAL ──────────────────────────────────────────── */
 function openEditModal(id) {
   const t = allTxs.find(x => x.id === id);
   if (!t) return;
   editingId = id;
   setEditType(t.type);
   document.getElementById('e-amount').value   = t.amount;
-  document.getElementById('e-desc').value     = t.description||'';
+  document.getElementById('e-desc').value     = t.description || '';
   document.getElementById('e-date').value     = t.date;
   buildCategorySelects();
-  document.getElementById('e-category').value = t.category||'';
+  document.getElementById('e-category').value = t.category || '';
   document.getElementById('edit-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
-function closeEditModal(){document.getElementById('edit-backdrop').classList.remove('open');document.body.style.overflow='';editingId=null;}
-function closeEdit(e){if(e.target===document.getElementById('edit-backdrop'))closeEditModal();}
-function setEditType(type){
-  editType=type;
-  document.getElementById('e-btn-income').className='type-btn'+(type==='income'?' active-income':'');
-  document.getElementById('e-btn-expense').className='type-btn'+(type==='expense'?' active-expense':'');
+function closeEditModal() {
+  document.getElementById('edit-backdrop').classList.remove('open');
+  document.body.style.overflow = '';
+  editingId = null;
 }
-async function saveEdit(){
-  if(!editingId)return;
-  const amount=parseFloat(document.getElementById('e-amount').value);
-  if(!amount||amount<=0){showToast('Enter a valid amount');return;}
-  const btn=document.getElementById('e-save-btn');
-  btn.disabled=true;btn.textContent='Updating…';
-  try{
-    const updates={type:editType,amount,description:document.getElementById('e-desc').value.trim(),category:document.getElementById('e-category').value||null,date:document.getElementById('e-date').value};
-    const{error}=await db.from('transactions').update(updates).eq('id',editingId);
-    if(error)throw error;
-    const idx=allTxs.findIndex(t=>t.id===editingId);
-    if(idx!==-1)allTxs[idx]={...allTxs[idx],...updates};
-    renderAll();closeEditModal();showToast('✓ Transaction updated');
-  }catch(e){showToast('Error: '+(e?.message||'Unknown'));}
-  finally{btn.disabled=false;btn.textContent='Update';}
+function setEditType(type) {
+  editType = type;
+  document.getElementById('e-btn-income').className  = 'type-btn' + (type==='income'  ? ' active-income'  : '');
+  document.getElementById('e-btn-expense').className = 'type-btn' + (type==='expense' ? ' active-expense' : '');
+  document.getElementById('e-btn-income').setAttribute('aria-pressed',  type==='income'  ? 'true' : 'false');
+  document.getElementById('e-btn-expense').setAttribute('aria-pressed', type==='expense' ? 'true' : 'false');
 }
-async function deleteFromEditModal(){if(!editingId||!confirm('Delete this transaction?'))return;await deleteTransaction(editingId);closeEditModal();}
-async function confirmDelete(id){if(!confirm('Delete this transaction?'))return;await deleteTransaction(id);}
-async function deleteTransaction(id){
-  try{
-    const{error}=await db.from('transactions').delete().eq('id',id);
-    if(error)throw error;
-    allTxs=allTxs.filter(t=>t.id!==id);renderAll();showToast('Deleted');
-  }catch(e){showToast('Could not delete. Try again.');}
+async function saveEdit() {
+  if (!editingId) return;
+  const amount = parseFloat(document.getElementById('e-amount').value);
+  if (!amount || amount <= 0) { showToast('Enter a valid amount'); return; }
+  const btn = document.getElementById('e-save-btn');
+  btn.disabled = true; btn.textContent = 'Updating…';
+  try {
+    const updates = { type: editType, amount, description: document.getElementById('e-desc').value.trim(), category: document.getElementById('e-category').value || null, date: document.getElementById('e-date').value };
+    const { error } = await db.from('transactions').update(updates).eq('id', editingId);
+    if (error) throw error;
+    const idx = allTxs.findIndex(t => t.id === editingId);
+    if (idx !== -1) allTxs[idx] = { ...allTxs[idx], ...updates };
+    renderAll(); closeEditModal(); showToast('✓ Transaction updated');
+  } catch (e) { showToast('Error: ' + (e?.message || 'Unknown')); }
+  finally { btn.disabled = false; btn.textContent = 'Update'; }
 }
-
-/* ─── SEARCH ───────────────────────────────────────────────────────── */
-function onSearch(val){searchQ=val.trim();document.getElementById('search-clear').style.display=searchQ?'block':'none';document.getElementById('search-icon').style.display=searchQ?'none':'block';renderList();}
-function clearSearch(){document.getElementById('search-input').value='';onSearch('');document.getElementById('search-input').focus();}
-
-/* ─── FILTER ───────────────────────────────────────────────────────── */
-function setFilter(f,el){currentFilter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderList();}
-
-/* ─── CSV EXPORT ───────────────────────────────────────────────────── */
-function exportCSV(){
-  const txs=monthTxs().filter(t=>!t.isPending);
-  if(!txs.length){showToast('No transactions to export');return;}
-  const rows=[['Date','Type','Category','Description','Amount (RM)'],...txs.map(t=>[t.date,t.type,t.category||'',(t.description||'').replace(/,/g,';'),(+t.amount).toFixed(2)])];
-  const csv=rows.map(r=>r.join(',')).join('\n');
-  const blob=new Blob([csv],{type:'text/csv'});
-  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(blob),download:`money-record-${isAllTime?'all':viewYear+'-'+String(viewMonth+1).padStart(2,'0')}.csv`});
-  a.click();URL.revokeObjectURL(a.href);showToast('✓ CSV downloaded');
+async function deleteFromEditModal() {
+  if (!editingId || !confirm('Delete this transaction?')) return;
+  await deleteTransaction(editingId);
+  closeEditModal();
+}
+async function confirmDelete(id) {
+  if (!confirm('Delete this transaction?')) return;
+  await deleteTransaction(id);
+}
+async function deleteTransaction(id) {
+  try {
+    const { error } = await db.from('transactions').delete().eq('id', id);
+    if (error) throw error;
+    allTxs = allTxs.filter(t => t.id !== id);
+    renderAll();
+    showToast('Deleted');
+  } catch { showToast('Could not delete. Try again.'); }
 }
 
-/* ─── SETTINGS ─────────────────────────────────────────────────────── */
-function openSettingsModal(){renderCustomCatsList();renderRecurringList();updatePendingUI();document.getElementById('settings-backdrop').classList.add('open');document.body.style.overflow='hidden';}
-function closeSettingsModal(){document.getElementById('settings-backdrop').classList.remove('open');document.body.style.overflow='';}
-function closeSettings(e){if(e.target===document.getElementById('settings-backdrop'))closeSettingsModal();}
-
-function renderCustomCatsList(){
-  const wrap=document.getElementById('custom-cats-wrap');
-  if(!customCats.length){wrap.innerHTML='<span style="font-size:12px;color:var(--muted)">None yet.</span>';return;}
-  wrap.innerHTML=customCats.map((c,i)=>`<div class="chip">${esc(c.name)} <span style="font-size:9px;opacity:.6">${c.type}</span><button class="chip-del" onclick="removeCustomCat(${i})">×</button></div>`).join('');
+/* ─── SEARCH ──────────────────────────────────────────────── */
+function onSearch(val) {
+  searchQ = val.trim();
+  document.getElementById('search-clear').style.display = searchQ ? 'block' : 'none';
+  document.getElementById('search-icon').style.display  = searchQ ? 'none'  : 'block';
+  renderList();
 }
-function addCustomCat(){
-  const name=document.getElementById('new-cat-input').value.trim();const type=document.getElementById('new-cat-type').value;
-  if(!name)return;const all=[...DEF_INCOME,...DEF_EXPENSE,...customCats.map(c=>c.name)];
-  if(all.includes(name)){showToast('Category already exists');return;}
-  customCats.push({name,type});saveSettings();document.getElementById('new-cat-input').value='';
-  renderCustomCatsList();buildCategorySelects();showToast(`✓ "${name}" added`);
+function clearSearch() {
+  document.getElementById('search-input').value = '';
+  onSearch('');
+  document.getElementById('search-input').focus();
 }
-function removeCustomCat(i){customCats.splice(i,1);saveSettings();renderCustomCatsList();buildCategorySelects();}
 
-function renderRecurringList(){
-  const el=document.getElementById('recurring-list');
-  if(!recTemplates.length){el.innerHTML='<div style="font-size:13px;color:var(--muted)">No recurring templates.</div>';return;}
-  el.innerHTML=recTemplates.map((tpl,i)=>`<div class="settings-row"><div class="settings-row-label">${esc(tpl.description||tpl.category||'Unnamed')}<small>${tpl.type} · ${fmt(tpl.amount)} · every ${tpl.frequency}</small></div><button class="csv-btn" onclick="removeRecTemplate(${i})">Remove</button></div>`).join('');
+/* ─── FILTER — FIX: no element parameter needed ──────────── */
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.filter === f);
+  });
+  renderList();
 }
-function removeRecTemplate(i){recTemplates.splice(i,1);saveSettings();renderRecurringList();renderList();showToast('Template removed');}
 
-/* ─── UTILS ────────────────────────────────────────────────────────── */
-function fmt(n){return 'RM '+Math.abs(+n).toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});}
-function formatDate(d){if(!d)return'';return new Date(d+'T00:00:00').toLocaleDateString('en-MY',{day:'numeric',month:'short',year:'numeric'});}
-function todayStr(){return new Date().toISOString().split('T')[0];}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function updateTimestamp(){document.getElementById('sync-ts').textContent='Synced '+new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});}
+/* ─── CSV EXPORT ──────────────────────────────────────────── */
+function exportCSV() {
+  const txs = monthTxs().filter(t => !t.isPending);
+  if (!txs.length) { showToast('No transactions to export'); return; }
+  const rows = [
+    ['Date','Type','Category','Description','Amount (RM)'],
+    ...txs.map(t => [t.date, t.type, t.category||'', (t.description||'').replace(/,/g,';'), (+t.amount).toFixed(2)])
+  ];
+  const csv  = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a    = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob),
+    download: `money-record-${isAllTime ? 'all' : viewYear + '-' + String(viewMonth+1).padStart(2,'0')}.csv`
+  });
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('✓ CSV downloaded');
+}
+
+/* ─── CSV IMPORT — FIX: new feature ──────────────────────── */
+function importCSV(file) {
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const lines = e.target.result.split('\n').map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) { showToast('File is empty or has no data rows'); return; }
+      const imported = [];
+      for (const row of lines.slice(1)) { // skip header
+        const parts = row.split(',');
+        if (parts.length < 5) continue;
+        const [date, type, category, description, amount] = parts;
+        const amt = parseFloat(amount);
+        if (!date || !['income','expense'].includes(type.toLowerCase()) || !amt || amt <= 0) continue;
+        imported.push({ date: date.trim(), type: type.trim().toLowerCase(), category: category.trim() || null, description: description.trim(), amount: amt });
+      }
+      if (!imported.length) { showToast('No valid rows found in CSV'); return; }
+      if (!confirm(`Import ${imported.length} transaction${imported.length > 1 ? 's' : ''}?`)) return;
+      if (!navigator.onLine || !db) {
+        imported.forEach(payload => {
+          const tempId = 'pending_import_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5);
+          enqueue({ ...payload, tempId, isPending: true, createdLocal: new Date().toISOString() });
+        });
+        updatePendingUI(); renderAll();
+        showToast(`💾 ${imported.length} rows queued (offline)`);
+      } else {
+        const { error } = await db.from('transactions').insert(imported);
+        if (error) throw error;
+        await loadTransactions();
+        showToast(`✓ Imported ${imported.length} transaction${imported.length > 1 ? 's' : ''}`);
+      }
+    } catch (err) {
+      showToast('Import failed: ' + (err?.message || 'Unknown error'));
+    }
+    document.getElementById('csv-import-input').value = '';
+  };
+  reader.readAsText(file);
+}
+
+/* ─── SETTINGS ────────────────────────────────────────────── */
+function openSettingsModal() {
+  renderCustomCatsList();
+  renderRecurringList();
+  updatePendingUI();
+  document.getElementById('settings-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeSettingsModal() {
+  document.getElementById('settings-backdrop').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function renderCustomCatsList() {
+  const wrap = document.getElementById('custom-cats-wrap');
+  if (!customCats.length) {
+    wrap.innerHTML = '<span style="font-size:12px;color:var(--muted)">None yet.</span>';
+    return;
+  }
+  // FIX: data-idx for event delegation — no inline onclick
+  wrap.innerHTML = customCats.map((c, i) =>
+    `<div class="chip">
+      ${esc(c.name)} <span style="font-size:9px;opacity:.6">${c.type}</span>
+      <button class="chip-del" data-idx="${i}" aria-label="Remove ${esc(c.name)}">×</button>
+    </div>`
+  ).join('');
+}
+function addCustomCat() {
+  const name = document.getElementById('new-cat-input').value.trim();
+  const type = document.getElementById('new-cat-type').value;
+  if (!name) return;
+  const all = [...DEF_INCOME, ...DEF_EXPENSE, ...customCats.map(c => c.name)];
+  if (all.includes(name)) { showToast('Category already exists'); return; }
+  customCats.push({ name, type });
+  saveSettings();
+  document.getElementById('new-cat-input').value = '';
+  renderCustomCatsList();
+  buildCategorySelects();
+  showToast(`✓ "${name}" added`);
+}
+function removeCustomCat(i) {
+  customCats.splice(i, 1);
+  saveSettings();
+  renderCustomCatsList();
+  buildCategorySelects();
+}
+
+function renderRecurringList() {
+  const el = document.getElementById('recurring-list');
+  if (!recTemplates.length) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--muted)">No recurring templates.</div>';
+    return;
+  }
+  // FIX: data-remove-tpl for event delegation — no inline onclick
+  el.innerHTML = recTemplates.map((tpl, i) =>
+    `<div class="settings-row">
+      <div class="settings-row-label">
+        ${esc(tpl.description || tpl.category || 'Unnamed')}
+        <small>${tpl.type} · ${fmt(tpl.amount)} · every ${tpl.frequency}</small>
+      </div>
+      <button class="csv-btn" data-remove-tpl="${i}">Remove</button>
+    </div>`
+  ).join('');
+}
+function removeRecTemplate(i) {
+  recTemplates.splice(i, 1);
+  saveSettings();
+  renderRecurringList();
+  renderList();
+  showToast('Template removed');
+}
+
+/* ─── SETTINGS BACKUP — FIX: new feature ─────────────────── */
+function exportSettings() {
+  const data = { version: 1, exported: new Date().toISOString(), budgets, customCats, recTemplates, goals };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a    = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob),
+    download: 'money-settings-' + todayStr() + '.json'
+  });
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('✓ Settings exported');
+}
+function importSettings(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.version) { showToast('Unrecognised settings file'); return; }
+      if (!confirm('This will replace your current budgets, categories, goals and recurring templates. Continue?')) return;
+      if (data.budgets)      budgets      = data.budgets;
+      if (data.customCats)   customCats   = data.customCats;
+      if (data.recTemplates) recTemplates = data.recTemplates;
+      if (data.goals)        goals        = data.goals;
+      saveSettings();
+      buildCategorySelects();
+      renderCustomCatsList();
+      renderRecurringList();
+      renderBudget();
+      if (document.getElementById('panel-goals').classList.contains('open')) renderGoals();
+      showToast('✓ Settings imported');
+    } catch { showToast('Failed to parse settings file'); }
+    document.getElementById('settings-import-input').value = '';
+  };
+  reader.readAsText(file);
+}
+
+/* ─── UTILS ───────────────────────────────────────────────── */
+function fmt(n) { return 'RM ' + Math.abs(+n).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function formatDate(d) { if (!d) return ''; return new Date(d + 'T00:00:00').toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }); }
+function todayStr()    { return new Date().toISOString().split('T')[0]; }
+function esc(s)        { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function updateTimestamp() { document.getElementById('sync-ts').textContent = 'Synced ' + new Date().toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit' }); }
 
 let toastTimer;
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2800);}
-
-/* ─── SERVICE WORKER ───────────────────────────────────────────────── */
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(()=>{});
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
 }
 </script>
 </body>
