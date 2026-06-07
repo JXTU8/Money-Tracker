@@ -12,7 +12,11 @@ const CACHE = 'money-app-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json',
+  '/manifest.json'
+];
+
+/* Icons are optional — missing files must not block install */
+const ICON_ASSETS = [
   '/icon-192.png',
   '/icon-512.png'
 ];
@@ -36,9 +40,13 @@ const isCacheable = req => {
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(c =>
+      // Core assets must succeed
       c.addAll(STATIC_ASSETS).then(() =>
-        // CDN may be unreachable at install time — don't let it block
-        c.addAll(CDN_ASSETS).catch(() => {})
+        // Icons and CDN may be absent at first deploy — never block install
+        Promise.all([
+          c.addAll(ICON_ASSETS).catch(() => {}),
+          c.addAll(CDN_ASSETS).catch(() => {})
+        ])
       )
     )
   );

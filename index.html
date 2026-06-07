@@ -442,6 +442,29 @@
     }
     /* ─── BALANCE FORECAST ───────────────────────────────────── */
     .balance-forecast { font-size: 11px; opacity: .65; margin-top: 4px; }
+    /* ─── BALANCE SAVINGS RATE ───────────────────────────────── */
+    .balance-savings { font-size: 11px; opacity: .72; margin-top: 2px; }
+    /* ─── INSTALL BANNER ─────────────────────────────────────── */
+    .install-banner {
+      background: var(--blue); color: white; padding: 8px 16px;
+      font-size: 13px; position: sticky; top: 0; z-index: 24;
+      display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;
+    }
+    .install-banner button {
+      background: white; color: var(--blue); border: none; border-radius: 6px;
+      padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+    }
+    /* ─── BUDGET TOTAL ROW ───────────────────────────────────── */
+    .budget-total-row { border-width: 1.5px; margin-bottom: 12px; }
+    /* ─── RECURRING PAUSED STATE ─────────────────────────────── */
+    .rec-paused { opacity: .5; }
+    /* ─── GOAL SURPLUS SUGGESTION ────────────────────────────── */
+    .goal-suggest-card {
+      background: var(--green-light,#e6f7f0); border: 1px solid var(--green,#1D9E75);
+      border-radius: var(--radius); padding: 10px 14px; margin-top: 10px;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      font-size: 13px; color: var(--green,#1D9E75); flex-wrap: wrap;
+    }
     /* ─── PULL TO REFRESH ────────────────────────────────────── */
     .ptr-indicator { display: none; text-align: center; font-size: 13px; color: var(--muted); padding: 8px 0; }
     .ptr-indicator.show { display: block; }
@@ -619,6 +642,7 @@
     <div class="balance-label">Balance</div>
     <div class="balance-amount" id="balance">RM 0.00</div>
     <div class="balance-sub" id="balance-sub">This month</div>
+    <div class="balance-savings" id="balance-savings"></div>
     <div class="balance-compare" id="balance-compare"></div>
     <div class="balance-forecast" id="balance-forecast"></div>
   </div>
@@ -819,6 +843,10 @@ let goals        = [];
 // FIX: Callback maps replace eval() in swipe-to-delete
 const txClickCallbacks  = {};
 const txDeleteCallbacks = {};
+/* ── Performance: merged tx cache, recomputed once per renderAll ─── */
+let _mergedTxs = [];
+/* ── Undo delete buffer ─────────────────────────────────────────── */
+let _undoPendingDelete = null;
 
 /* ─── localStorage KEYS ──────────────────────────────────── */
 const LS_BUDGETS = 'money_budgets';
@@ -1086,8 +1114,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // FIX: Delegation for dynamically rendered settings lists
   document.getElementById('recurring-list').addEventListener('click', e => {
-    const btn = e.target.closest('[data-remove-tpl]');
-    if (btn) removeRecTemplate(parseInt(btn.dataset.removeTpl));
+    const removeBtn = e.target.closest('[data-remove-tpl]');
+    const pauseBtn  = e.target.closest('[data-pause-tpl]');
+    if (removeBtn) removeRecTemplate(parseInt(removeBtn.dataset.removeTpl));
+    if (pauseBtn)  togglePauseTemplate(parseInt(pauseBtn.dataset.pauseTpl));
   });
   document.getElementById('custom-cats-wrap').addEventListener('click', e => {
     const btn = e.target.closest('.chip-del[data-idx]');
@@ -1128,6 +1158,41 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // ── PWA install prompt ────────────────────────────────────
+  let _installPrompt = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    _installPrompt = e;
+    const dismissed = localStorage.getItem('money_install_dismissed');
+    if (dismissed && Date.now() - +dismissed < 30 * 24 * 3600000) return; // 30-day snooze
+    const _ib = document.createElement('div');
+    _ib.className = 'install-banner';
+    _ib.id = 'install-banner';
+    const _itxt = document.createTextNode('📲 Install for offline access & faster loading  ');
+    const _ibtn = document.createElement('button');
+    _ibtn.textContent = 'Install';
+    _ibtn.addEventListener('click', async () => {
+      if (!_installPrompt) return;
+      _installPrompt.prompt();
+      await _installPrompt.userChoice;
+      _installPrompt = null;
+      _ib.remove();
+    });
+    const _iclose = document.createElement('button');
+    _iclose.textContent = '✕';
+    _iclose.style.cssText = 'background:none;border:none;cursor:pointer;color:inherit;margin-left:4px;font-size:15px;line-height:1;';
+    _iclose.addEventListener('click', () => {
+      localStorage.setItem('money_install_dismissed', Date.now());
+      _ib.remove();
+    });
+    _ib.appendChild(_itxt);
+    _ib.appendChild(_ibtn);
+    _ib.appendChild(_iclose);
+    const _header = document.querySelector('header');
+    if (_header) _header.insertAdjacentElement('afterend', _ib);
+    else document.body.prepend(_ib);
+  });
+
   // ── Keyboard shortcuts ───────────────────────────────────
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && document.getElementById('form-card').classList.contains('open') && !isSaving) saveTransaction();
@@ -1153,13 +1218,13 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }, { passive: true });
   document.addEventListener('touchmove', e => {
-    if (_ptrOn && e.touches[0].clientY - _ptrY > 50)
+    if (_ptrOn && e.touches[0].clientY - _ptrY > Math.max(40, window.innerHeight * 0.08))
       document.getElementById('ptr-indicator')?.classList.add('show');
   }, { passive: true });
   document.addEventListener('touchend', async e => {
     document.getElementById('ptr-indicator')?.classList.remove('show');
     if (!_ptrOn) return; _ptrOn = false;
-    if (e.changedTouches[0].clientY - _ptrY > 80) { showToast('↻ Refreshing…'); await loadTransactions(); }
+    if (e.changedTouches[0].clientY - _ptrY > Math.max(60, window.innerHeight * 0.12)) { showToast('↻ Refreshing…'); await loadTransactions(); }
   }, { passive: true });
 
   // ── Service worker ───────────────────────────────────────
@@ -1169,9 +1234,14 @@ window.addEventListener('DOMContentLoaded', () => {
         const _nw = reg.installing;
         _nw.addEventListener('statechange', () => {
           if (_nw.state === 'installed' && navigator.serviceWorker.controller) {
-            const _b = document.createElement('div');
+            const _b    = document.createElement('div');
             _b.className = 'update-banner';
-            _b.innerHTML = '🆕 App update ready — <button onclick="location.reload()">Refresh now</button>';
+            const _bTxt = document.createTextNode('🆕 App update ready — ');
+            const _bBtn = document.createElement('button');
+            _bBtn.textContent = 'Refresh now';
+            _bBtn.addEventListener('click', () => location.reload());
+            _b.appendChild(_bTxt);
+            _b.appendChild(_bBtn);
             document.body.prepend(_b);
           }
         });
@@ -1268,7 +1338,7 @@ function goToToday() {
   renderAll();
 }
 
-function allTxsWithPending() { return [...pendingAsTxs(), ...allTxs]; }
+function allTxsWithPending() { return _mergedTxs; }
 function monthTxs() {
   const all = allTxsWithPending();
   if (isAllTime) return all;
@@ -1285,7 +1355,7 @@ async function processRecurring() {
   const today = todayStr();
   let count = 0;
   for (const tpl of recTemplates) {
-    if (!tpl.lastCreated) continue;
+    if (!tpl.lastCreated || tpl.paused) continue; // skip uninitialized + paused
     const last = new Date(tpl.lastCreated + 'T00:00:00');
     const now  = new Date(today + 'T00:00:00');
     let due = false;
@@ -1295,18 +1365,16 @@ async function processRecurring() {
       if ((now.getFullYear() * 12 + now.getMonth()) > (last.getFullYear() * 12 + last.getMonth())) due = true;
     }
     if (due) {
-      tpl.lastCreated = today;
-      count++;
       const payload = { description: tpl.description, amount: tpl.amount, type: tpl.type, category: tpl.category || null, date: today };
-      // FIX: queue when offline instead of silently failing
+      const tempId  = 'pending_rec_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+      // FIX: only mark lastCreated AFTER confirmed insert or queue — not before
       if (!navigator.onLine || !db) {
-        const tempId = 'pending_rec_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
         enqueue({ ...payload, tempId, isPending: true, createdLocal: new Date().toISOString() });
+        tpl.lastCreated = today; count++;
       } else {
-        await db.from('transactions').insert([payload]).catch(() => {
-          const tempId = 'pending_rec_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-          enqueue({ ...payload, tempId, isPending: true, createdLocal: new Date().toISOString() });
-        });
+        const { error } = await db.from('transactions').insert([payload]).catch(e => ({ error: e }));
+        if (error) enqueue({ ...payload, tempId, isPending: true, createdLocal: new Date().toISOString() });
+        tpl.lastCreated = today; count++; // commit only after insert attempt resolves
       }
     }
   }
@@ -1406,6 +1474,24 @@ function renderGoals() {
       </div>
     </div>`;
   }).join('');
+  // UX: show surplus suggestion if this month has positive balance and there are active goals
+  const _mInc   = monthTxs().filter(t=>t.type==='income'&&!t.isPending).reduce((s,t)=>s+ +t.amount,0);
+  const _mExp   = monthTxs().filter(t=>t.type==='expense'&&!t.isPending).reduce((s,t)=>s+ +t.amount,0);
+  const _surplus = _mInc - _mExp;
+  const _pending = goals.filter(g=>(g.saved||0)<g.target);
+  if (_surplus > 0.01 && _pending.length && !isAllTime) {
+    const _sg  = document.createElement('div');
+    _sg.className = 'goal-suggest-card';
+    const _stxt = document.createElement('span');
+    _stxt.textContent = `💡 ${fmt(_surplus)} surplus this month`;
+    const _sbtn = document.createElement('button');
+    _sbtn.className   = 'goal-quick';
+    _sbtn.textContent = 'Allocate to top goal';
+    _sbtn.addEventListener('click', () => addToGoal(goals.indexOf(_pending[0]), _surplus));
+    _sg.appendChild(_stxt);
+    _sg.appendChild(_sbtn);
+    container.appendChild(_sg);
+  }
 }
 
 function addToGoal(i, amount) {
@@ -1446,14 +1532,19 @@ function addGoal() {
 }
 
 /* ─── DATE GROUPING HELPERS ─────────────────────────────── */
+let _groupDateKey = '', _groupDateResult = [];
 function groupByDate(txs) {
+  const key = txs.map(t => t.id || t.tempId || t.date).join('|');
+  if (key === _groupDateKey) return _groupDateResult;
+  _groupDateKey = key;
   const groups = {}, order = [];
   txs.forEach(t => {
-    const key = t.date || 'unknown';
-    if (!groups[key]) { groups[key] = []; order.push(key); }
-    groups[key].push(t);
+    const k = t.date || 'unknown';
+    if (!groups[k]) { groups[k] = []; order.push(k); }
+    groups[k].push(t);
   });
-  return order.map(k => ({ date: k, txs: groups[k] }));
+  _groupDateResult = order.map(k => ({ date: k, txs: groups[k] }));
+  return _groupDateResult;
 }
 function labelDate(ds) {
   if (!ds || ds === 'unknown') return 'Unknown date';
@@ -1516,7 +1607,15 @@ async function duplicateTransaction() {
 let _renderTimer;
 function renderAll() {
   clearTimeout(_renderTimer);
-  _renderTimer = setTimeout(() => { updateSummary(); renderList(); renderCharts(); renderBudget(); }, 50);
+  _renderTimer = setTimeout(() => {
+    _mergedTxs = [...pendingAsTxs(), ...allTxs]; // compute once per batch
+    updateSummary();
+    renderList();
+    const _activeTab = document.querySelector('.tab-btn.active')?.id?.replace('tab-','');
+    if (_activeTab === 'charts') renderCharts();
+    if (_activeTab === 'budget') renderBudget();
+    if (_activeTab === 'goals')  renderGoals();
+  }, 50);
 }
 
 function updateSummary() {
@@ -1527,6 +1626,15 @@ function updateSummary() {
   document.getElementById('balance').textContent       = fmt(bal);
   document.getElementById('total-income').textContent  = fmt(inc);
   document.getElementById('total-expense').textContent = fmt(exp);
+
+  // UX: savings rate on the balance card
+  const savEl = document.getElementById('balance-savings');
+  if (savEl) {
+    if (inc > 0 && !isAllTime) {
+      const rate = Math.round((bal / inc) * 100);
+      savEl.textContent = rate >= 0 ? `${rate}% savings rate` : `${Math.abs(rate)}% over income`;
+    } else { savEl.textContent = ''; }
+  }
 
   // Spending forecast for current month
   const _fnow = new Date();
@@ -1544,7 +1652,8 @@ function updateSummary() {
   if (cmp && !isAllTime) {
     let lm = viewMonth - 1, ly = viewYear;
     if (lm < 0) { lm = 11; ly--; }
-    const lmTxs = allTxsWithPending().filter(t => {
+    // Bug fix: use only synced allTxs for comparison — pending txs skew last-month delta
+    const lmTxs = allTxs.filter(t => {
       const d = new Date(t.date + 'T00:00:00');
       return d.getFullYear() === ly && d.getMonth() === lm;
     });
@@ -1644,7 +1753,11 @@ function renderList() {
     const btn = document.createElement('button');
     btn.className   = 'load-more-btn';
     btn.textContent = '↓ Load older transactions';
-    btn.addEventListener('click', () => loadTransactions(true));
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Loading…';
+      await loadTransactions(true);
+    });
     list.appendChild(btn);
   }
 }
@@ -1766,8 +1879,9 @@ function renderPieChart() {
   const labels = Object.keys(catMap), values = Object.values(catMap);
   const wrap = document.getElementById('pie-wrap');
   if (!labels.length) {
-    wrap.innerHTML = '<div class="chart-empty">No expense data for this period</div>';
+    // Destroy first — Chart.js loses its canvas reference if we wipe innerHTML first
     if (pieChart) { pieChart.destroy(); pieChart = null; }
+    wrap.innerHTML = '<div class="chart-empty">No expense data for this period</div>';
     return;
   }
   if (!wrap.querySelector('canvas')) wrap.innerHTML = '<canvas id="pie-chart"></canvas>';
@@ -1823,7 +1937,17 @@ function renderBudget() {
   if (!setCats.length) {
     barsEl.innerHTML = '<div class="empty-state" style="padding:16px 0"><p style="font-size:13px">Set limits below to track spending here.</p></div>';
   } else {
-    barsEl.innerHTML = setCats.map(cat => {
+    const _totSpent  = setCats.reduce((s,c) => s+(spent[c]||0), 0);
+    const _totBudget = setCats.reduce((s,c) => s+budgets[c], 0);
+    const _totPct    = Math.min(100, (_totSpent/_totBudget)*100);
+    const _totCls    = _totPct>=100?'over':_totPct>=75?'warn':'ok';
+    barsEl.innerHTML = `<div class="budget-progress-card budget-total-row">
+      <div class="budget-progress-head">
+        <span class="budget-cat-name" style="font-weight:700">Total</span>
+        <span class="budget-amounts">${fmt(_totSpent)} / ${fmt(_totBudget)}</span>
+      </div>
+      <div class="bbar-bg"><div class="bbar-fill ${_totCls}" style="width:${_totPct}%"></div></div>
+    </div>` + setCats.map(cat => {
       const s=spent[cat]||0, lim=budgets[cat], pct=Math.min(100,(s/lim)*100);
       const cls = pct>=100?'over':pct>=75?'warn':'ok';
       return `<div class="budget-progress-card">
@@ -1864,6 +1988,15 @@ function switchTab(tab) {
     tabBtn.setAttribute('aria-selected', isActive ? 'true' : 'false');
     panelEl.classList.toggle('open', isActive);
   });
+  // Bug fix: re-sync the search bar's displayed value and clear-icon when switching back to txs
+  if (tab === 'txs') {
+    const _si  = document.getElementById('search-input');
+    const _sc  = document.getElementById('search-clear');
+    const _sic = document.getElementById('search-icon');
+    if (_si)  _si.value = searchQ;
+    if (_sc)  _sc.style.display  = searchQ ? 'block' : 'none';
+    if (_sic) _sic.style.display = searchQ ? 'none'  : 'block';
+  }
   if (tab === 'charts') renderCharts();
   if (tab === 'budget') renderBudget();
   if (tab === 'goals')  renderGoals();
@@ -2039,13 +2172,60 @@ async function confirmDelete(id) {
   );
 }
 async function deleteTransaction(id) {
+  const tx = allTxs.find(t => t.id === id);
+  if (!tx) return;
+  // If there is already a pending delete, commit it immediately before starting a new one
+  if (_undoPendingDelete) {
+    clearTimeout(toastTimer);
+    await _commitDelete(_undoPendingDelete.id);
+    _undoPendingDelete = null;
+  }
+  // Optimistic removal — feels instant
+  allTxs = allTxs.filter(t => t.id !== id);
+  _undoPendingDelete = { id, tx };
+  renderAll();
+  // Build undo toast using safe DOM APIs (no innerHTML with user content)
+  const toast = document.getElementById('toast');
+  toast.textContent = '';
+  const _tmsg = document.createElement('span');
+  _tmsg.textContent = `Deleted "${tx.description || 'transaction'}"`;
+  const _tundo = document.createElement('button');
+  _tundo.textContent = 'Undo';
+  _tundo.style.cssText = 'background:rgba(255,255,255,.2);border:none;border-radius:6px;padding:2px 10px;cursor:pointer;font-size:12px;color:white;margin-left:10px;font-family:inherit;';
+  _tundo.addEventListener('click', undoDelete);
+  toast.appendChild(_tmsg);
+  toast.appendChild(_tundo);
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(async () => {
+    toast.classList.remove('show');
+    if (_undoPendingDelete) { await _commitDelete(_undoPendingDelete.id); _undoPendingDelete = null; }
+  }, 4000);
+}
+
+async function _commitDelete(id) {
   try {
     const { error } = await db.from('transactions').delete().eq('id', id);
     if (error) throw error;
-    allTxs = allTxs.filter(t => t.id !== id);
-    renderAll();
-    showToast('Deleted');
-  } catch { showToast('Could not delete. Try again.'); }
+  } catch {
+    showToast('⚠ Could not delete from server — item restored');
+    await loadTransactions(); // restore from source of truth
+  }
+}
+
+function undoDelete() {
+  if (!_undoPendingDelete) return;
+  const { tx } = _undoPendingDelete;
+  _undoPendingDelete = null;
+  clearTimeout(toastTimer);
+  allTxs.push(tx);
+  allTxs.sort((a,b) => {
+    const dd = (b.date||'').localeCompare(a.date||'');
+    return dd !== 0 ? dd : (b.created_at||'').localeCompare(a.created_at||'');
+  });
+  renderAll();
+  document.getElementById('toast').classList.remove('show');
+  showToast('↩ Delete undone');
 }
 
 /* ─── SEARCH ──────────────────────────────────────────────── */
@@ -2097,13 +2277,17 @@ function importCSV(file) {
       const lines = e.target.result.split('\n').map(l => l.trim()).filter(Boolean);
       if (lines.length < 2) { showToast('File is empty or has no data rows'); return; }
       const imported = [];
+      const _sanitizeCSV = s => String(s||'').replace(/[<>"'&]/g,'').trim().slice(0,500);
       for (const row of lines.slice(1)) { // skip header
         const parts = row.split(',');
         if (parts.length < 5) continue;
-        const [date, type, category, description, amount] = parts;
-        const amt = parseFloat(amount);
-        if (!date || !['income','expense'].includes(type.toLowerCase()) || !amt || amt <= 0) continue;
-        imported.push({ date: date.trim(), type: type.trim().toLowerCase(), category: category.trim() || null, description: description.trim(), amount: amt });
+        const date        = _sanitizeCSV(parts[0]);
+        const type        = _sanitizeCSV(parts[1]).toLowerCase();
+        const category    = _sanitizeCSV(parts[2]) || null;
+        const description = _sanitizeCSV(parts[3]);
+        const amt         = parseFloat(parts[4]);
+        if (!date || !['income','expense'].includes(type) || !amt || amt <= 0) continue;
+        imported.push({ date, type, category, description, amount: amt });
       }
       if (!imported.length) { showToast('No valid rows found in CSV'); return; }
 
@@ -2187,16 +2371,25 @@ function renderRecurringList() {
     el.innerHTML = '<div style="font-size:13px;color:var(--muted)">No recurring templates.</div>';
     return;
   }
-  // FIX: data-remove-tpl for event delegation — no inline onclick
   el.innerHTML = recTemplates.map((tpl, i) =>
-    `<div class="settings-row">
+    `<div class="settings-row${tpl.paused?' rec-paused':''}">
       <div class="settings-row-label">
         ${esc(tpl.description || tpl.category || 'Unnamed')}
-        <small>${tpl.type} · ${fmt(tpl.amount)} · every ${tpl.frequency}</small>
+        <small>${tpl.type} · ${fmt(tpl.amount)} · every ${tpl.frequency}${tpl.paused?' · paused':''}</small>
       </div>
-      <button class="csv-btn" data-remove-tpl="${i}">Remove</button>
+      <div style="display:flex;gap:6px">
+        <button class="csv-btn" data-pause-tpl="${i}">${tpl.paused?'▶ Resume':'⏸ Pause'}</button>
+        <button class="csv-btn" data-remove-tpl="${i}">Remove</button>
+      </div>
     </div>`
   ).join('');
+}
+function togglePauseTemplate(i) {
+  if (!recTemplates[i]) return;
+  recTemplates[i].paused = !recTemplates[i].paused;
+  saveSettings();
+  renderRecurringList();
+  showToast(recTemplates[i].paused ? '⏸ Template paused' : '▶ Template resumed');
 }
 function removeRecTemplate(i) {
   recTemplates.splice(i, 1);
@@ -2251,7 +2444,7 @@ function importSettings(file) {
 /* ─── UTILS ───────────────────────────────────────────────── */
 function fmt(n) { return 'RM ' + Math.abs(+n).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function formatDate(d) { if (!d) return '—'; const _dt = new Date(d + 'T00:00:00'); return isNaN(_dt) ? '—' : _dt.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }); }
-function todayStr()    { return new Date().toISOString().split('T')[0]; }
+function todayStr()    { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function esc(s)        { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function updateTimestamp() { document.getElementById('sync-ts').textContent = 'Synced ' + new Date().toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit' }); }
 
