@@ -97,7 +97,8 @@
     }
     .mnav-btn:hover { background: var(--bg); color: var(--text); }
     .mnav-center { text-align: center; }
-    .mnav-label { font-size: 15px; font-weight: 600; }
+    .mnav-label { font-size: 15px; font-weight: 600; display: flex; align-items: baseline; justify-content: center; gap: 8px; flex-wrap: wrap; }
+    .today-exp-inline { font-size: 11px; font-weight: 500; color: var(--red); background: var(--red-light); padding: 2px 7px; border-radius: 8px; }
     .alltime-chip {
       display: inline-block; margin-top: 3px; font-size: 11px;
       padding: 2px 8px; border-radius: 10px; cursor: pointer;
@@ -475,15 +476,6 @@
     .tab-bar::-webkit-scrollbar { display: none; }
     .tab-btn { flex: 0 0 auto; white-space: nowrap; padding: 7px 13px; }
 
-    /* ─── TODAY WIDGET ────────────────────────────────────── */
-    .today-widget {
-      display: flex; align-items: center; justify-content: space-between;
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 10px 14px; margin-bottom: 10px;
-      font-size: 12px; color: var(--muted);
-    }
-    .today-widget-amt { font-size: 15px; font-weight: 700; color: var(--red); }
-
     /* ─── PHOTO ATTACH (transactions + food) ─────────────────── */
     .photo-pick-btn {
       width: 100%; padding: 10px; border: 1.5px dashed var(--border);
@@ -738,7 +730,10 @@
   <div class="month-nav">
     <button class="mnav-btn" id="month-prev" aria-label="Previous month">‹</button>
     <div class="mnav-center">
-      <div class="mnav-label" id="month-label">June 2026</div>
+      <div class="mnav-label">
+        <span id="month-label">June 2026</span>
+        <span class="today-exp-inline" id="today-expense-amt">Today: RM 0.00</span>
+      </div>
       <span class="alltime-chip" id="alltime-chip">All time</span>
       <button class="today-btn" id="today-btn">Today</button>
     </div>
@@ -757,12 +752,6 @@
   <div class="stats-row">
     <div class="stat-card income"><div class="stat-label">↑ Income</div><div class="stat-amount" id="total-income">RM 0.00</div></div>
     <div class="stat-card expense"><div class="stat-label">↓ Expenses</div><div class="stat-amount" id="total-expense">RM 0.00</div></div>
-  </div>
-
-  <!-- Today's Expenses widget — always reflects today, regardless of viewed month -->
-  <div class="today-widget" id="today-widget">
-    <span>📅 Today's expenses</span>
-    <span class="today-widget-amt" id="today-expense-amt">RM 0.00</span>
   </div>
 
   <!-- Tabs -->
@@ -1945,14 +1934,14 @@ function updateSummary() {
   document.getElementById('total-income').textContent  = fmt(inc);
   document.getElementById('total-expense').textContent = fmt(exp);
 
-  // Today's Expenses widget — always "today", independent of the viewed month
+  // Today's Expenses — shown inline next to the month label, always "today" regardless of viewed month
   const todayEl = document.getElementById('today-expense-amt');
   if (todayEl) {
     const today = todayStr();
     const todayExp = allTxsWithPending()
       .filter(t => t.type === 'expense' && t.date === today)
       .reduce((s,t) => s + +t.amount, 0);
-    todayEl.textContent = fmt(todayExp);
+    todayEl.textContent = 'Today: ' + fmt(todayExp);
   }
 
   // UX: savings rate on the balance card

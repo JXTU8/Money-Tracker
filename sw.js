@@ -1,14 +1,11 @@
-/* ─── Money Record — Service Worker v6 ───────────────────────────────
-   Changes from v5:
-   ✅ Cache version bumped to v6 — clears stale v5 cache so installed
-      users actually receive the new Photos/Homework/Health features
-   ✅ No other changes — v5's caching strategy (cache-first for static/
-      CDN assets, network-first for everything else, including the new
-      Supabase Storage photo URLs and Edge Function calls) already covers
-      the new features correctly without modification
+/* ─── Money Record — Service Worker v7 ───────────────────────────────
+   Changes from v6:
+   ✅ Cache version bumped to v7 — clears stale v6 cache so the
+      Today's Expenses placement fix (moved next to the month label,
+      emoji removed) actually reaches installed users
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v6';
+const CACHE = 'money-app-v7';
 
 const STATIC_ASSETS = [
   '/',
