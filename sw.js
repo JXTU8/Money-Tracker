@@ -1,15 +1,11 @@
-/* ─── Money Record — Service Worker v8 ───────────────────────────────
-   Changes from v7:
-   ✅ Cache version bumped to v8 — clears stale v7 cache so this reaches
-      installed users:
-   ✅ Budget and Health tabs removed entirely
-   ✅ Homework moved next to Transactions in the tab bar
-   ✅ Per-day total expense now shown beside each date heading
-   ✅ New "Count Calories" checkbox on receipt photos (AI estimate moved
-      from the old Health tab onto transactions themselves)
+/* ─── Money Record — Service Worker v9 ───────────────────────────────
+   Changes from v8:
+   ✅ Cache version bumped to v9 — clears stale v8 cache so the
+      calorie-estimate fix (empty+explained instead of misleading "0")
+      actually reaches installed users
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v8';
+const CACHE = 'money-app-v9';
 
 const STATIC_ASSETS = [
   '/',
