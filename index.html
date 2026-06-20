@@ -469,6 +469,86 @@
     .ptr-indicator { display: none; text-align: center; font-size: 13px; color: var(--muted); padding: 8px 0; }
     .ptr-indicator.show { display: block; }
     @media (max-width: 500px) { main { padding: 10px; } .balance-amount { font-size: 28px; } }
+
+    /* ─── TAB BAR SCROLL — supports more than 4 tabs on mobile ── */
+    .tab-bar { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .tab-bar::-webkit-scrollbar { display: none; }
+    .tab-btn { flex: 0 0 auto; white-space: nowrap; padding: 7px 13px; }
+
+    /* ─── TODAY WIDGET ────────────────────────────────────── */
+    .today-widget {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 10px 14px; margin-bottom: 10px;
+      font-size: 12px; color: var(--muted);
+    }
+    .today-widget-amt { font-size: 15px; font-weight: 700; color: var(--red); }
+
+    /* ─── PHOTO ATTACH (transactions + food) ─────────────────── */
+    .photo-pick-btn {
+      width: 100%; padding: 10px; border: 1.5px dashed var(--border);
+      border-radius: 8px; background: var(--bg); color: var(--muted);
+      font-size: 13px; cursor: pointer; transition: all .15s; font-family: inherit;
+    }
+    .photo-pick-btn:hover { border-color: var(--blue); color: var(--blue); }
+    .photo-preview-wrap { position: relative; display: block; }
+    .photo-preview { width: 100%; max-height: 160px; object-fit: cover; border-radius: 8px; display: block; }
+    .photo-remove-btn {
+      position: absolute; top: 6px; right: 6px; width: 24px; height: 24px;
+      border-radius: 50%; border: none; background: rgba(0,0,0,.6); color: white;
+      font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      line-height: 1;
+    }
+    .photo-preview-lg { width: 100%; max-height: 220px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; background: var(--bg); }
+
+    /* ─── HOMEWORK ────────────────────────────────────────── */
+    .hw-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 10px;
+    }
+    .hw-card.hw-done { opacity: .55; }
+    .hw-check {
+      width: 21px; height: 21px; border-radius: 6px; border: 1.5px solid var(--border);
+      background: var(--card); cursor: pointer; flex-shrink: 0; margin-top: 1px;
+      display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--green);
+      font-family: inherit; padding: 0;
+    }
+    .hw-card.hw-done .hw-check { background: var(--green-light); border-color: var(--green); }
+    .hw-info { flex: 1; min-width: 0; }
+    .hw-title { font-size: 14px; font-weight: 500; }
+    .hw-card.hw-done .hw-title { text-decoration: line-through; }
+    .hw-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .hw-meta.hw-overdue { color: var(--red); font-weight: 600; }
+    .hw-del {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 15px; padding: 4px 6px; border-radius: 6px; transition: all .15s; flex-shrink: 0;
+    }
+    .hw-del:hover { color: var(--red); background: var(--red-light); }
+
+    /* ─── HEALTH / FOOD / CALORIES ────────────────────────────── */
+    .cal-summary-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; }
+    .cal-stat .stat-label { text-align: center; }
+    .cal-stat .stat-amount { font-size: 16px; }
+    #cal-net.cal-deficit { color: var(--green); }
+    #cal-net.cal-surplus { color: var(--red); }
+    .food-ai-status {
+      text-align: center; font-size: 13px; color: var(--muted);
+      padding: 10px; background: var(--bg); border-radius: var(--radius); margin-bottom: 10px;
+    }
+    .food-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 10px 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px;
+    }
+    .food-thumb { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: var(--bg); }
+    .food-info { flex: 1; min-width: 0; }
+    .food-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .food-cal { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .food-del {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 15px; padding: 4px 6px; border-radius: 6px; transition: all .15s; flex-shrink: 0;
+    }
+    .food-del:hover { color: var(--red); background: var(--red-light); }
+    .food-ai-note { font-size: 11px; color: var(--muted); text-align: center; margin: -6px 0 12px; }
   </style>
 </head>
 <body>
@@ -502,6 +582,25 @@
   </div>
 </div>
 
+<!-- ─── FOOD CONFIRM MODAL ────────────────────────────────────── -->
+<div class="backdrop" id="food-confirm-backdrop" role="dialog" aria-modal="true" aria-labelledby="food-confirm-title">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h3 id="food-confirm-title">Confirm food entry</h3>
+      <button class="sheet-close" id="food-confirm-close" aria-label="Close">×</button>
+    </div>
+    <img id="food-confirm-img" class="photo-preview-lg" alt="Food photo" />
+    <div class="form-group"><label for="food-confirm-name">Food</label><input type="text" id="food-confirm-name" /></div>
+    <div class="form-group"><label for="food-confirm-cal">Calories (kcal)</label><input type="number" id="food-confirm-cal" min="0" step="1" /></div>
+    <p class="food-ai-note" id="food-confirm-note"></p>
+    <div class="form-actions">
+      <button class="btn-cancel" id="food-confirm-cancel-btn">Cancel</button>
+      <button class="btn-save"   id="food-confirm-save-btn">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- ─── EDIT MODAL ──────────────────────────────────────────── -->
 <div class="backdrop" id="edit-backdrop" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
   <div class="sheet">
@@ -520,6 +619,15 @@
     <div class="form-group"><label for="e-amount">Amount (RM)</label><input type="number" id="e-amount" min="0" step="0.01" /></div>
     <div class="form-group"><label for="e-desc">Description</label><input type="text" id="e-desc" /></div>
     <div class="form-group"><label for="e-date">Date</label><input type="date" id="e-date" /></div>
+    <div class="form-group">
+      <label>Receipt photo <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label>
+      <input type="file" accept="image/*" capture="environment" id="e-photo-input" style="display:none" />
+      <button type="button" class="photo-pick-btn" id="e-photo-pick-btn">📷 Add photo</button>
+      <div class="photo-preview-wrap" id="e-photo-preview-wrap" style="display:none">
+        <img id="e-photo-preview" class="photo-preview" alt="Receipt preview" />
+        <button type="button" class="photo-remove-btn" id="e-photo-remove-btn" aria-label="Remove photo">✕</button>
+      </div>
+    </div>
     <div class="form-actions">
       <button class="btn-cancel" id="e-cancel-btn">Cancel</button>
       <button class="btn-save"   id="e-save-btn">Update</button>
@@ -651,12 +759,20 @@
     <div class="stat-card expense"><div class="stat-label">↓ Expenses</div><div class="stat-amount" id="total-expense">RM 0.00</div></div>
   </div>
 
+  <!-- Today's Expenses widget — always reflects today, regardless of viewed month -->
+  <div class="today-widget" id="today-widget">
+    <span>📅 Today's expenses</span>
+    <span class="today-widget-amt" id="today-expense-amt">RM 0.00</span>
+  </div>
+
   <!-- Tabs -->
   <div class="tab-bar" role="tablist">
-    <button class="tab-btn active" id="tab-txs"    role="tab" aria-selected="true">Transactions</button>
-    <button class="tab-btn"        id="tab-charts" role="tab" aria-selected="false">📊 Charts</button>
-    <button class="tab-btn"        id="tab-budget" role="tab" aria-selected="false">🎯 Budget</button>
-    <button class="tab-btn"        id="tab-goals"  role="tab" aria-selected="false">🏦 Goals</button>
+    <button class="tab-btn active" id="tab-txs"      role="tab" aria-selected="true">Transactions</button>
+    <button class="tab-btn"        id="tab-charts"   role="tab" aria-selected="false">📊 Charts</button>
+    <button class="tab-btn"        id="tab-budget"   role="tab" aria-selected="false">🎯 Budget</button>
+    <button class="tab-btn"        id="tab-goals"    role="tab" aria-selected="false">🏦 Goals</button>
+    <button class="tab-btn"        id="tab-homework" role="tab" aria-selected="false">📚 Homework</button>
+    <button class="tab-btn"        id="tab-health"   role="tab" aria-selected="false">🍎 Health</button>
   </div>
 
   <!-- ── TRANSACTIONS PANEL ──────────────────────────── -->
@@ -690,6 +806,15 @@
         <input type="text" id="f-desc" placeholder="e.g. Salary, Groceries, Petrol…" />
       </div>
       <div class="form-group"><label for="f-date">Date</label><input type="date" id="f-date" /></div>
+      <div class="form-group">
+        <label>Receipt photo <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label>
+        <input type="file" accept="image/*" capture="environment" id="f-photo-input" style="display:none" />
+        <button type="button" class="photo-pick-btn" id="f-photo-pick-btn">📷 Add photo</button>
+        <div class="photo-preview-wrap" id="f-photo-preview-wrap" style="display:none">
+          <img id="f-photo-preview" class="photo-preview" alt="Receipt preview" />
+          <button type="button" class="photo-remove-btn" id="f-photo-remove-btn" aria-label="Remove photo">✕</button>
+        </div>
+      </div>
       <div class="recurring-row">
         <input type="checkbox" id="f-recurring" />
         <label for="f-recurring">Set as recurring</label>
@@ -773,6 +898,50 @@
       <button class="budget-save-btn" id="add-goal-btn">＋ Create goal</button>
     </div>
   </div>
+
+  <!-- ── HOMEWORK PANEL ───────────────────────────────── -->
+  <div class="panel" id="panel-homework" role="tabpanel">
+    <div class="form-card open">
+      <h3>Add homework</h3>
+      <div class="form-group"><label for="hw-title">Title</label><input type="text" id="hw-title" placeholder="e.g. Math worksheet ch.4" /></div>
+      <div class="form-group"><label for="hw-subject">Subject <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label><input type="text" id="hw-subject" placeholder="e.g. Math" /></div>
+      <div class="form-group"><label for="hw-due">Due date</label><input type="date" id="hw-due" /></div>
+      <div class="form-actions"><button class="btn-save" id="hw-add-btn" style="width:100%">＋ Add homework</button></div>
+    </div>
+    <div class="section-header"><h2>Homework</h2></div>
+    <div class="filter-row" role="group" aria-label="Filter homework">
+      <button class="filter-btn active" data-hwfilter="today">Today</button>
+      <button class="filter-btn"        data-hwfilter="upcoming">Upcoming</button>
+      <button class="filter-btn"        data-hwfilter="done">Done</button>
+      <button class="filter-btn"        data-hwfilter="all">All</button>
+    </div>
+    <div id="hw-list"></div>
+  </div>
+
+  <!-- ── HEALTH PANEL (food log + calorie comparison) ──── -->
+  <div class="panel" id="panel-health" role="tabpanel">
+    <div class="chart-card">
+      <h3>Today's calories</h3>
+      <div class="cal-summary-row">
+        <div class="cal-stat"><div class="stat-label">Consumed</div><div class="stat-amount" id="cal-consumed">0 kcal</div></div>
+        <div class="cal-stat"><div class="stat-label">Burned</div><div class="stat-amount" id="cal-burned-display">0 kcal</div></div>
+        <div class="cal-stat"><div class="stat-label">Net</div><div class="stat-amount" id="cal-net">0 kcal</div></div>
+      </div>
+      <div class="form-group" style="margin-top:14px;margin-bottom:0">
+        <label for="burned-input">Calories burned today (e.g. from Mi Band)</label>
+        <div style="display:flex;gap:8px">
+          <input type="number" id="burned-input" min="0" step="1" placeholder="0" />
+          <button class="csv-btn" id="burned-save-btn">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-header"><h2>Food log — today</h2></div>
+    <input type="file" accept="image/*" capture="environment" id="food-photo-input" style="display:none" />
+    <button class="add-btn" id="food-add-btn"><span>📷</span><span>Snap food photo</span></button>
+    <div class="food-ai-status" id="food-ai-status" style="display:none"></div>
+    <div id="food-list"></div>
+  </div>
 </main>
 
 <!-- FIX: role="status" + aria-live so screen readers announce toasts -->
@@ -839,6 +1008,20 @@ let budgets      = {};
 let customCats   = [];
 let recTemplates = [];
 let goals        = [];
+
+// FIX: photo attach state for add-transaction and edit-transaction forms
+let pendingPhotoBlob     = null;  // compressed Blob queued for upload on Save
+let editPhotoBlob        = null;  // new blob chosen while editing (null = unchanged)
+let editPhotoRemoved     = false; // true if user explicitly removed the existing photo
+
+// Homework feature
+let homework  = [];
+let hwFilter  = 'today';
+
+// Health feature (AI food tracker + calorie comparison)
+let foodLogs         = [];
+let calorieBurnToday = 0;
+let _pendingFoodBlob  = null; // compressed blob awaiting confirm in the food-confirm modal
 
 // FIX: Callback maps replace eval() in swipe-to-delete
 const txClickCallbacks  = {};
@@ -963,6 +1146,64 @@ function _executeConfirm() {
   }
 }
 
+/* ══════════════════════════════════════════════════════════
+   PHOTO COMPRESSION + STORAGE UPLOAD
+   Shared by receipt photos (transactions) and food photos.
+   Resizes to maxDim, then iteratively lowers JPEG quality
+   until the blob is under maxBytes (or minQuality is hit).
+══════════════════════════════════════════════════════════ */
+function compressImage(file, opts = {}) {
+  const { maxDim = 1280, maxBytes = 1024 * 1024, startQuality = 0.82, minQuality = 0.35 } = opts;
+  return new Promise((resolve, reject) => {
+    const img    = new Image();
+    const reader = new FileReader();
+    reader.onload = () => {
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const scale = maxDim / Math.max(width, height);
+          width  = Math.max(1, Math.round(width  * scale));
+          height = Math.max(1, Math.round(height * scale));
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        let quality = startQuality;
+        const tryEncode = () => {
+          canvas.toBlob(blob => {
+            if (!blob) { reject(new Error('Could not compress image')); return; }
+            if (blob.size <= maxBytes || quality <= minQuality) resolve(blob);
+            else { quality = Math.max(minQuality, quality - 0.12); tryEncode(); }
+          }, 'image/jpeg', quality);
+        };
+        tryEncode();
+      };
+      img.onerror = () => reject(new Error('Could not read image'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.readAsDataURL(file);
+  });
+}
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload  = () => resolve(String(r.result).split(',')[1]);
+    r.onerror = () => reject(new Error('Could not encode image'));
+    r.readAsDataURL(blob);
+  });
+}
+async function uploadPhoto(blob, folder) {
+  if (!db) throw new Error('Not connected');
+  const path = `${folder}/${todayStr()}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.jpg`;
+  const { error } = await db.storage.from('app-photos').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+  if (error) throw error;
+  const { data } = db.storage.from('app-photos').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 /* ─── CHART.JS LAZY LOADER — FIX ─────────────────────────── */
 function loadChartJS() {
   if (chartJsLoaded) return Promise.resolve();
@@ -1017,7 +1258,9 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // ── Header ──────────────────────────────────────────────
-  document.getElementById('refresh-btn').addEventListener('click', () => loadTransactions());
+  document.getElementById('refresh-btn').addEventListener('click', () => {
+    loadTransactions(); loadHomework(); loadFoodLogs(); loadCalorieBurn();
+  });
   document.getElementById('settings-btn').addEventListener('click', openSettingsModal);
   document.getElementById('pending-pill').addEventListener('click', openSettingsModal);
 
@@ -1028,7 +1271,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('today-btn').addEventListener('click', goToToday);
 
   // ── Tabs ─────────────────────────────────────────────────
-  ['txs','charts','budget','goals'].forEach(tab => {
+  ['txs','charts','budget','goals','homework','health'].forEach(tab => {
     document.getElementById('tab-' + tab).addEventListener('click', () => switchTab(tab));
   });
 
@@ -1132,7 +1375,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // ── Setup overlay ────────────────────────────────────────
   document.getElementById('setup-save-btn').addEventListener('click', saveCredentials);
-  ['edit-backdrop','settings-backdrop','confirm-backdrop'].forEach(makeFocusTrap);
+  ['edit-backdrop','settings-backdrop','confirm-backdrop','food-confirm-backdrop'].forEach(makeFocusTrap);
 
   // ── CSV import ───────────────────────────────────────────
   document.getElementById('csv-import-btn').addEventListener('click', () => {
@@ -1141,6 +1384,75 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('csv-import-input').addEventListener('change', e => {
     if (e.target.files[0]) importCSV(e.target.files[0]);
   });
+
+  // ── Receipt photo attach (add form) ──────────────────────
+  document.getElementById('f-photo-pick-btn').addEventListener('click', () => document.getElementById('f-photo-input').click());
+  document.getElementById('f-photo-input').addEventListener('change', async e => {
+    const file = e.target.files[0]; e.target.value = '';
+    if (!file) return;
+    try {
+      pendingPhotoBlob = await compressImage(file, { maxDim: 1280, maxBytes: 1024 * 1024 });
+      document.getElementById('f-photo-preview').src = URL.createObjectURL(pendingPhotoBlob);
+      document.getElementById('f-photo-preview-wrap').style.display = 'block';
+      document.getElementById('f-photo-pick-btn').style.display = 'none';
+    } catch (err) { showToast('Could not process photo: ' + (err?.message || 'Unknown')); }
+  });
+  document.getElementById('f-photo-remove-btn').addEventListener('click', () => {
+    pendingPhotoBlob = null;
+    document.getElementById('f-photo-preview-wrap').style.display = 'none';
+    document.getElementById('f-photo-pick-btn').style.display = 'block';
+  });
+
+  // ── Receipt photo attach (edit modal) ────────────────────
+  document.getElementById('e-photo-pick-btn').addEventListener('click', () => document.getElementById('e-photo-input').click());
+  document.getElementById('e-photo-input').addEventListener('change', async e => {
+    const file = e.target.files[0]; e.target.value = '';
+    if (!file) return;
+    try {
+      editPhotoBlob = await compressImage(file, { maxDim: 1280, maxBytes: 1024 * 1024 });
+      editPhotoRemoved = false;
+      document.getElementById('e-photo-preview').src = URL.createObjectURL(editPhotoBlob);
+      document.getElementById('e-photo-preview-wrap').style.display = 'block';
+      document.getElementById('e-photo-pick-btn').style.display = 'none';
+    } catch (err) { showToast('Could not process photo: ' + (err?.message || 'Unknown')); }
+  });
+  document.getElementById('e-photo-remove-btn').addEventListener('click', () => {
+    editPhotoBlob = null;
+    editPhotoRemoved = true;
+    document.getElementById('e-photo-preview-wrap').style.display = 'none';
+    document.getElementById('e-photo-pick-btn').style.display = 'block';
+  });
+
+  // ── Homework ──────────────────────────────────────────────
+  document.getElementById('hw-due').value = todayStr();
+  document.getElementById('hw-add-btn').addEventListener('click', addHomework);
+  document.querySelectorAll('[data-hwfilter]').forEach(btn => {
+    btn.addEventListener('click', () => setHwFilter(btn.dataset.hwfilter));
+  });
+  document.getElementById('hw-list').addEventListener('click', e => {
+    const check = e.target.closest('[data-hw-check]');
+    const del   = e.target.closest('[data-hw-del]');
+    if (check) toggleHomeworkDone(check.dataset.hwCheck);
+    if (del)   deleteHomework(del.dataset.hwDel);
+  });
+
+  // ── Health: food photo + AI calorie estimate ─────────────
+  document.getElementById('food-add-btn').addEventListener('click', () => document.getElementById('food-photo-input').click());
+  document.getElementById('food-photo-input').addEventListener('change', e => {
+    const file = e.target.files[0]; e.target.value = '';
+    if (file) handleFoodPhoto(file);
+  });
+  document.getElementById('food-confirm-close').addEventListener('click', closeFoodConfirm);
+  document.getElementById('food-confirm-cancel-btn').addEventListener('click', closeFoodConfirm);
+  document.getElementById('food-confirm-save-btn').addEventListener('click', saveFoodEntry);
+  document.getElementById('food-confirm-backdrop').addEventListener('click', e => {
+    if (e.target === document.getElementById('food-confirm-backdrop')) closeFoodConfirm();
+  });
+  document.getElementById('food-list').addEventListener('click', e => {
+    const del = e.target.closest('[data-food-del]');
+    if (del) deleteFoodEntry(del.dataset.foodDel);
+  });
+  document.getElementById('burned-save-btn').addEventListener('click', saveCalorieBurn);
 
   // ── Network events ───────────────────────────────────────
   window.addEventListener('offline', () => {
@@ -1224,7 +1536,10 @@ window.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('touchend', async e => {
     document.getElementById('ptr-indicator')?.classList.remove('show');
     if (!_ptrOn) return; _ptrOn = false;
-    if (e.changedTouches[0].clientY - _ptrY > Math.max(60, window.innerHeight * 0.12)) { showToast('↻ Refreshing…'); await loadTransactions(); }
+    if (e.changedTouches[0].clientY - _ptrY > Math.max(60, window.innerHeight * 0.12)) {
+      showToast('↻ Refreshing…');
+      await Promise.all([loadTransactions(), loadHomework(), loadFoodLogs(), loadCalorieBurn()]);
+    }
   }, { passive: true });
 
   // ── Service worker ───────────────────────────────────────
@@ -1297,6 +1612,9 @@ function initSupabase(url, key) {
     db = window.supabase.createClient(url, key);
     document.getElementById('setup-overlay').classList.remove('open');
     loadTransactions();
+    loadHomework();
+    loadFoodLogs();
+    loadCalorieBurn();
   } catch { showToast('Connection failed — check credentials.'); }
 }
 
@@ -1627,6 +1945,16 @@ function updateSummary() {
   document.getElementById('total-income').textContent  = fmt(inc);
   document.getElementById('total-expense').textContent = fmt(exp);
 
+  // Today's Expenses widget — always "today", independent of the viewed month
+  const todayEl = document.getElementById('today-expense-amt');
+  if (todayEl) {
+    const today = todayStr();
+    const todayExp = allTxsWithPending()
+      .filter(t => t.type === 'expense' && t.date === today)
+      .reduce((s,t) => s + +t.amount, 0);
+    todayEl.textContent = fmt(todayExp);
+  }
+
   // UX: savings rate on the balance card
   const savEl = document.getElementById('balance-savings');
   if (savEl) {
@@ -1705,6 +2033,16 @@ function renderList() {
     return;
   }
 
+  // PERF FIX: precompute this month's spend per category ONCE per render.
+  // Previously getBudgetWarn() re-filtered + re-summed the entire month for every
+  // visible row (O(n²) — the main cause of lag on lists with many transactions).
+  const _catSpend = {};
+  monthTxs().forEach(x => {
+    if (!x.isPending && x.type === 'expense' && x.category) {
+      _catSpend[x.category] = (_catSpend[x.category] || 0) + +x.amount;
+    }
+  });
+
   // Render transactions grouped by date
   const _grps = groupByDate(visible);
   list.innerHTML = _grps.map(({ date, txs: _gt }) =>
@@ -1712,7 +2050,7 @@ function renderList() {
     _gt.map(t => {
       const isRec   = !t.isPending && isRecurringTx(t);
       const cat     = t.category ? esc(t.category) + ' · ' : '';
-      const budWarn = getBudgetWarn(t);
+      const budWarn = getBudgetWarn(t, _catSpend);
       return `
       <div class="tx-wrapper" id="wrap-${t.id}">
         <div class="tx-swipe-bg" id="bg-${t.id}"><span class="bin-icon">🗑</span></div>
@@ -1723,6 +2061,7 @@ function renderList() {
               ${esc(t.description || 'No description')}
               ${t.isPending ? '<span class="badge pending">⏳ pending sync</span>' : ''}
               ${isRec ? '<span class="badge rec">↻ recurring</span>' : ''}
+              ${t.photo_url ? '<span title="Has receipt photo" aria-hidden="true">📎</span>' : ''}
             </div>
             <div class="tx-meta">${cat}${formatDate(t.date)}</div>
             ${budWarn ? `<div class="budget-alert">⚠ ${budWarn}</div>` : ''}
@@ -1762,9 +2101,11 @@ function renderList() {
   }
 }
 
-function getBudgetWarn(t) {
+// PERF FIX: now takes the precomputed category-spend map instead of recomputing
+// monthTxs().filter(...).reduce(...) from scratch for every single row.
+function getBudgetWarn(t, catSpend) {
   if (t.isPending || t.type !== 'expense' || !t.category || !budgets[t.category]) return '';
-  const spent = monthTxs().filter(x => !x.isPending && x.type==='expense' && x.category===t.category).reduce((s,x) => s + +x.amount, 0);
+  const spent = (catSpend && catSpend[t.category]) || 0;
   return spent > budgets[t.category] ? `Over ${t.category} budget` : '';
 }
 
@@ -1980,7 +2321,7 @@ function saveBudgets() {
 
 /* ─── TABS ────────────────────────────────────────────────── */
 function switchTab(tab) {
-  ['txs','charts','budget','goals'].forEach(t => {
+  ['txs','charts','budget','goals','homework','health'].forEach(t => {
     const tabBtn   = document.getElementById('tab-'   + t);
     const panelEl  = document.getElementById('panel-' + t);
     const isActive = t === tab;
@@ -1997,9 +2338,11 @@ function switchTab(tab) {
     if (_sc)  _sc.style.display  = searchQ ? 'block' : 'none';
     if (_sic) _sic.style.display = searchQ ? 'none'  : 'block';
   }
-  if (tab === 'charts') renderCharts();
-  if (tab === 'budget') renderBudget();
-  if (tab === 'goals')  renderGoals();
+  if (tab === 'charts')   renderCharts();
+  if (tab === 'budget')   renderBudget();
+  if (tab === 'goals')    renderGoals();
+  if (tab === 'homework') renderHomework();
+  if (tab === 'health')   { renderFoodLog(); renderCalorieSummary(); }
 }
 
 /* ─── FORM ────────────────────────────────────────────────── */
@@ -2030,6 +2373,9 @@ function clearForm() {
   document.getElementById('f-date').value = todayStr();
   document.getElementById('f-recurring').checked = false;
   document.getElementById('freq-wrap').classList.remove('show');
+  pendingPhotoBlob = null;
+  document.getElementById('f-photo-preview-wrap').style.display = 'none';
+  document.getElementById('f-photo-pick-btn').style.display = 'block';
   setType('expense');
 }
 function buildCategorySelect(id, type) {
@@ -2070,12 +2416,21 @@ async function saveTransaction() {
   }
 
   if (!navigator.onLine) {
+    if (pendingPhotoBlob) showToast('📡 Offline — photo skipped, transaction will sync without it');
     const tempId = 'pending_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
     enqueue({ ...payload, tempId, isPending: true, createdLocal: new Date().toISOString() });
     updatePendingUI(); renderAll(); toggleForm();
     showToast('💾 Saved locally — will sync when online');
     isSaving = false; btn.disabled = false; btn.textContent = 'Save';
     return;
+  }
+
+  // FIX: upload receipt photo (if attached) before inserting — never blocks the save itself
+  if (pendingPhotoBlob) {
+    btn.textContent = 'Uploading photo…';
+    try { payload.photo_url = await uploadPhoto(pendingPhotoBlob, 'receipts'); }
+    catch (e) { showToast('Photo upload failed — saving without it'); }
+    btn.textContent = 'Saving…';
   }
 
   try {
@@ -2123,6 +2478,16 @@ function openEditModal(id) {
   document.getElementById('e-desc').value     = t.description || '';
   document.getElementById('e-date').value     = t.date;
   document.getElementById('e-category').value = t.category || '';
+  // FIX: photo state — show existing receipt photo if present
+  editPhotoBlob = null; editPhotoRemoved = false;
+  if (t.photo_url) {
+    document.getElementById('e-photo-preview').src = t.photo_url;
+    document.getElementById('e-photo-preview-wrap').style.display = 'block';
+    document.getElementById('e-photo-pick-btn').style.display = 'none';
+  } else {
+    document.getElementById('e-photo-preview-wrap').style.display = 'none';
+    document.getElementById('e-photo-pick-btn').style.display = 'block';
+  }
   document.getElementById('edit-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
   setTimeout(() => document.getElementById('e-amount').focus(), 80);
@@ -2131,6 +2496,7 @@ function closeEditModal() {
   document.getElementById('edit-backdrop').classList.remove('open');
   document.body.style.overflow = '';
   editingId = null;
+  editPhotoBlob = null; editPhotoRemoved = false;
 }
 function setEditType(type) {
   editType = type;
@@ -2148,6 +2514,15 @@ async function saveEdit() {
   btn.disabled = true; btn.textContent = 'Updating…';
   try {
     const updates = { type: editType, amount, description: document.getElementById('e-desc').value.trim(), category: document.getElementById('e-category').value || null, date: document.getElementById('e-date').value };
+    // FIX: apply photo changes — new photo uploaded, or explicit removal
+    if (editPhotoBlob) {
+      btn.textContent = 'Uploading photo…';
+      try { updates.photo_url = await uploadPhoto(editPhotoBlob, 'receipts'); }
+      catch (e) { showToast('Photo upload failed — other changes still saved'); }
+      btn.textContent = 'Updating…';
+    } else if (editPhotoRemoved) {
+      updates.photo_url = null;
+    }
     const { error } = await db.from('transactions').update(updates).eq('id', editingId);
     if (error) throw error;
     const idx = allTxs.findIndex(t => t.id === editingId);
@@ -2248,6 +2623,251 @@ function setFilter(f) {
     b.classList.toggle('active', b.dataset.filter === f);
   });
   renderList();
+}
+
+/* ══════════════════════════════════════════════════════════
+   HOMEWORK
+══════════════════════════════════════════════════════════ */
+async function loadHomework() {
+  if (!db) return;
+  try {
+    const { data, error } = await db.from('homework').select('*').order('due_date', { ascending: true });
+    if (error) throw error;
+    homework = data || [];
+    renderHomework();
+  } catch (e) {
+    if (navigator.onLine) showToast('Could not load homework: ' + (e?.message || 'Unknown'));
+  }
+}
+function setHwFilter(f) {
+  hwFilter = f;
+  document.querySelectorAll('[data-hwfilter]').forEach(b => b.classList.toggle('active', b.dataset.hwfilter === f));
+  renderHomework();
+}
+function renderHomework() {
+  const list = document.getElementById('hw-list');
+  if (!list) return;
+  const today = todayStr();
+  let items = homework;
+  if (hwFilter === 'today')    items = homework.filter(h => !h.done && h.due_date === today);
+  if (hwFilter === 'upcoming') items = homework.filter(h => !h.done && h.due_date > today);
+  if (hwFilter === 'done')     items = homework.filter(h => h.done);
+  // 'all' shows everything, unfiltered
+
+  if (!items.length) {
+    const msgs = { today: 'Nothing due today. 🎉', upcoming: 'No upcoming homework.', done: 'No completed homework yet.', all: 'No homework yet.<br>Add your first item above.' };
+    list.innerHTML = `<div class="empty-state"><div class="icon">📚</div><p>${msgs[hwFilter] || msgs.all}</p></div>`;
+    return;
+  }
+  list.innerHTML = items.map(h => {
+    const overdue = !h.done && h.due_date < today;
+    return `
+    <div class="hw-card${h.done ? ' hw-done' : ''}">
+      <button class="hw-check" data-hw-check="${h.id}" aria-label="${h.done ? 'Mark incomplete' : 'Mark complete'}">${h.done ? '✓' : ''}</button>
+      <div class="hw-info">
+        <div class="hw-title">${esc(h.title)}</div>
+        <div class="hw-meta${overdue ? ' hw-overdue' : ''}">${h.subject ? esc(h.subject) + ' · ' : ''}${overdue ? 'Overdue · ' : ''}Due ${formatDate(h.due_date)}</div>
+      </div>
+      <button class="hw-del" data-hw-del="${h.id}" aria-label="Delete ${esc(h.title)}">🗑</button>
+    </div>`;
+  }).join('');
+}
+async function addHomework() {
+  const title = document.getElementById('hw-title').value.trim();
+  const subject = document.getElementById('hw-subject').value.trim();
+  const due = document.getElementById('hw-due').value || todayStr();
+  if (!title) { showToast('Enter a homework title'); return; }
+  if (!db) { showToast('Not connected'); return; }
+  const btn = document.getElementById('hw-add-btn');
+  btn.disabled = true; btn.textContent = 'Adding…';
+  try {
+    const payload = { title, subject: subject || null, due_date: due, done: false };
+    const { data, error } = await db.from('homework').insert([payload]).select();
+    if (error) throw error;
+    homework.push(data[0]);
+    homework.sort((a,b) => a.due_date < b.due_date ? -1 : 1);
+    document.getElementById('hw-title').value = '';
+    document.getElementById('hw-subject').value = '';
+    document.getElementById('hw-due').value = todayStr();
+    renderHomework();
+    showToast('✓ Homework added');
+  } catch (e) { showToast('Error: ' + (e?.message || 'Unknown')); }
+  finally { btn.disabled = false; btn.textContent = '＋ Add homework'; }
+}
+async function toggleHomeworkDone(id) {
+  const h = homework.find(x => String(x.id) === String(id));
+  if (!h || !db) return;
+  const done = !h.done;
+  h.done = done; // optimistic
+  renderHomework();
+  try {
+    const { error } = await db.from('homework').update({ done }).eq('id', id);
+    if (error) throw error;
+  } catch (e) {
+    h.done = !done; renderHomework();
+    showToast('Could not update: ' + (e?.message || 'Unknown'));
+  }
+}
+function deleteHomework(id) {
+  showConfirm(
+    'This homework item will be removed.',
+    async () => {
+      if (!db) return;
+      const { error } = await db.from('homework').delete().eq('id', id);
+      if (error) { showToast('Error: ' + error.message); return; }
+      homework = homework.filter(h => String(h.id) !== String(id));
+      renderHomework();
+      showToast('Homework removed');
+    },
+    { title: 'Delete homework?', confirmText: 'Delete', icon: '🗑', danger: true }
+  );
+}
+
+/* ══════════════════════════════════════════════════════════
+   HEALTH — AI food tracker + calorie comparison
+══════════════════════════════════════════════════════════ */
+async function loadFoodLogs() {
+  if (!db) return;
+  try {
+    const { data, error } = await db.from('food_logs').select('*').eq('date', todayStr()).order('created_at', { ascending: false });
+    if (error) throw error;
+    foodLogs = data || [];
+    renderFoodLog(); renderCalorieSummary();
+  } catch (e) {
+    if (navigator.onLine) showToast('Could not load food log: ' + (e?.message || 'Unknown'));
+  }
+}
+async function loadCalorieBurn() {
+  if (!db) return;
+  try {
+    const { data, error } = await db.from('calorie_burn').select('*').eq('burn_date', todayStr()).maybeSingle();
+    if (error) throw error;
+    calorieBurnToday = data?.calories || 0;
+    const el = document.getElementById('burned-input');
+    if (el) el.value = calorieBurnToday || '';
+    renderCalorieSummary();
+  } catch (e) {
+    if (navigator.onLine) showToast('Could not load calorie data: ' + (e?.message || 'Unknown'));
+  }
+}
+function renderCalorieSummary() {
+  const consumed = foodLogs.reduce((s,f) => s + (+f.calories || 0), 0);
+  const burned   = calorieBurnToday || 0;
+  const net      = burned - consumed; // positive = deficit, negative = surplus
+  const cEl = document.getElementById('cal-consumed');
+  const bEl = document.getElementById('cal-burned-display');
+  const nEl = document.getElementById('cal-net');
+  if (cEl) cEl.textContent = consumed + ' kcal';
+  if (bEl) bEl.textContent = burned + ' kcal';
+  if (nEl) {
+    nEl.textContent = (net >= 0 ? '−' : '+') + Math.abs(net) + ' kcal';
+    nEl.classList.toggle('cal-deficit', net >= 0);
+    nEl.classList.toggle('cal-surplus', net < 0);
+  }
+}
+async function saveCalorieBurn() {
+  const val = parseInt(document.getElementById('burned-input').value) || 0;
+  if (!db) { showToast('Not connected'); return; }
+  const btn = document.getElementById('burned-save-btn');
+  btn.disabled = true;
+  try {
+    const { error } = await db.from('calorie_burn').upsert({ burn_date: todayStr(), calories: val }, { onConflict: 'burn_date' });
+    if (error) throw error;
+    calorieBurnToday = val;
+    renderCalorieSummary();
+    showToast('✓ Saved');
+  } catch (e) { showToast('Error: ' + (e?.message || 'Unknown')); }
+  finally { btn.disabled = false; }
+}
+function renderFoodLog() {
+  const list = document.getElementById('food-list');
+  if (!list) return;
+  if (!foodLogs.length) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">🍽️</div><p>No food logged today yet.<br>Tap "Snap food photo" to start.</p></div>';
+    return;
+  }
+  list.innerHTML = foodLogs.map(f => `
+    <div class="food-card">
+      ${f.photo_url ? `<img class="food-thumb" src="${f.photo_url}" alt="${esc(f.food_name||'Food')}" loading="lazy" />` : '<div class="food-thumb"></div>'}
+      <div class="food-info">
+        <div class="food-name">${esc(f.food_name || 'Food')}</div>
+        <div class="food-cal">${f.calories ?? '—'} kcal</div>
+      </div>
+      <button class="food-del" data-food-del="${f.id}" aria-label="Delete ${esc(f.food_name||'food entry')}">🗑</button>
+    </div>`).join('');
+}
+function deleteFoodEntry(id) {
+  showConfirm(
+    'This food entry will be removed.',
+    async () => {
+      if (!db) return;
+      const { error } = await db.from('food_logs').delete().eq('id', id);
+      if (error) { showToast('Error: ' + error.message); return; }
+      foodLogs = foodLogs.filter(f => String(f.id) !== String(id));
+      renderFoodLog(); renderCalorieSummary();
+      showToast('Food entry removed');
+    },
+    { title: 'Delete food entry?', confirmText: 'Delete', icon: '🗑', danger: true }
+  );
+}
+
+// FIX: AI calorie estimation — photo never leaves the browser except via the
+// Edge Function, which holds the Gemini key server-side (never shipped to the client).
+async function handleFoodPhoto(file) {
+  if (!navigator.onLine || !db) { showToast('Food AI needs an internet connection'); return; }
+  const statusEl = document.getElementById('food-ai-status');
+  statusEl.style.display = 'block';
+  statusEl.textContent = '🔎 Compressing photo…';
+  try {
+    // "Low-res" cap for food photos — much smaller than the 1MB receipt cap
+    const lowResBlob = await compressImage(file, { maxDim: 480, maxBytes: 180 * 1024, startQuality: 0.7, minQuality: 0.3 });
+    statusEl.textContent = '🤖 Asking AI to estimate calories…';
+    const base64 = await blobToBase64(lowResBlob);
+    const { data, error } = await db.functions.invoke('estimate-calories', { body: { image: base64, mimeType: 'image/jpeg' } });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    statusEl.style.display = 'none';
+    openFoodConfirm(lowResBlob, data);
+  } catch (e) {
+    statusEl.style.display = 'none';
+    showToast('AI estimate failed: ' + (e?.message || 'Unknown error'));
+  }
+}
+function openFoodConfirm(blob, aiData) {
+  _pendingFoodBlob = blob;
+  document.getElementById('food-confirm-img').src = URL.createObjectURL(blob);
+  document.getElementById('food-confirm-name').value = aiData?.food_name || '';
+  document.getElementById('food-confirm-cal').value  = aiData?.calories ?? '';
+  document.getElementById('food-confirm-note').textContent = aiData?.note ? '🤖 ' + aiData.note + ' — feel free to correct the estimate.' : 'AI estimate — feel free to correct it.';
+  document.getElementById('food-confirm-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeFoodConfirm() {
+  document.getElementById('food-confirm-backdrop').classList.remove('open');
+  document.body.style.overflow = '';
+  _pendingFoodBlob = null;
+}
+async function saveFoodEntry() {
+  if (!_pendingFoodBlob) { closeFoodConfirm(); return; }
+  const name = document.getElementById('food-confirm-name').value.trim() || 'Food';
+  const cal  = parseInt(document.getElementById('food-confirm-cal').value) || 0;
+  const btn  = document.getElementById('food-confirm-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    // FIX: the saved photo IS the low-res compressed version (requirement: store low-res only)
+    const url = await uploadPhoto(_pendingFoodBlob, 'food');
+    const payload = { date: todayStr(), photo_url: url, food_name: name, calories: cal };
+    const { data, error } = await db.from('food_logs').insert([payload]).select();
+    if (error) throw error;
+    foodLogs.unshift(data[0]);
+    renderFoodLog(); renderCalorieSummary();
+    showToast('✓ Food logged');
+    closeFoodConfirm();
+  } catch (e) {
+    showToast('Error: ' + (e?.message || 'Unknown'));
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save';
+  }
 }
 
 /* ─── CSV EXPORT ──────────────────────────────────────────── */
