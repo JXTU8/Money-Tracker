@@ -1126,7 +1126,7 @@ function setCalorieUI(prefix, value) {
   const row   = document.getElementById(prefix + '-calorie-row');
   const input = document.getElementById(prefix + '-calorie-value');
   if (value == null) { row.style.display = 'none'; input.value = ''; }
-  else { row.style.display = 'flex'; input.value = value; }
+  else { row.style.display = 'flex'; input.value = value === '' ? '' : value; }
 }
 async function runCalorieEstimate(prefix, blob, onResult) {
   if (!navigator.onLine || !db) { showToast('Count Calories needs an internet connection'); return; }
@@ -1138,12 +1138,20 @@ async function runCalorieEstimate(prefix, blob, onResult) {
     const { data, error } = await db.functions.invoke('estimate-calories', { body: { image: base64, mimeType: 'image/jpeg' } });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
-    const cals = typeof data?.calories === 'number' ? data.calories : 0;
-    onResult(cals);
-    setCalorieUI(prefix, cals);
+    if (typeof data?.calories === 'number') {
+      // Real estimate from the AI
+      onResult(data.calories);
+      setCalorieUI(prefix, data.calories);
+    } else {
+      // AI ran fine but couldn't identify any food/drink to estimate from (e.g. unclear photo) —
+      // leave the field empty rather than guessing 0, and let the user fill it in themselves
+      onResult(null);
+      setCalorieUI(prefix, '');
+      showToast('🤖 AI couldn\'t read calories from that photo — enter manually');
+    }
   } catch (err) {
-    onResult(0);
-    setCalorieUI(prefix, 0); // leave an editable field so the user can enter it manually
+    onResult(null);
+    setCalorieUI(prefix, ''); // leave an empty editable field so the user can enter it manually
     showToast('AI calorie estimate failed — you can enter it manually');
   } finally {
     statusEl.style.display = 'none';
