@@ -1,11 +1,15 @@
-/* ─── Money Record — Service Worker v7 ───────────────────────────────
-   Changes from v6:
-   ✅ Cache version bumped to v7 — clears stale v6 cache so the
-      Today's Expenses placement fix (moved next to the month label,
-      emoji removed) actually reaches installed users
+/* ─── Money Record — Service Worker v8 ───────────────────────────────
+   Changes from v7:
+   ✅ Cache version bumped to v8 — clears stale v7 cache so this reaches
+      installed users:
+   ✅ Budget and Health tabs removed entirely
+   ✅ Homework moved next to Transactions in the tab bar
+   ✅ Per-day total expense now shown beside each date heading
+   ✅ New "Count Calories" checkbox on receipt photos (AI estimate moved
+      from the old Health tab onto transactions themselves)
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v7';
+const CACHE = 'money-app-v8';
 
 const STATIC_ASSETS = [
   '/',
