@@ -530,6 +530,23 @@
     }
     .subject-chip:hover { border-color: var(--green); color: var(--green); }
     .subject-chip.active { background: var(--green); border-color: var(--green); color: white; }
+    /* FEATURE: quick due-date shortcut chips — same interaction pattern as
+       the subject chips above, placed under the Due date field. Blue accent
+       keeps the group visually distinct from the green subject chips. */
+    .due-chip-row {
+      display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+      scrollbar-width: none; margin-top: 7px; padding-bottom: 1px;
+    }
+    .due-chip-row::-webkit-scrollbar { display: none; }
+    .due-chip {
+      flex: 0 0 auto; padding: 6px 13px; border-radius: 20px;
+      border: 1.5px solid var(--border); background: var(--card);
+      font-size: 12px; font-weight: 500; color: var(--muted); cursor: pointer;
+      white-space: nowrap; transition: all .15s; font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .due-chip:hover { border-color: var(--blue); color: var(--blue); }
+    .due-chip.active { background: var(--blue); border-color: var(--blue); color: white; }
   </style>
 </head>
 <body>
@@ -819,16 +836,28 @@
       <div class="form-group">
         <label for="hw-subject">Subject <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label>
         <div class="subject-chip-row" id="subject-chip-row" role="group" aria-label="Quick-add subject">
-          <button type="button" class="subject-chip" data-subject="Math">Math</button>
-          <button type="button" class="subject-chip" data-subject="Chem">Chem</button>
-          <button type="button" class="subject-chip" data-subject="Physics">Physics</button>
-          <button type="button" class="subject-chip" data-subject="Computer Science">Computer Science</button>
+          <button type="button" class="subject-chip" data-subject="Math Lecture">Math Lecture</button>
+          <button type="button" class="subject-chip" data-subject="Math Tutorial">Math Tutorial</button>
+          <button type="button" class="subject-chip" data-subject="Chem Lecture">Chem Lecture</button>
+          <button type="button" class="subject-chip" data-subject="Chem Tutorial">Chem Tutorial</button>
+          <button type="button" class="subject-chip" data-subject="Physics Lecture">Physics Lecture</button>
+          <button type="button" class="subject-chip" data-subject="Physics Tutorial">Physics Tutorial</button>
+          <button type="button" class="subject-chip" data-subject="Computer Science Lecture">CS Lecture</button>
+          <button type="button" class="subject-chip" data-subject="Computer Science Tutorial">CS Tutorial</button>
           <button type="button" class="subject-chip" data-subject="Kulliah">Kulliah</button>
-          <button type="button" class="subject-chip" data-subject="Tutorial">Tutorial</button>
         </div>
         <input type="text" id="hw-subject" placeholder="Tap a shortcut above, or type your own" />
       </div>
-      <div class="form-group"><label for="hw-due">Due date</label><input type="date" id="hw-due" /></div>
+      <div class="form-group">
+        <label for="hw-due">Due date</label>
+        <input type="date" id="hw-due" />
+        <div class="due-chip-row" id="due-chip-row" role="group" aria-label="Quick-select due date">
+          <button type="button" class="due-chip" data-offset="0">Today</button>
+          <button type="button" class="due-chip" data-offset="1">Tomorrow</button>
+          <button type="button" class="due-chip" data-offset="2">In 2 Days</button>
+          <button type="button" class="due-chip" data-offset="7">Next Week</button>
+        </div>
+      </div>
       <div class="form-actions"><button class="btn-save" id="hw-add-btn" style="width:100%">＋ Add homework</button></div>
     </div>
     <div class="section-header"><h2>📚 Homework</h2></div>
@@ -1340,6 +1369,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // ── Homework ──────────────────────────────────────────────
   document.getElementById('hw-due').value = todayStr();
+  syncDueChipHighlight();
   document.getElementById('hw-add-btn').addEventListener('click', addHomework);
   document.querySelectorAll('[data-hwfilter]').forEach(btn => {
     btn.addEventListener('click', () => setHwFilter(btn.dataset.hwfilter));
@@ -1351,24 +1381,55 @@ window.addEventListener('DOMContentLoaded', () => {
     if (del)   deleteHomework(del.dataset.hwDel);
   });
   // FEATURE: quick-add subject chips — tap to instantly fill the Subject
-  // field (tap again, or a different chip, to change it).
+  // field AND pre-fill Title with "<Subject> - ", with the cursor parked
+  // right after the dash so you can type the specific task immediately.
+  // Tap the same chip again to clear both — the title is only cleared if
+  // it still matches the auto-filled prefix untouched, so anything you've
+  // already typed past the dash is never wiped out.
   const hwSubjectInput = document.getElementById('hw-subject');
+  const hwTitleInput   = document.getElementById('hw-title');
   document.getElementById('subject-chip-row').addEventListener('click', e => {
     const chip = e.target.closest('.subject-chip');
     if (!chip) return;
     const wasActive = chip.classList.contains('active');
+    const prefix = chip.dataset.subject + ' - ';
     document.querySelectorAll('.subject-chip').forEach(c => c.classList.remove('active'));
     if (wasActive) {
       hwSubjectInput.value = '';
+      if (hwTitleInput.value === prefix) hwTitleInput.value = '';
     } else {
       chip.classList.add('active');
       hwSubjectInput.value = chip.dataset.subject;
+      hwTitleInput.value = prefix;
     }
+    hwTitleInput.focus();
+    const caret = hwTitleInput.value.length;
+    hwTitleInput.setSelectionRange(caret, caret);
   });
   // Keep chip highlight in sync if the person types/edits the field manually
   hwSubjectInput.addEventListener('input', () => {
     document.querySelectorAll('.subject-chip').forEach(c => {
       c.classList.toggle('active', c.dataset.subject === hwSubjectInput.value);
+    });
+  });
+  // FEATURE: quick due-date shortcut chips — tap to set #hw-due to
+  // today/tomorrow/in 2 days/next week without opening the date picker.
+  document.getElementById('due-chip-row').addEventListener('click', e => {
+    const chip = e.target.closest('.due-chip');
+    if (!chip) return;
+    document.getElementById('hw-due').value = dateStrOffset(Number(chip.dataset.offset));
+    syncDueChipHighlight();
+  });
+  // Keep chip highlight in sync if the person picks a date manually
+  document.getElementById('hw-due').addEventListener('input', syncDueChipHighlight);
+  // FEATURE: press Enter while in Title or Subject to submit instantly —
+  // no need to reach for the Add button.
+  [hwTitleInput, hwSubjectInput].forEach(input => {
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('hw-add-btn').click();
+      }
     });
   });
 
@@ -2551,6 +2612,7 @@ async function addHomework() {
     document.getElementById('hw-subject').value = '';
     document.querySelectorAll('.subject-chip').forEach(c => c.classList.remove('active'));
     document.getElementById('hw-due').value = todayStr();
+    syncDueChipHighlight();
     renderHomework();
     showToast('✓ Homework added');
   } catch (e) { showToast('Error: ' + (e?.message || 'Unknown')); }
@@ -2778,6 +2840,20 @@ function importSettings(file) {
 function fmt(n) { return 'RM ' + Math.abs(+n).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function formatDate(d) { if (!d) return '—'; const _dt = new Date(d + 'T00:00:00'); return isNaN(_dt) ? '—' : _dt.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }); }
 function todayStr()    { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+/* FEATURE: quick due-date shortcut chips — date math + highlight sync,
+   kept global (like todayStr) so both the init wiring and addHomework()
+   can call them. */
+function dateStrOffset(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function syncDueChipHighlight() {
+  const due = document.getElementById('hw-due')?.value;
+  document.querySelectorAll('.due-chip').forEach(c => {
+    c.classList.toggle('active', dateStrOffset(Number(c.dataset.offset)) === due);
+  });
+}
 function esc(s)        { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function updateTimestamp() { document.getElementById('sync-ts').textContent = 'Synced ' + new Date().toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit' }); }
 

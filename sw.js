@@ -1,19 +1,15 @@
-/* ─── Money Record — Service Worker v11 ──────────────────────────────
-   Changes from v10:
-   ✅ Cache version bumped to v11 — clears stale v10 cache so this
+/* ─── Money Record — Service Worker v12 ──────────────────────────────
+   Changes from v11:
+   ✅ Cache version bumped to v12 — clears stale v11 cache so this
       reaches installed users
-   ✅ Homework checklist restyled to an Apple-Notes-style circular
-      checkbox + quick-add subject shortcut chips (Math/Chem/Physics/
-      Computer Science/Kulliah/Tutorial)
-   ✅ Goals: fixed inconsistent currency formatting, a premature "100%
-      complete" rounding display, a mislabeled/exploitable monthly
-      surplus suggestion
-   ✅ Fixed transaction delete confirmation rendering behind the edit
-      sheet instead of in front of it — the edit sheet now closes
-      first and the confirm dialog always renders on top
+   ✅ Homework quick-entry overhaul: subject chips are now compound
+      (Math Lecture/Tutorial, Chem Lecture/Tutorial, etc.), tapping a
+      chip also pre-fills + focuses the Title field, added quick
+      due-date chips (Today/Tomorrow/In 2 Days/Next Week), and Enter
+      in Title/Subject now submits the homework form
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v11';
+const CACHE = 'money-app-v12';
 
 const STATIC_ASSETS = [
   '/',
