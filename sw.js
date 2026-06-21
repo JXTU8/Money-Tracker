@@ -1,11 +1,13 @@
-/* ─── Money Record — Service Worker v9 ───────────────────────────────
-   Changes from v8:
-   ✅ Cache version bumped to v9 — clears stale v8 cache so the
-      calorie-estimate fix (empty+explained instead of misleading "0")
-      actually reaches installed users
+/* ─── Money Record — Service Worker v10 ──────────────────────────────
+   Changes from v9:
+   ✅ Cache version bumped to v10 — clears stale v9 cache so this
+      reaches installed users
+   ✅ "Count Calories" feature removed entirely (checkbox, AI estimate,
+      calorie display). Plain receipt photo attach/compress/upload is
+      untouched and still works exactly as before.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v9';
+const CACHE = 'money-app-v10';
 
 const STATIC_ASSETS = [
   '/',

@@ -498,15 +498,6 @@
       font-size: 15px; padding: 4px 6px; border-radius: 6px; transition: all .15s; flex-shrink: 0;
     }
     .hw-del:hover { color: var(--red); background: var(--red-light); }
-
-    /* ─── COUNT CALORIES (receipt photo AI estimate) ─────────── */
-    .count-calories-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; }
-    .count-calories-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--green); cursor: pointer; }
-    .count-calories-row label { cursor: pointer; }
-    .ai-status-inline { text-align: center; font-size: 12px; color: var(--muted); padding: 8px; background: var(--bg); border-radius: 8px; margin-top: 8px; }
-    .calorie-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 13px; }
-    .calorie-row-label { font-weight: 600; color: var(--red); }
-    .calorie-input { width: 80px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 7px; font-size: 13px; background: var(--bg); color: var(--text); font-family: inherit; }
   </style>
 </head>
 <body>
@@ -562,16 +553,6 @@
       <label>Receipt photo <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label>
       <input type="file" accept="image/*" capture="environment" id="e-photo-input" style="display:none" />
       <button type="button" class="photo-pick-btn" id="e-photo-pick-btn">📷 Add photo</button>
-      <div class="count-calories-row">
-        <input type="checkbox" id="e-count-calories" />
-        <label for="e-count-calories">🔥 Count calories (AI estimate from photo)</label>
-      </div>
-      <div class="ai-status-inline" id="e-ai-status" style="display:none">🤖 Estimating calories…</div>
-      <div class="calorie-row" id="e-calorie-row" style="display:none">
-        <span class="calorie-row-label">🔥 Calories:</span>
-        <input type="number" id="e-calorie-value" class="calorie-input" min="0" step="1" />
-        <span>kcal</span>
-      </div>
       <div class="photo-preview-wrap" id="e-photo-preview-wrap" style="display:none">
         <img id="e-photo-preview" class="photo-preview" alt="Receipt preview" />
         <button type="button" class="photo-remove-btn" id="e-photo-remove-btn" aria-label="Remove photo">✕</button>
@@ -751,16 +732,6 @@
         <label>Receipt photo <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label>
         <input type="file" accept="image/*" capture="environment" id="f-photo-input" style="display:none" />
         <button type="button" class="photo-pick-btn" id="f-photo-pick-btn">📷 Add photo</button>
-        <div class="count-calories-row">
-          <input type="checkbox" id="f-count-calories" />
-          <label for="f-count-calories">🔥 Count calories (AI estimate from photo)</label>
-        </div>
-        <div class="ai-status-inline" id="f-ai-status" style="display:none">🤖 Estimating calories…</div>
-        <div class="calorie-row" id="f-calorie-row" style="display:none">
-          <span class="calorie-row-label">🔥 Calories:</span>
-          <input type="number" id="f-calorie-value" class="calorie-input" min="0" step="1" />
-          <span>kcal</span>
-        </div>
         <div class="photo-preview-wrap" id="f-photo-preview-wrap" style="display:none">
           <img id="f-photo-preview" class="photo-preview" alt="Receipt preview" />
           <button type="button" class="photo-remove-btn" id="f-photo-remove-btn" aria-label="Remove photo">✕</button>
@@ -929,10 +900,6 @@ let pendingPhotoBlob     = null;  // compressed Blob queued for upload on Save
 let editPhotoBlob        = null;  // new blob chosen while editing (null = unchanged)
 let editPhotoRemoved     = false; // true if user explicitly removed the existing photo
 
-// Receipt "Count Calories" — AI calorie estimate tied to a transaction's receipt photo
-let pendingCalories = null; // add-form: current calorie value (AI estimate or manual edit)
-let editCalories    = null; // edit-modal: current calorie value
-
 // Homework feature
 let homework  = [];
 let hwFilter  = 'today';
@@ -1100,14 +1067,6 @@ function compressImage(file, opts = {}) {
     reader.readAsDataURL(file);
   });
 }
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload  = () => resolve(String(r.result).split(',')[1]);
-    r.onerror = () => reject(new Error('Could not encode image'));
-    r.readAsDataURL(blob);
-  });
-}
 async function uploadPhoto(blob, folder) {
   if (!db) throw new Error('Not connected');
   const path = `${folder}/${todayStr()}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.jpg`;
@@ -1115,47 +1074,6 @@ async function uploadPhoto(blob, folder) {
   if (error) throw error;
   const { data } = db.storage.from('app-photos').getPublicUrl(path);
   return data.publicUrl;
-}
-
-/* ══════════════════════════════════════════════════════════
-   COUNT CALORIES — AI calorie estimate tied to a receipt photo.
-   Reused by both the add-transaction form (f- prefix) and the
-   edit modal (e- prefix). Only runs when the checkbox is ticked.
-══════════════════════════════════════════════════════════ */
-function setCalorieUI(prefix, value) {
-  const row   = document.getElementById(prefix + '-calorie-row');
-  const input = document.getElementById(prefix + '-calorie-value');
-  if (value == null) { row.style.display = 'none'; input.value = ''; }
-  else { row.style.display = 'flex'; input.value = value === '' ? '' : value; }
-}
-async function runCalorieEstimate(prefix, blob, onResult) {
-  if (!navigator.onLine || !db) { showToast('Count Calories needs an internet connection'); return; }
-  const statusEl = document.getElementById(prefix + '-ai-status');
-  statusEl.style.display = 'block';
-  setCalorieUI(prefix, null);
-  try {
-    const base64 = await blobToBase64(blob);
-    const { data, error } = await db.functions.invoke('estimate-calories', { body: { image: base64, mimeType: 'image/jpeg' } });
-    if (error) throw error;
-    if (data?.error) throw new Error(data.error);
-    if (typeof data?.calories === 'number') {
-      // Real estimate from the AI
-      onResult(data.calories);
-      setCalorieUI(prefix, data.calories);
-    } else {
-      // AI ran fine but couldn't identify any food/drink to estimate from (e.g. unclear photo) —
-      // leave the field empty rather than guessing 0, and let the user fill it in themselves
-      onResult(null);
-      setCalorieUI(prefix, '');
-      showToast('🤖 AI couldn\'t read calories from that photo — enter manually');
-    }
-  } catch (err) {
-    onResult(null);
-    setCalorieUI(prefix, ''); // leave an empty editable field so the user can enter it manually
-    showToast('AI calorie estimate failed — you can enter it manually');
-  } finally {
-    statusEl.style.display = 'none';
-  }
 }
 
 /* ─── CHART.JS LAZY LOADER — FIX ─────────────────────────── */
@@ -1348,31 +1266,12 @@ window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('f-photo-preview').src = URL.createObjectURL(pendingPhotoBlob);
       document.getElementById('f-photo-preview-wrap').style.display = 'block';
       document.getElementById('f-photo-pick-btn').style.display = 'none';
-      pendingCalories = null;
-      setCalorieUI('f', null);
-      if (document.getElementById('f-count-calories').checked) {
-        await runCalorieEstimate('f', pendingPhotoBlob, v => { pendingCalories = v; });
-      }
     } catch (err) { showToast('Could not process photo: ' + (err?.message || 'Unknown')); }
   });
   document.getElementById('f-photo-remove-btn').addEventListener('click', () => {
     pendingPhotoBlob = null;
-    pendingCalories = null;
     document.getElementById('f-photo-preview-wrap').style.display = 'none';
     document.getElementById('f-photo-pick-btn').style.display = 'block';
-    document.getElementById('f-count-calories').checked = false;
-    setCalorieUI('f', null);
-  });
-  document.getElementById('f-count-calories').addEventListener('change', async e => {
-    if (e.target.checked && pendingPhotoBlob && pendingCalories == null) {
-      await runCalorieEstimate('f', pendingPhotoBlob, v => { pendingCalories = v; });
-    } else if (!e.target.checked) {
-      pendingCalories = null;
-      setCalorieUI('f', null);
-    }
-  });
-  document.getElementById('f-calorie-value').addEventListener('input', e => {
-    pendingCalories = e.target.value === '' ? null : parseInt(e.target.value) || 0;
   });
 
   // ── Receipt photo attach (edit modal) ────────────────────
@@ -1386,42 +1285,13 @@ window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('e-photo-preview').src = URL.createObjectURL(editPhotoBlob);
       document.getElementById('e-photo-preview-wrap').style.display = 'block';
       document.getElementById('e-photo-pick-btn').style.display = 'none';
-      editCalories = null;
-      setCalorieUI('e', null);
-      if (document.getElementById('e-count-calories').checked) {
-        await runCalorieEstimate('e', editPhotoBlob, v => { editCalories = v; });
-      }
     } catch (err) { showToast('Could not process photo: ' + (err?.message || 'Unknown')); }
   });
   document.getElementById('e-photo-remove-btn').addEventListener('click', () => {
     editPhotoBlob = null;
     editPhotoRemoved = true;
-    editCalories = null;
     document.getElementById('e-photo-preview-wrap').style.display = 'none';
     document.getElementById('e-photo-pick-btn').style.display = 'block';
-    document.getElementById('e-count-calories').checked = false;
-    setCalorieUI('e', null);
-  });
-  document.getElementById('e-count-calories').addEventListener('change', async e => {
-    if (!e.target.checked) {
-      editCalories = null;
-      setCalorieUI('e', null);
-      return;
-    }
-    if (editCalories != null) return; // already have a value
-    if (editPhotoBlob) {
-      await runCalorieEstimate('e', editPhotoBlob, v => { editCalories = v; });
-    } else if (!editPhotoRemoved && document.getElementById('e-photo-preview-wrap').style.display !== 'none') {
-      // Existing photo already saved on this transaction — fetch it so the AI can analyze it
-      try {
-        const resp = await fetch(document.getElementById('e-photo-preview').src);
-        const blob = await resp.blob();
-        await runCalorieEstimate('e', blob, v => { editCalories = v; });
-      } catch { showToast('Could not load existing photo for AI estimate'); }
-    }
-  });
-  document.getElementById('e-calorie-value').addEventListener('input', e => {
-    editCalories = e.target.value === '' ? null : parseInt(e.target.value) || 0;
   });
 
   // ── Homework ──────────────────────────────────────────────
@@ -2022,7 +1892,6 @@ function renderList() {
               ${t.isPending ? '<span class="badge pending">⏳ pending sync</span>' : ''}
               ${isRec ? '<span class="badge rec">↻ recurring</span>' : ''}
               ${t.photo_url ? '<span title="Has receipt photo" aria-hidden="true">📎</span>' : ''}
-              ${t.calories ? `<span title="AI calorie estimate" aria-hidden="true">🔥 ${t.calories} kcal</span>` : ''}
             </div>
             <div class="tx-meta">${cat}${formatDate(t.date)}</div>
           </div>
@@ -2270,11 +2139,8 @@ function clearForm() {
   document.getElementById('f-recurring').checked = false;
   document.getElementById('freq-wrap').classList.remove('show');
   pendingPhotoBlob = null;
-  pendingCalories  = null;
   document.getElementById('f-photo-preview-wrap').style.display = 'none';
   document.getElementById('f-photo-pick-btn').style.display = 'block';
-  document.getElementById('f-count-calories').checked = false;
-  setCalorieUI('f', null);
   setType('expense');
 }
 function buildCategorySelect(id, type) {
@@ -2315,7 +2181,7 @@ async function saveTransaction() {
   }
 
   if (!navigator.onLine) {
-    if (pendingPhotoBlob) showToast('📡 Offline — photo/calories skipped, transaction will sync without them');
+    if (pendingPhotoBlob) showToast('📡 Offline — photo skipped, transaction will sync without it');
     const tempId = 'pending_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
     enqueue({ ...payload, tempId, isPending: true, createdLocal: new Date().toISOString() });
     updatePendingUI(); renderAll(); toggleForm();
@@ -2331,7 +2197,6 @@ async function saveTransaction() {
     catch (e) { showToast('Photo upload failed — saving without it'); }
     btn.textContent = 'Saving…';
   }
-  if (pendingCalories != null) payload.calories = pendingCalories;
 
   try {
     const { data, error } = await db.from('transactions').insert([payload]).select();
@@ -2382,10 +2247,6 @@ function openEditModal(id) {
     document.getElementById('e-photo-preview-wrap').style.display = 'none';
     document.getElementById('e-photo-pick-btn').style.display = 'block';
   }
-  // Count Calories state — reflect whatever's already stored on this transaction
-  editCalories = (typeof t.calories === 'number') ? t.calories : null;
-  document.getElementById('e-count-calories').checked = editCalories != null;
-  setCalorieUI('e', editCalories);
   document.getElementById('edit-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
   setTimeout(() => document.getElementById('e-amount').focus(), 80);
@@ -2395,7 +2256,6 @@ function closeEditModal() {
   document.body.style.overflow = '';
   editingId = null;
   editPhotoBlob = null; editPhotoRemoved = false;
-  editCalories = null;
 }
 function setEditType(type) {
   editType = type;
@@ -2422,7 +2282,6 @@ async function saveEdit() {
     } else if (editPhotoRemoved) {
       updates.photo_url = null;
     }
-    updates.calories = editCalories; // null clears it (checkbox unticked / photo removed)
     const { error } = await db.from('transactions').update(updates).eq('id', editingId);
     if (error) throw error;
     const idx = allTxs.findIndex(t => t.id === editingId);
