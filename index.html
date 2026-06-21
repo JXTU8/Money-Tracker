@@ -326,6 +326,14 @@
     /* ─── BOTTOM SHEET ────────────────────────────────────── */
     .backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 100; align-items: flex-end; justify-content: center; }
     .backdrop.open { display: flex; }
+    /* FIX: confirm-backdrop must always paint above edit/settings backdrops.
+       All three shared the same z-index (100), so when the confirm sheet was
+       triggered from inside an already-open modal (e.g. "Delete" inside the
+       transaction edit sheet), normal DOM-order stacking put whichever
+       backdrop appears LATER in the markup on top — which was the edit
+       sheet, not the confirm dialog. Giving confirm-backdrop a higher
+       z-index makes it always win, regardless of markup order. */
+    #confirm-backdrop { z-index: 110; }
     .sheet { background: var(--card); border-radius: 20px 20px 0 0; padding: 20px; width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto; animation: sheetUp .25s ease; }
     @keyframes sheetUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
     .sheet-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
@@ -479,15 +487,22 @@
     .hw-card {
       background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
       padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 10px;
+      transition: opacity .2s;
     }
     .hw-card.hw-done { opacity: .55; }
+    /* FEATURE: Apple-Notes-style circular checklist toggle — a plain ring that
+       fills solid with a white check the instant it's tapped (toggling is
+       already optimistic in JS, so this just gives it the right look/feel). */
     .hw-check {
-      width: 21px; height: 21px; border-radius: 6px; border: 1.5px solid var(--border);
+      width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--border);
       background: var(--card); cursor: pointer; flex-shrink: 0; margin-top: 1px;
-      display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--green);
-      font-family: inherit; padding: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 12px;
+      font-weight: 700; color: transparent; font-family: inherit; padding: 0;
+      transition: background .15s, border-color .15s, transform .12s ease;
+      -webkit-tap-highlight-color: transparent;
     }
-    .hw-card.hw-done .hw-check { background: var(--green-light); border-color: var(--green); }
+    .hw-check:active { transform: scale(.85); }
+    .hw-card.hw-done .hw-check { background: var(--green); border-color: var(--green); color: white; }
     .hw-info { flex: 1; min-width: 0; }
     .hw-title { font-size: 14px; font-weight: 500; }
     .hw-card.hw-done .hw-title { text-decoration: line-through; }
@@ -498,6 +513,23 @@
       font-size: 15px; padding: 4px 6px; border-radius: 6px; transition: all .15s; flex-shrink: 0;
     }
     .hw-del:hover { color: var(--red); background: var(--red-light); }
+    /* FEATURE: quick-add subject chips — horizontally-scrollable tap shortcuts
+       above the Subject field so common subjects can be filled in one tap
+       instead of typing them out every time. */
+    .subject-chip-row {
+      display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+      scrollbar-width: none; margin-bottom: 8px; padding-bottom: 1px;
+    }
+    .subject-chip-row::-webkit-scrollbar { display: none; }
+    .subject-chip {
+      flex: 0 0 auto; padding: 6px 13px; border-radius: 20px;
+      border: 1.5px solid var(--border); background: var(--card);
+      font-size: 12px; font-weight: 500; color: var(--muted); cursor: pointer;
+      white-space: nowrap; transition: all .15s; font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .subject-chip:hover { border-color: var(--green); color: var(--green); }
+    .subject-chip.active { background: var(--green); border-color: var(--green); color: white; }
   </style>
 </head>
 <body>
@@ -784,7 +816,18 @@
     <div class="form-card open">
       <h3>Add homework</h3>
       <div class="form-group"><label for="hw-title">Title</label><input type="text" id="hw-title" placeholder="e.g. Math worksheet ch.4" /></div>
-      <div class="form-group"><label for="hw-subject">Subject <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label><input type="text" id="hw-subject" placeholder="e.g. Math" /></div>
+      <div class="form-group">
+        <label for="hw-subject">Subject <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label>
+        <div class="subject-chip-row" id="subject-chip-row" role="group" aria-label="Quick-add subject">
+          <button type="button" class="subject-chip" data-subject="Math">Math</button>
+          <button type="button" class="subject-chip" data-subject="Chem">Chem</button>
+          <button type="button" class="subject-chip" data-subject="Physics">Physics</button>
+          <button type="button" class="subject-chip" data-subject="Computer Science">Computer Science</button>
+          <button type="button" class="subject-chip" data-subject="Kulliah">Kulliah</button>
+          <button type="button" class="subject-chip" data-subject="Tutorial">Tutorial</button>
+        </div>
+        <input type="text" id="hw-subject" placeholder="Tap a shortcut above, or type your own" />
+      </div>
       <div class="form-group"><label for="hw-due">Due date</label><input type="date" id="hw-due" /></div>
       <div class="form-actions"><button class="btn-save" id="hw-add-btn" style="width:100%">＋ Add homework</button></div>
     </div>
@@ -917,6 +960,7 @@ const LS_CATS    = 'money_custom_cats';
 const LS_REC     = 'money_rec';
 const LS_PENDING = 'money_pending';
 const LS_GOALS   = 'money_goals';
+const LS_GOAL_SURPLUS_USED = 'money_goal_surplus_used'; // FIX: prevents the surplus-suggestion exploit below
 const LS_SB_URL  = 'money_sb_url';
 const LS_SB_KEY  = 'money_sb_key';
 
@@ -1306,6 +1350,27 @@ window.addEventListener('DOMContentLoaded', () => {
     if (check) toggleHomeworkDone(check.dataset.hwCheck);
     if (del)   deleteHomework(del.dataset.hwDel);
   });
+  // FEATURE: quick-add subject chips — tap to instantly fill the Subject
+  // field (tap again, or a different chip, to change it).
+  const hwSubjectInput = document.getElementById('hw-subject');
+  document.getElementById('subject-chip-row').addEventListener('click', e => {
+    const chip = e.target.closest('.subject-chip');
+    if (!chip) return;
+    const wasActive = chip.classList.contains('active');
+    document.querySelectorAll('.subject-chip').forEach(c => c.classList.remove('active'));
+    if (wasActive) {
+      hwSubjectInput.value = '';
+    } else {
+      chip.classList.add('active');
+      hwSubjectInput.value = chip.dataset.subject;
+    }
+  });
+  // Keep chip highlight in sync if the person types/edits the field manually
+  hwSubjectInput.addEventListener('input', () => {
+    document.querySelectorAll('.subject-chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.subject === hwSubjectInput.value);
+    });
+  });
 
   // ── Network events ───────────────────────────────────────
   window.addEventListener('offline', () => {
@@ -1622,13 +1687,23 @@ function renderGoals() {
         <span class="goal-emoji">${esc(g.emoji || '🎯')}</span>
         <div class="goal-info">
           <div class="goal-name">${esc(g.name)}</div>
-          <div class="goal-amounts">${fmt(saved)} of ${fmt(g.target)}${done ? '' : ` · RM ${remain.toFixed(2)} to go`}</div>
+          <!-- FIX: use fmt() for the remaining amount too, instead of a manually
+               built "RM " + toFixed(2) string — the manual version skipped fmt()'s
+               thousands separators, so larger goals showed e.g. "RM 12345.60"
+               instead of "RM 12,345.60", inconsistent with every other amount
+               on this card. -->
+          <div class="goal-amounts">${fmt(saved)} of ${fmt(g.target)}${done ? '' : ` · ${fmt(remain)} to go`}</div>
         </div>
         <button class="goal-del" data-idx="${i}" aria-label="Delete ${esc(g.name)}">×</button>
       </div>
       <div class="goal-bar-bg"><div class="goal-bar-fill" style="width:${pct}%"></div></div>
       <div class="goal-footer">
-        <span class="goal-pct">${pct.toFixed(0)}% complete</span>
+        <!-- FIX: Math.floor instead of toFixed(0) — toFixed rounds, so a goal at
+             e.g. 99.6% displayed "100% complete" (with the progress bar still
+             short of the end and the quick-add buttons still showing) a tick
+             before it was actually marked done. Flooring only ever shows 100%
+             once the goal has truly been reached. -->
+        <span class="goal-pct">${Math.floor(pct)}% complete</span>
         ${done
           ? '<span style="color:var(--green);font-size:12px;font-weight:600">🎊 Goal reached!</span>'
           : `<div class="goal-add-row">
@@ -1642,11 +1717,27 @@ function renderGoals() {
     </div>`;
   }).join('');
   // UX: show surplus suggestion if this month has positive balance and there are active goals
+  //
+  // FIX (was using the *viewed* month, not the real current month): monthTxs()
+  // is based on whatever month the user has navigated to with the month-nav
+  // arrows, so the card could say "surplus this month" while actually showing
+  // a past or future month's numbers. It now only appears while genuinely
+  // viewing today's calendar month, matching the pattern already used for the
+  // spending forecast above (see _isCur in updateSummary()).
+  const _now        = new Date();
+  const _isCurMonth = !isAllTime && viewYear === _now.getFullYear() && viewMonth === _now.getMonth();
   const _mInc   = monthTxs().filter(t=>t.type==='income'&&!t.isPending).reduce((s,t)=>s+ +t.amount,0);
   const _mExp   = monthTxs().filter(t=>t.type==='expense'&&!t.isPending).reduce((s,t)=>s+ +t.amount,0);
   const _surplus = _mInc - _mExp;
   const _pending = goals.filter(g=>(g.saved||0)<g.target);
-  if (_surplus > 0.01 && _pending.length && !isAllTime) {
+  // FIX: the card used to reappear with the SAME full surplus amount every time
+  // renderGoals() ran — including right after "Allocate to top goal" was
+  // clicked, since the suggestion never tracked that it had already been
+  // acted on. That let one real surplus be allocated over and over by
+  // clicking repeatedly. It's now allowed once per real calendar month.
+  const _monthKey     = `${_now.getFullYear()}-${_now.getMonth()}`;
+  const _alreadyUsed  = localStorage.getItem(LS_GOAL_SURPLUS_USED) === _monthKey;
+  if (_isCurMonth && !_alreadyUsed && _surplus > 0.01 && _pending.length) {
     const _sg  = document.createElement('div');
     _sg.className = 'goal-suggest-card';
     const _stxt = document.createElement('span');
@@ -1654,7 +1745,10 @@ function renderGoals() {
     const _sbtn = document.createElement('button');
     _sbtn.className   = 'goal-quick';
     _sbtn.textContent = 'Allocate to top goal';
-    _sbtn.addEventListener('click', () => addToGoal(goals.indexOf(_pending[0]), _surplus));
+    _sbtn.addEventListener('click', () => {
+      localStorage.setItem(LS_GOAL_SURPLUS_USED, _monthKey);
+      addToGoal(goals.indexOf(_pending[0]), _surplus);
+    });
     _sg.appendChild(_stxt);
     _sg.appendChild(_sbtn);
     container.appendChild(_sg);
@@ -2292,9 +2386,17 @@ async function saveEdit() {
 }
 async function deleteFromEditModal() {
   if (!editingId) return;
+  // FIX: capture the id and close the transaction detail sheet FIRST.
+  // Previously the confirm dialog was opened while the edit sheet was still
+  // open; since closeEditModal() resets editingId, the id must be captured
+  // before closing — and closing first means the user sees the detail view
+  // dismiss immediately, with the delete confirmation appearing cleanly on
+  // its own instead of stacking underneath it.
+  const id = editingId;
+  closeEditModal();
   showConfirm(
     'This action cannot be undone.',
-    async () => { await deleteTransaction(editingId); closeEditModal(); },
+    async () => { await deleteTransaction(id); },
     { title: 'Delete transaction?', confirmText: 'Delete', icon: '🗑', danger: true }
   );
 }
@@ -2447,6 +2549,7 @@ async function addHomework() {
     homework.sort((a,b) => a.due_date < b.due_date ? -1 : 1);
     document.getElementById('hw-title').value = '';
     document.getElementById('hw-subject').value = '';
+    document.querySelectorAll('.subject-chip').forEach(c => c.classList.remove('active'));
     document.getElementById('hw-due').value = todayStr();
     renderHomework();
     showToast('✓ Homework added');

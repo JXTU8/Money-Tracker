@@ -1,13 +1,19 @@
-/* ─── Money Record — Service Worker v10 ──────────────────────────────
-   Changes from v9:
-   ✅ Cache version bumped to v10 — clears stale v9 cache so this
+/* ─── Money Record — Service Worker v11 ──────────────────────────────
+   Changes from v10:
+   ✅ Cache version bumped to v11 — clears stale v10 cache so this
       reaches installed users
-   ✅ "Count Calories" feature removed entirely (checkbox, AI estimate,
-      calorie display). Plain receipt photo attach/compress/upload is
-      untouched and still works exactly as before.
+   ✅ Homework checklist restyled to an Apple-Notes-style circular
+      checkbox + quick-add subject shortcut chips (Math/Chem/Physics/
+      Computer Science/Kulliah/Tutorial)
+   ✅ Goals: fixed inconsistent currency formatting, a premature "100%
+      complete" rounding display, a mislabeled/exploitable monthly
+      surplus suggestion
+   ✅ Fixed transaction delete confirmation rendering behind the edit
+      sheet instead of in front of it — the edit sheet now closes
+      first and the confirm dialog always renders on top
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v10';
+const CACHE = 'money-app-v11';
 
 const STATIC_ASSETS = [
   '/',
