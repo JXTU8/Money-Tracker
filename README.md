@@ -101,8 +101,9 @@ money-record/
 - Push notifications for upcoming homework due dates
 - Printable/exportable monthly summary reports
 
-## Author
+## Authors
 
-*Claude*
-*Matt — S2K3T3*
+- Claude
+- Matthias — S2K3T3
+
 Built as a personal project to track everyday expenses and homework in one place.
