@@ -103,5 +103,6 @@ money-record/
 
 ## Author
 
-*[Your name] — [course / class name]*
+*Claude*
+*Matt — S2K3T3*
 Built as a personal project to track everyday expenses and homework in one place.
