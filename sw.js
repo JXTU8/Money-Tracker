@@ -1,15 +1,15 @@
-/* ─── Money Record — Service Worker v12 ──────────────────────────────
-   Changes from v11:
-   ✅ Cache version bumped to v12 — clears stale v11 cache so this
+/* ─── Money Record — Service Worker v13 ──────────────────────────────
+   Changes from v12:
+   ✅ Cache version bumped to v13 — clears stale v12 cache so this
       reaches installed users
-   ✅ Homework quick-entry overhaul: subject chips are now compound
-      (Math Lecture/Tutorial, Chem Lecture/Tutorial, etc.), tapping a
-      chip also pre-fills + focuses the Title field, added quick
-      due-date chips (Today/Tomorrow/In 2 Days/Next Week), and Enter
-      in Title/Subject now submits the homework form
+   ✅ Receipt photo inputs no longer force the camera (capture=environment
+      removed) — users can now pick an existing photo from their gallery
+   ✅ manifest.json no longer sets orientation:"any" — installed PWA now
+      respects the device's system-level rotation lock instead of always
+      rotating freely
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v12';
+const CACHE = 'money-app-v13';
 
 const STATIC_ASSETS = [
   '/',
