@@ -1,12 +1,13 @@
 /* ─── Money Record — Service Worker v14 ──────────────────────────────
    Changes from v13:
-   ✅ Cache version bumped to v14 — clears stale v13 cache
-   ✅ EXIF orientation fix — portrait photos taken on mobile are now
-      always stored upright; previously canvas ignored the EXIF rotation
-      tag so uploads ended up rotated 90° sideways
-   ✅ Receipt photo UI now shows two explicit buttons — "📷 Camera" and
-      "🖼 Gallery" — instead of a single button that relied on the OS
-      picker to offer both choices (which wasn't obvious to all users)
+   ✅ Cache version bumped to v14 — clears stale v13 cache so this
+      reaches installed users
+   ✅ Receipt photo now has two explicit buttons — "Take Photo" (opens
+      camera) and "Gallery" (opens photo library) — instead of one
+      ambiguous button relying on the browser's default chooser
+   ✅ Added a JS-level screen.orientation.lock('portrait') call so the
+      app stops rotating immediately, without waiting on Android to
+      refresh the installed app shell from the manifest change
 ─────────────────────────────────────────────────────────────────── */
 
 const CACHE = 'money-app-v14';
