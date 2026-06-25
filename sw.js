@@ -1,15 +1,15 @@
-/* ─── Money Record — Service Worker v13 ──────────────────────────────
-   Changes from v12:
-   ✅ Cache version bumped to v13 — clears stale v12 cache so this
-      reaches installed users
-   ✅ Receipt photo inputs no longer force the camera (capture=environment
-      removed) — users can now pick an existing photo from their gallery
-   ✅ manifest.json no longer sets orientation:"any" — installed PWA now
-      respects the device's system-level rotation lock instead of always
-      rotating freely
+/* ─── Money Record — Service Worker v14 ──────────────────────────────
+   Changes from v13:
+   ✅ Cache version bumped to v14 — clears stale v13 cache
+   ✅ EXIF orientation fix — portrait photos taken on mobile are now
+      always stored upright; previously canvas ignored the EXIF rotation
+      tag so uploads ended up rotated 90° sideways
+   ✅ Receipt photo UI now shows two explicit buttons — "📷 Camera" and
+      "🖼 Gallery" — instead of a single button that relied on the OS
+      picker to offer both choices (which wasn't obvious to all users)
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v13';
+const CACHE = 'money-app-v14';
 
 const STATIC_ASSETS = [
   '/',

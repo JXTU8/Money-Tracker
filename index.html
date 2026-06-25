@@ -482,6 +482,8 @@
       font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center;
       line-height: 1;
     }
+    .photo-btn-row { display: flex; gap: 8px; }
+    .photo-btn-row .photo-pick-btn { flex: 1; }
 
     /* ─── HOMEWORK ────────────────────────────────────────── */
     .hw-card {
@@ -601,7 +603,11 @@
     <div class="form-group">
       <label>Receipt photo <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label>
       <input type="file" accept="image/*" id="e-photo-input" style="display:none" />
-      <button type="button" class="photo-pick-btn" id="e-photo-pick-btn">📷 Add photo</button>
+      <input type="file" accept="image/*" capture="environment" id="e-photo-capture" style="display:none" />
+      <div class="photo-btn-row" id="e-photo-btn-row">
+        <button type="button" class="photo-pick-btn" id="e-photo-cam-btn">📷 Camera</button>
+        <button type="button" class="photo-pick-btn" id="e-photo-pick-btn">🖼 Gallery</button>
+      </div>
       <div class="photo-preview-wrap" id="e-photo-preview-wrap" style="display:none">
         <img id="e-photo-preview" class="photo-preview" alt="Receipt preview" />
         <button type="button" class="photo-remove-btn" id="e-photo-remove-btn" aria-label="Remove photo">✕</button>
@@ -780,7 +786,11 @@
       <div class="form-group">
         <label>Receipt photo <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label>
         <input type="file" accept="image/*" id="f-photo-input" style="display:none" />
-        <button type="button" class="photo-pick-btn" id="f-photo-pick-btn">📷 Add photo</button>
+        <input type="file" accept="image/*" capture="environment" id="f-photo-capture" style="display:none" />
+        <div class="photo-btn-row" id="f-photo-btn-row">
+          <button type="button" class="photo-pick-btn" id="f-photo-cam-btn">📷 Camera</button>
+          <button type="button" class="photo-pick-btn" id="f-photo-pick-btn">🖼 Gallery</button>
+        </div>
         <div class="photo-preview-wrap" id="f-photo-preview-wrap" style="display:none">
           <img id="f-photo-preview" class="photo-preview" alt="Receipt preview" />
           <button type="button" class="photo-remove-btn" id="f-photo-remove-btn" aria-label="Remove photo">✕</button>
@@ -1104,24 +1114,108 @@ function _executeConfirm() {
    Shared by receipt photos (transactions) and food photos.
    Resizes to maxDim, then iteratively lowers JPEG quality
    until the blob is under maxBytes (or minQuality is hit).
+   v14: reads EXIF orientation tag and rotates canvas so that
+   portrait photos taken on mobile always upload upright.
 ══════════════════════════════════════════════════════════ */
-function compressImage(file, opts = {}) {
+
+/* ── Step 1: extract EXIF orientation (1–8) from raw bytes ─ */
+function readExifOrientation(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = ({ target: { result } }) => {
+      try {
+        const view = new DataView(result);
+        if (view.getUint16(0, false) !== 0xFFD8) { resolve(1); return; } // not JPEG
+        let offset = 2;
+        while (offset < view.byteLength - 4) {
+          const marker = view.getUint16(offset, false);
+          offset += 2;
+          if (marker === 0xFFE1) {                                         // APP1
+            if (view.getUint32(offset + 2, false) !== 0x45786966) { resolve(1); return; } // no "Exif"
+            const tiffBase = offset + 8;                                   // skip len(2) + "Exif\0\0"(6)
+            const little   = view.getUint16(tiffBase, false) === 0x4949;
+            const ifd0     = tiffBase + view.getUint32(tiffBase + 4, little);
+            const entries  = view.getUint16(ifd0, little);
+            for (let i = 0; i < entries; i++) {
+              if (view.getUint16(ifd0 + 2 + i * 12, little) === 0x0112) { // Orientation tag
+                resolve(view.getUint16(ifd0 + 2 + i * 12 + 8, little));
+                return;
+              }
+            }
+            resolve(1); return;
+          } else if ((marker & 0xFF00) !== 0xFF00) {
+            break;
+          } else {
+            offset += view.getUint16(offset, false);                       // skip segment
+          }
+        }
+      } catch (_) { /* ignore parse errors */ }
+      resolve(1);
+    };
+    reader.onerror = () => resolve(1);
+    reader.readAsArrayBuffer(file.slice(0, 65536));                        // 64 KB is always enough
+  });
+}
+
+/* ── Step 2: draw image onto canvas with correct rotation ── */
+function drawWithOrientation(ctx, img, orientation, outW, outH) {
+  /* outW / outH are the FINAL canvas dimensions (already swapped for 90°/270° cases).
+     For orientations 5–8 the source image axes are swapped vs the output, so
+     drawImage receives (outH, outW) as the source draw dimensions.             */
+  const sw = (orientation >= 5) ? outH : outW; // source draw width
+  const sh = (orientation >= 5) ? outW : outH; // source draw height
+  switch (orientation) {
+    case 2:                                                   // flip horizontal
+      ctx.translate(outW, 0); ctx.scale(-1, 1); break;
+    case 3:                                                   // rotate 180°
+      ctx.translate(outW, outH); ctx.rotate(Math.PI); break;
+    case 4:                                                   // flip vertical
+      ctx.translate(0, outH); ctx.scale(1, -1); break;
+    case 5:                                                   // transpose
+      ctx.rotate(Math.PI / 2); ctx.scale(1, -1); break;
+    case 6:                                                   // rotate 90° CW  ← most common portrait
+      ctx.rotate(Math.PI / 2); ctx.translate(0, -outW); break;
+    case 7:                                                   // transverse
+      ctx.rotate(Math.PI / 2); ctx.translate(outH, -outW); ctx.scale(-1, 1); break;
+    case 8:                                                   // rotate 90° CCW
+      ctx.rotate(-Math.PI / 2); ctx.translate(-outH, 0); break;
+    default: break;                                           // 1 — no transform
+  }
+  ctx.drawImage(img, 0, 0, sw, sh);
+}
+
+/* ── Step 3: compress + fix orientation ─────────────────── */
+async function compressImage(file, opts = {}) {
   const { maxDim = 1280, maxBytes = 1024 * 1024, startQuality = 0.82, minQuality = 0.35 } = opts;
+  const orientation = await readExifOrientation(file);
+  const swap = orientation >= 5 && orientation <= 8;         // 90° or 270° — logical axes swap
+
   return new Promise((resolve, reject) => {
     const img    = new Image();
     const reader = new FileReader();
     reader.onload = () => {
       img.onload = () => {
-        let { width, height } = img;
-        if (width > maxDim || height > maxDim) {
-          const scale = maxDim / Math.max(width, height);
-          width  = Math.max(1, Math.round(width  * scale));
-          height = Math.max(1, Math.round(height * scale));
+        const srcW = img.naturalWidth;
+        const srcH = img.naturalHeight;
+
+        // Logical (display) dimensions after EXIF correction
+        let outW = swap ? srcH : srcW;
+        let outH = swap ? srcW : srcH;
+
+        // Scale down to fit maxDim
+        if (outW > maxDim || outH > maxDim) {
+          const scale = maxDim / Math.max(outW, outH);
+          outW = Math.max(1, Math.round(outW * scale));
+          outH = Math.max(1, Math.round(outH * scale));
         }
+
         const canvas = document.createElement('canvas');
-        canvas.width = width; canvas.height = height;
+        canvas.width  = outW;
+        canvas.height = outH;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
+        ctx.save();
+        drawWithOrientation(ctx, img, orientation, outW, outH);
+        ctx.restore();
 
         let quality = startQuality;
         const tryEncode = () => {
@@ -1329,42 +1423,48 @@ window.addEventListener('DOMContentLoaded', () => {
     if (e.target.files[0]) importCSV(e.target.files[0]);
   });
 
-  // ── Receipt photo attach (add form) ──────────────────────
-  document.getElementById('f-photo-pick-btn').addEventListener('click', () => document.getElementById('f-photo-input').click());
-  document.getElementById('f-photo-input').addEventListener('change', async e => {
-    const file = e.target.files[0]; e.target.value = '';
+  // ── Receipt photo attach ─────────────────────────────────
+  // Shared handler: works for both add-form and edit-modal inputs
+  async function handlePhotoFile(file, previewId, wrapId, btnRowId, isEdit) {
     if (!file) return;
     try {
-      pendingPhotoBlob = await compressImage(file, { maxDim: 1280, maxBytes: 1024 * 1024 });
-      document.getElementById('f-photo-preview').src = URL.createObjectURL(pendingPhotoBlob);
-      document.getElementById('f-photo-preview-wrap').style.display = 'block';
-      document.getElementById('f-photo-pick-btn').style.display = 'none';
+      const blob = await compressImage(file, { maxDim: 1280, maxBytes: 1024 * 1024 });
+      if (isEdit) { editPhotoBlob = blob; editPhotoRemoved = false; }
+      else        { pendingPhotoBlob = blob; }
+      document.getElementById(previewId).src          = URL.createObjectURL(blob);
+      document.getElementById(wrapId).style.display   = 'block';
+      document.getElementById(btnRowId).style.display = 'none';
     } catch (err) { showToast('Could not process photo: ' + (err?.message || 'Unknown')); }
+  }
+
+  // Add-form: camera button → capture input; gallery button → file input
+  document.getElementById('f-photo-cam-btn').addEventListener('click',  () => document.getElementById('f-photo-capture').click());
+  document.getElementById('f-photo-pick-btn').addEventListener('click', () => document.getElementById('f-photo-input').click());
+  ['f-photo-input', 'f-photo-capture'].forEach(id => {
+    document.getElementById(id).addEventListener('change', async e => {
+      const file = e.target.files[0]; e.target.value = '';
+      await handlePhotoFile(file, 'f-photo-preview', 'f-photo-preview-wrap', 'f-photo-btn-row', false);
+    });
   });
   document.getElementById('f-photo-remove-btn').addEventListener('click', () => {
     pendingPhotoBlob = null;
     document.getElementById('f-photo-preview-wrap').style.display = 'none';
-    document.getElementById('f-photo-pick-btn').style.display = 'block';
+    document.getElementById('f-photo-btn-row').style.display = 'flex';
   });
 
-  // ── Receipt photo attach (edit modal) ────────────────────
+  // Edit-modal: same dual-button pattern
+  document.getElementById('e-photo-cam-btn').addEventListener('click',  () => document.getElementById('e-photo-capture').click());
   document.getElementById('e-photo-pick-btn').addEventListener('click', () => document.getElementById('e-photo-input').click());
-  document.getElementById('e-photo-input').addEventListener('change', async e => {
-    const file = e.target.files[0]; e.target.value = '';
-    if (!file) return;
-    try {
-      editPhotoBlob = await compressImage(file, { maxDim: 1280, maxBytes: 1024 * 1024 });
-      editPhotoRemoved = false;
-      document.getElementById('e-photo-preview').src = URL.createObjectURL(editPhotoBlob);
-      document.getElementById('e-photo-preview-wrap').style.display = 'block';
-      document.getElementById('e-photo-pick-btn').style.display = 'none';
-    } catch (err) { showToast('Could not process photo: ' + (err?.message || 'Unknown')); }
+  ['e-photo-input', 'e-photo-capture'].forEach(id => {
+    document.getElementById(id).addEventListener('change', async e => {
+      const file = e.target.files[0]; e.target.value = '';
+      await handlePhotoFile(file, 'e-photo-preview', 'e-photo-preview-wrap', 'e-photo-btn-row', true);
+    });
   });
   document.getElementById('e-photo-remove-btn').addEventListener('click', () => {
-    editPhotoBlob = null;
-    editPhotoRemoved = true;
+    editPhotoBlob = null; editPhotoRemoved = true;
     document.getElementById('e-photo-preview-wrap').style.display = 'none';
-    document.getElementById('e-photo-pick-btn').style.display = 'block';
+    document.getElementById('e-photo-btn-row').style.display = 'flex';
   });
 
   // ── Homework ──────────────────────────────────────────────
@@ -2295,7 +2395,7 @@ function clearForm() {
   document.getElementById('freq-wrap').classList.remove('show');
   pendingPhotoBlob = null;
   document.getElementById('f-photo-preview-wrap').style.display = 'none';
-  document.getElementById('f-photo-pick-btn').style.display = 'block';
+  document.getElementById('f-photo-btn-row').style.display = 'flex';
   setType('expense');
 }
 function buildCategorySelect(id, type) {
@@ -2397,10 +2497,10 @@ function openEditModal(id) {
   if (t.photo_url) {
     document.getElementById('e-photo-preview').src = t.photo_url;
     document.getElementById('e-photo-preview-wrap').style.display = 'block';
-    document.getElementById('e-photo-pick-btn').style.display = 'none';
+    document.getElementById('e-photo-btn-row').style.display = 'none';
   } else {
     document.getElementById('e-photo-preview-wrap').style.display = 'none';
-    document.getElementById('e-photo-pick-btn').style.display = 'block';
+    document.getElementById('e-photo-btn-row').style.display = 'flex';
   }
   document.getElementById('edit-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -2411,6 +2511,8 @@ function closeEditModal() {
   document.body.style.overflow = '';
   editingId = null;
   editPhotoBlob = null; editPhotoRemoved = false;
+  document.getElementById('e-photo-preview-wrap').style.display = 'none';
+  document.getElementById('e-photo-btn-row').style.display = 'flex';
 }
 function setEditType(type) {
   editType = type;
