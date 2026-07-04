@@ -142,8 +142,14 @@
       border-radius: 7px; font-size: 13px; font-weight: 500;
       cursor: pointer; color: var(--muted); transition: all .15s;
     }
-    .tab-btn.active { background: var(--card); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,.12); }
-    [data-theme="dark"] .tab-btn.active { box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+    .tab-btn.active {
+      background: var(--card); color: var(--text); font-weight: 700;
+      box-shadow: 0 1px 4px rgba(0,0,0,.12), inset 0 -2px 0 0 var(--green);
+    }
+    [data-theme="dark"] .tab-btn.active {
+      background: rgba(255,255,255,.07);
+      box-shadow: inset 0 -2px 0 0 var(--green);
+    }
 
     /* ─── PANELS ──────────────────────────────────────────── */
     .panel { display: none; }
