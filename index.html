@@ -284,10 +284,21 @@
     .transaction-list { display: flex; flex-direction: column; gap: 8px; }
     .tx-wrapper { position: relative; overflow: hidden; border-radius: var(--radius); }
     .tx-swipe-bg { position: absolute; right: 0; top: 0; bottom: 0; width: 88px; background: transparent; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); cursor: pointer; overflow: hidden; opacity: 0; }
-    .tx-swipe-bg .bin-icon { font-size: 24px; display: block; transition: transform 0.15s ease; z-index: 1; pointer-events: none; }
+    .tx-swipe-bg .bin-icon { font-size: 24px; display: block; transition: transform 0.15s ease; z-index: 1; pointer-events: none; color: var(--red); }
     .tx-swipe-bg.hard-swipe { background: rgba(226,75,74,0.12); }
     .tx-swipe-bg.exploding .bin-icon { animation: binPop 0.35s cubic-bezier(.36,.07,.19,.97) forwards; }
     @keyframes binPop { 0%{transform:scale(1);opacity:1} 40%{transform:scale(2.8);opacity:1} 100%{transform:scale(3.5);opacity:0} }
+
+    /* ─── CUSTOM BIN ICON — replaces the 🗑 emoji everywhere ─────────
+       One hand-drawn outline icon, used via `stroke="currentColor"` so
+       it always matches whatever text color a given button/row already
+       uses (muted at rest, red on hover, or a forced red in the danger
+       confirm dialog) — no per-instance color rules needed. */
+    svg.bin-ic { width: 1em; height: 1em; vertical-align: -0.15em; flex-shrink: 0; }
+    .bin-ic .bin-lid { transform-box: fill-box; transform-origin: 15% 100%; transition: transform .16s cubic-bezier(.34,1.56,.64,1); }
+    @media (hover: hover) {
+      button:hover .bin-ic .bin-lid { transform: rotate(-20deg); }
+    }
     .tx-wrapper.collapsing { animation: collapseRow 0.35s ease forwards; pointer-events:none; overflow:hidden; }
     @keyframes collapseRow { from{max-height:100px;opacity:1;margin-bottom:8px} to{max-height:0;opacity:0;margin-bottom:0} }
     .tx-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 12px 14px; display: flex; align-items: center; gap: 10px; position: relative; cursor: pointer; touch-action: pan-y; will-change: transform; transition: border-color .15s; width: 100%; box-sizing: border-box; }
@@ -674,7 +685,7 @@
     </div>
     <div style="margin-top:12px;display:flex;justify-content:center;gap:20px">
       <button id="e-duplicate-btn" style="background:none;border:none;color:var(--blue);font-size:13px;cursor:pointer;padding:4px 8px;font-family:inherit">⊕ Duplicate</button>
-      <button id="e-delete-btn" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:4px 8px;font-family:inherit">🗑 Delete</button>
+      <button id="e-delete-btn" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:4px 8px;font-family:inherit;display:inline-flex;align-items:center;gap:4px"><svg class="bin-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.6 7.2 7.1 19.6 9 21.3 15 21.3 16.9 19.6 18.4 7.2"/><path d="M10 10.8V17.6M14 10.8V17.6"/><g class="bin-lid"><path d="M4.2 7.2H19.8"/><path d="M9.3 7.2 9.3 5.4 10.9 3.8 13.1 3.8 14.7 5.4 14.7 7.2"/></g></svg>Delete</button>
     </div>
   </div>
 </div>
@@ -731,7 +742,7 @@
       <button class="btn-save"   id="hw-e-save-btn">Update</button>
     </div>
     <div style="margin-top:12px;display:flex;justify-content:center">
-      <button id="hw-e-delete-btn" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:4px 8px;font-family:inherit">🗑 Delete</button>
+      <button id="hw-e-delete-btn" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:4px 8px;font-family:inherit;display:inline-flex;align-items:center;gap:4px"><svg class="bin-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.6 7.2 7.1 19.6 9 21.3 15 21.3 16.9 19.6 18.4 7.2"/><path d="M10 10.8V17.6M14 10.8V17.6"/><g class="bin-lid"><path d="M4.2 7.2H19.8"/><path d="M9.3 7.2 9.3 5.4 10.9 3.8 13.1 3.8 14.7 5.4 14.7 7.2"/></g></svg>Delete</button>
     </div>
   </div>
 </div>
@@ -1054,6 +1065,16 @@
    ✅ setFilter no longer needs element reference
 ══════════════════════════════════════════════════════════════════ */
 
+/* ─── ICONS ──────────────────────────────────────────────────────
+   Hand-drawn bin icon that replaces the old 🗑 emoji everywhere.
+   Uses stroke="currentColor" so every button keeps its existing
+   color behavior (muted → red on hover, etc.) with zero extra CSS
+   per usage. BIN_SVG_RED is the same icon pre-tinted red, for the
+   danger confirm dialogs where it isn't sitting inside a hoverable
+   button. */
+const BIN_SVG = `<svg class="bin-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.6 7.2 7.1 19.6 9 21.3 15 21.3 16.9 19.6 18.4 7.2"/><path d="M10 10.8V17.6M14 10.8V17.6"/><g class="bin-lid"><path d="M4.2 7.2H19.8"/><path d="M9.3 7.2 9.3 5.4 10.9 3.8 13.1 3.8 14.7 5.4 14.7 7.2"/></g></svg>`;
+const BIN_SVG_RED = `<span style="color:var(--red)">${BIN_SVG}</span>`;
+
 /* ─── CATEGORY DEFAULTS ──────────────────────────────────── */
 const DEF_INCOME  = ['Salary','Freelance','Business','Investment','Gift','Other Income'];
 const DEF_EXPENSE = ['Food & Drinks','Groceries','Transport','Utilities','Shopping',
@@ -1194,7 +1215,7 @@ function showSyncBanner(on) {
 let _confirmCb = null;
 
 function showConfirm(message, onConfirm, { title = 'Are you sure?', confirmText = 'Confirm', icon = '❓', danger = true } = {}) {
-  document.getElementById('confirm-icon').textContent    = icon;
+  document.getElementById('confirm-icon').innerHTML      = icon;
   document.getElementById('confirm-heading').textContent = title;
   document.getElementById('confirm-body').textContent    = message;
   const okBtn = document.getElementById('confirm-ok-btn');
@@ -2323,7 +2344,7 @@ function renderList() {
       const cat     = t.category ? esc(t.category) + ' · ' : '';
       return `
       <div class="tx-wrapper" id="wrap-${t.id}">
-        <div class="tx-swipe-bg" id="bg-${t.id}"><span class="bin-icon">🗑</span></div>
+        <div class="tx-swipe-bg" id="bg-${t.id}"><span class="bin-icon">${BIN_SVG}</span></div>
         <div class="tx-card${t.isPending?' is-pending':''}" id="card-${t.id}">
           <div class="tx-icon ${t.type}" aria-hidden="true">${t.type==='income'?'↑':'↓'}</div>
           <div class="tx-info">
@@ -2338,7 +2359,7 @@ function renderList() {
           <div class="tx-right">
             <div class="tx-amount ${t.type}" aria-label="${t.type} ${fmt(t.amount)}">${t.type==='income'?'+':'-'}${fmt(t.amount)}</div>
           </div>
-          ${!t.isPending ? `<button class="tx-delete-btn" id="del-${t.id}" aria-label="Delete ${esc(t.description||'transaction')}">🗑</button>` : ''}
+          ${!t.isPending ? `<button class="tx-delete-btn" id="del-${t.id}" aria-label="Delete ${esc(t.description||'transaction')}">${BIN_SVG}</button>` : ''}
         </div>
       </div>`;
     }).join('');
@@ -2757,14 +2778,14 @@ async function deleteFromEditModal() {
   showConfirm(
     'This action cannot be undone.',
     async () => { await deleteTransaction(id); },
-    { title: 'Delete transaction?', confirmText: 'Delete', icon: '🗑', danger: true }
+    { title: 'Delete transaction?', confirmText: 'Delete', icon: BIN_SVG_RED, danger: true }
   );
 }
 async function confirmDelete(id) {
   showConfirm(
     'This action cannot be undone.',
     () => deleteTransaction(id),
-    { title: 'Delete transaction?', confirmText: 'Delete', icon: '🗑', danger: true }
+    { title: 'Delete transaction?', confirmText: 'Delete', icon: BIN_SVG_RED, danger: true }
   );
 }
 async function deleteTransaction(id) {
@@ -2936,7 +2957,7 @@ function renderHomework() {
         <div class="hw-title">${esc(h.title)}</div>
         <div class="hw-meta${overdue ? ' hw-overdue' : ''}">${h.subject ? esc(h.subject) + ' · ' : ''}${overdue ? 'Overdue · ' : ''}${dueText}</div>
       </div>
-      <button class="hw-del" data-hw-del="${h.id}" aria-label="Delete ${esc(h.title)}">🗑</button>
+      <button class="hw-del" data-hw-del="${h.id}" aria-label="Delete ${esc(h.title)}">${BIN_SVG}</button>
     </div>`;
   }).join('');
 }
@@ -2994,7 +3015,7 @@ function deleteHomework(id) {
       renderHomework();
       showToast('Homework removed');
     },
-    { title: 'Delete homework?', confirmText: 'Delete', icon: '🗑', danger: true }
+    { title: 'Delete homework?', confirmText: 'Delete', icon: BIN_SVG_RED, danger: true }
   );
 }
 
