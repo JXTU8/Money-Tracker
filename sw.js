@@ -1,16 +1,17 @@
-/* ─── Money Record — Service Worker v14 ──────────────────────────────
-   Changes from v13:
-   ✅ Cache version bumped to v14 — clears stale v13 cache so this
-      reaches installed users
-   ✅ Receipt photo now has two explicit buttons — "Take Photo" (opens
-      camera) and "Gallery" (opens photo library) — instead of one
-      ambiguous button relying on the browser's default chooser
-   ✅ Added a JS-level screen.orientation.lock('portrait') call so the
-      app stops rotating immediately, without waiting on Android to
-      refresh the installed app shell from the manifest change
+/* ─── Money Record — Service Worker v17 ──────────────────────────────
+   Changes from v16:
+   ✅ Removed the 'push' and 'notificationclick' handlers — this was
+      dead weight: index.html never had a subscribe flow or a listener
+      for the 'open-tab' message these sent, so nothing could ever have
+      reached them client-side. Removed rather than left unused.
+      (If a send-homework-notifications Supabase Edge Function is still
+      running server-side, it's now sending pushes nothing will handle —
+      worth pausing/removing that too if you're dropping the feature.)
+   ✅ Cache version bumped to v17 so installed users pick up this file
+      instead of continuing to run whatever version they last cached.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v14';
+const CACHE = 'money-app-v17';
 
 const STATIC_ASSETS = [
   '/',

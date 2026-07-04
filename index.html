@@ -549,6 +549,54 @@
     }
     .due-chip:hover { border-color: var(--blue); color: var(--blue); }
     .due-chip.active { background: var(--blue); border-color: var(--blue); color: white; }
+
+    /* ─── HOMEWORK CARD — now tappable to edit (matches .tx-card treatment) ── */
+    .hw-card { cursor: pointer; transition: border-color .15s; }
+    .hw-card:hover { border-color: rgba(0,0,0,.2); }
+    [data-theme="dark"] .hw-card:hover { border-color: rgba(255,255,255,.2); }
+
+    /* ─── RECEIPT PHOTO — enlarge on tap + broken-link fallback ──────────── */
+    .photo-preview { cursor: zoom-in; }
+    .photo-broken-msg {
+      font-size: 12px; color: var(--red); background: var(--red-light);
+      border-radius: 8px; padding: 10px 12px; line-height: 1.5;
+    }
+    .tx-photo-badge {
+      background: none; border: none; padding: 0; margin: 0; font-size: 13px;
+      line-height: 1; cursor: pointer; vertical-align: -1px; -webkit-tap-highlight-color: transparent;
+      transition: transform .15s;
+    }
+    .tx-photo-badge:hover { transform: scale(1.18); }
+    .lightbox-backdrop {
+      z-index: 150; background: rgba(0,0,0,.92); align-items: center; padding: 32px 20px; cursor: zoom-out;
+    }
+    .lightbox-img {
+      max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 10px;
+      animation: lightboxIn .18s ease; box-shadow: 0 10px 40px rgba(0,0,0,.4);
+    }
+    @keyframes lightboxIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+    .lightbox-close {
+      position: fixed; top: 16px; right: 16px; width: 40px; height: 40px; border-radius: 50%;
+      border: none; background: rgba(255,255,255,.15); color: #fff; font-size: 22px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; line-height: 1; z-index: 151;
+      transition: background .15s;
+    }
+    .lightbox-close:hover { background: rgba(255,255,255,.28); }
+    .lightbox-hint {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      color: rgba(255,255,255,.6); font-size: 12px; z-index: 151; pointer-events: none;
+    }
+    .lightbox-broken-msg { color: #fff; font-size: 14px; text-align: center; max-width: 280px; line-height: 1.6; }
+
+    /* ─── LOAD-MORE BUTTON (transactions) ────────────────────────────────── */
+    .load-more-btn {
+      display: block; width: 100%; margin-top: 8px; padding: 11px;
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+      color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer;
+      font-family: inherit; transition: all .15s;
+    }
+    .load-more-btn:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
+    .load-more-btn:disabled { opacity: .6; cursor: default; }
   </style>
 </head>
 <body>
@@ -609,7 +657,8 @@
         <button type="button" class="photo-pick-btn" id="e-photo-gallery-btn">🖼 Gallery</button>
       </div>
       <div class="photo-preview-wrap" id="e-photo-preview-wrap" style="display:none">
-        <img id="e-photo-preview" class="photo-preview" alt="Receipt preview" />
+        <img id="e-photo-preview" class="photo-preview" alt="Receipt preview — tap to enlarge" title="Tap to enlarge" />
+        <div class="photo-broken-msg" id="e-photo-broken-msg" style="display:none">⚠ This photo couldn't be loaded. It may have been moved or removed from storage — remove it below and attach a new one if needed.</div>
         <button type="button" class="photo-remove-btn" id="e-photo-remove-btn" aria-label="Remove photo">✕</button>
       </div>
     </div>
@@ -620,6 +669,63 @@
     <div style="margin-top:12px;display:flex;justify-content:center;gap:20px">
       <button id="e-duplicate-btn" style="background:none;border:none;color:var(--blue);font-size:13px;cursor:pointer;padding:4px 8px;font-family:inherit">⊕ Duplicate</button>
       <button id="e-delete-btn" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:4px 8px;font-family:inherit">🗑 Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── PHOTO LIGHTBOX — FEATURE: tap any receipt photo to enlarge ───────
+     Shared by the add-form preview, edit-modal preview, and the receipt
+     badge on transaction list cards — one lightbox, three entry points. -->
+<div class="backdrop lightbox-backdrop" id="photo-lightbox-backdrop" role="dialog" aria-modal="true" aria-label="Receipt photo, enlarged">
+  <button type="button" class="lightbox-close" id="lightbox-close-btn" aria-label="Close">×</button>
+  <img class="lightbox-img" id="lightbox-img" alt="Receipt photo, enlarged" />
+  <div class="lightbox-broken-msg" id="lightbox-broken-msg" style="display:none">
+    ⚠ This photo couldn't be loaded. The link may be broken or the file may have been removed from storage.
+  </div>
+  <div class="lightbox-hint">Tap anywhere to close</div>
+</div>
+
+<!-- ─── HOMEWORK EDIT MODAL — FEATURE: edit title/subject/due date ─────── -->
+<div class="backdrop" id="hw-edit-backdrop" role="dialog" aria-modal="true" aria-labelledby="hw-edit-modal-title">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h3 id="hw-edit-modal-title">Edit Homework</h3>
+      <button class="sheet-close" id="sheet-close-hw-edit" aria-label="Close">×</button>
+    </div>
+    <div class="form-group"><label for="hw-e-title">Title</label><input type="text" id="hw-e-title" /></div>
+    <div class="form-group">
+      <label for="hw-e-subject">Subject <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label>
+      <div class="subject-chip-row" id="hw-e-subject-chip-row" role="group" aria-label="Quick-add subject">
+        <button type="button" class="subject-chip" data-subject="Math Lecture">Math Lecture</button>
+        <button type="button" class="subject-chip" data-subject="Math Tutorial">Math Tutorial</button>
+        <button type="button" class="subject-chip" data-subject="Chem Lecture">Chem Lecture</button>
+        <button type="button" class="subject-chip" data-subject="Chem Tutorial">Chem Tutorial</button>
+        <button type="button" class="subject-chip" data-subject="Physics Lecture">Physics Lecture</button>
+        <button type="button" class="subject-chip" data-subject="Physics Tutorial">Physics Tutorial</button>
+        <button type="button" class="subject-chip" data-subject="Computer Science Lecture">CS Lecture</button>
+        <button type="button" class="subject-chip" data-subject="Computer Science Tutorial">CS Tutorial</button>
+        <button type="button" class="subject-chip" data-subject="Kulliah">Kulliah</button>
+      </div>
+      <input type="text" id="hw-e-subject" placeholder="Tap a shortcut above, or type your own" />
+    </div>
+    <div class="form-group">
+      <label for="hw-e-due">Due date</label>
+      <input type="date" id="hw-e-due" />
+      <div class="due-chip-row" id="hw-e-due-chip-row" role="group" aria-label="Quick-select due date">
+        <button type="button" class="due-chip" data-offset="none">No due date</button>
+        <button type="button" class="due-chip" data-offset="0">Today</button>
+        <button type="button" class="due-chip" data-offset="1">Tomorrow</button>
+        <button type="button" class="due-chip" data-offset="2">In 2 Days</button>
+        <button type="button" class="due-chip" data-offset="7">Next Week</button>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-cancel" id="hw-e-cancel-btn">Cancel</button>
+      <button class="btn-save"   id="hw-e-save-btn">Update</button>
+    </div>
+    <div style="margin-top:12px;display:flex;justify-content:center">
+      <button id="hw-e-delete-btn" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:4px 8px;font-family:inherit">🗑 Delete</button>
     </div>
   </div>
 </div>
@@ -792,7 +898,7 @@
           <button type="button" class="photo-pick-btn" id="f-photo-gallery-btn">🖼 Gallery</button>
         </div>
         <div class="photo-preview-wrap" id="f-photo-preview-wrap" style="display:none">
-          <img id="f-photo-preview" class="photo-preview" alt="Receipt preview" />
+          <img id="f-photo-preview" class="photo-preview" alt="Receipt preview — tap to enlarge" title="Tap to enlarge" />
           <button type="button" class="photo-remove-btn" id="f-photo-remove-btn" aria-label="Remove photo">✕</button>
         </div>
       </div>
@@ -862,6 +968,7 @@
         <label for="hw-due">Due date</label>
         <input type="date" id="hw-due" />
         <div class="due-chip-row" id="due-chip-row" role="group" aria-label="Quick-select due date">
+          <button type="button" class="due-chip active" data-offset="none">No due date</button>
           <button type="button" class="due-chip" data-offset="0">Today</button>
           <button type="button" class="due-chip" data-offset="1">Tomorrow</button>
           <button type="button" class="due-chip" data-offset="2">In 2 Days</button>
@@ -872,7 +979,8 @@
     </div>
     <div class="section-header"><h2>📚 Homework</h2></div>
     <div class="filter-row" role="group" aria-label="Filter homework">
-      <button class="filter-btn active" data-hwfilter="today">Today</button>
+      <button class="filter-btn active" data-hwfilter="nodate">No due date</button>
+      <button class="filter-btn"        data-hwfilter="today">Today</button>
       <button class="filter-btn"        data-hwfilter="upcoming">Upcoming</button>
       <button class="filter-btn"        data-hwfilter="done">Done</button>
       <button class="filter-btn"        data-hwfilter="all">All</button>
@@ -965,6 +1073,7 @@ let chartJsPromise = null;
 let txOffset   = 0;
 let hasMoreTxs = false;
 const PAGE_SIZE = 100;
+let _monthLoadInFlight = false; // guards ensureMonthLoaded() against overlapping fetch loops
 
 // FIX: Recurring guard — prevents recursive loadTransactions calls
 let recurringProcessing = false;
@@ -983,8 +1092,9 @@ let editPhotoBlob        = null;  // new blob chosen while editing (null = uncha
 let editPhotoRemoved     = false; // true if user explicitly removed the existing photo
 
 // Homework feature
-let homework  = [];
-let hwFilter  = 'today';
+let homework    = [];
+let hwFilter    = 'nodate'; // FIX: dashboard now opens on "No due date" instead of "Today"
+let hwEditingId = null;     // FEATURE: id of the homework item open in the edit modal
 
 // FIX: Callback maps replace eval() in swipe-to-delete
 const txClickCallbacks  = {};
@@ -1157,6 +1267,28 @@ async function uploadPhoto(blob, folder) {
   if (error) throw error;
   const { data } = db.storage.from('app-photos').getPublicUrl(path);
   return data.publicUrl;
+}
+
+/* ══════════════════════════════════════════════════════════
+   PHOTO LIGHTBOX — FEATURE: enlarge a receipt photo on tap
+   One shared lightbox for the add-form preview, the edit-modal preview,
+   and the receipt badge on transaction list cards.
+══════════════════════════════════════════════════════════ */
+function openPhotoLightbox(url) {
+  if (!url) return;
+  document.getElementById('lightbox-broken-msg').style.display = 'none';
+  const img = document.getElementById('lightbox-img');
+  img.style.display = '';
+  img.src = url;
+  document.getElementById('photo-lightbox-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closePhotoLightbox() {
+  const backdrop = document.getElementById('photo-lightbox-backdrop');
+  if (!backdrop.classList.contains('open')) return;
+  backdrop.classList.remove('open');
+  document.body.style.overflow = '';
+  document.getElementById('lightbox-img').removeAttribute('src');
 }
 
 /* ─── CHART.JS LAZY LOADER — FIX ─────────────────────────── */
@@ -1391,7 +1523,10 @@ window.addEventListener('DOMContentLoaded', () => {
     try {
       editPhotoBlob = await compressImage(file, { maxDim: 1280, maxBytes: 1024 * 1024 });
       editPhotoRemoved = false;
-      document.getElementById('e-photo-preview').src = URL.createObjectURL(editPhotoBlob);
+      document.getElementById('e-photo-broken-msg').style.display = 'none';
+      const _eImg = document.getElementById('e-photo-preview');
+      _eImg.style.display = '';
+      _eImg.src = URL.createObjectURL(editPhotoBlob);
       document.getElementById('e-photo-preview-wrap').style.display = 'block';
       document.getElementById('e-photo-pick-row').style.display = 'none';
     } catch (err) { showToast('Could not process photo: ' + (err?.message || 'Unknown')); }
@@ -1409,18 +1544,59 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('e-photo-pick-row').style.display = 'flex';
   });
 
+  // ── FIX: broken receipt photo detection (edit modal preview) ──────────
+  // openEditModal() points this <img> at the transaction's stored photo_url,
+  // which is a real network request (unlike the add-form's local blob
+  // preview) — so it's the one place a dead/expired link can actually show
+  // up. On failure, hide the broken image and explain what happened instead
+  // of leaving a mysterious blank box; a real photo loading successfully
+  // clears that state again.
+  const eBrokenMsg = document.getElementById('e-photo-broken-msg');
+  document.getElementById('e-photo-preview').addEventListener('error', function () {
+    if (!this.getAttribute('src')) return;
+    this.style.display = 'none';
+    eBrokenMsg.style.display = 'block';
+  });
+  document.getElementById('e-photo-preview').addEventListener('load', function () {
+    eBrokenMsg.style.display = 'none';
+    this.style.display = '';
+  });
+
+  // ── Photo lightbox (FEATURE: tap a receipt photo to enlarge) ──────────
+  document.getElementById('f-photo-preview').addEventListener('click', function () {
+    if (this.getAttribute('src')) openPhotoLightbox(this.src);
+  });
+  document.getElementById('e-photo-preview').addEventListener('click', function () {
+    if (this.style.display !== 'none' && this.getAttribute('src')) openPhotoLightbox(this.src);
+  });
+  document.getElementById('lightbox-close-btn').addEventListener('click', closePhotoLightbox);
+  document.getElementById('photo-lightbox-backdrop').addEventListener('click', closePhotoLightbox);
+  // FIX: same broken-link fallback as the edit-modal preview, in case a
+  // photo fails to load only once it's asked to render at full size
+  document.getElementById('lightbox-img').addEventListener('error', function () {
+    if (!this.getAttribute('src')) return;
+    this.style.display = 'none';
+    document.getElementById('lightbox-broken-msg').style.display = 'block';
+  });
+
   // ── Homework ──────────────────────────────────────────────
-  document.getElementById('hw-due').value = todayStr();
+  // FIX: due date now starts blank ("No due date") instead of defaulting to
+  // today — syncDueChipHighlight() below highlights the "No due date" chip
+  // to match.
   syncDueChipHighlight();
   document.getElementById('hw-add-btn').addEventListener('click', addHomework);
   document.querySelectorAll('[data-hwfilter]').forEach(btn => {
     btn.addEventListener('click', () => setHwFilter(btn.dataset.hwfilter));
   });
+  // FEATURE: tapping a homework card (anywhere but the checkbox or delete
+  // button) opens the edit modal.
   document.getElementById('hw-list').addEventListener('click', e => {
     const check = e.target.closest('[data-hw-check]');
     const del   = e.target.closest('[data-hw-del]');
-    if (check) toggleHomeworkDone(check.dataset.hwCheck);
-    if (del)   deleteHomework(del.dataset.hwDel);
+    if (check) { toggleHomeworkDone(check.dataset.hwCheck); return; }
+    if (del)   { deleteHomework(del.dataset.hwDel); return; }
+    const card  = e.target.closest('[data-hw-edit]');
+    if (card) openHwEditModal(card.dataset.hwEdit);
   });
   // FEATURE: quick-add subject chips — tap to instantly fill the Subject
   // field AND pre-fill Title with "<Subject> - ", with the cursor parked
@@ -1428,44 +1604,20 @@ window.addEventListener('DOMContentLoaded', () => {
   // Tap the same chip again to clear both — the title is only cleared if
   // it still matches the auto-filled prefix untouched, so anything you've
   // already typed past the dash is never wiped out.
-  const hwSubjectInput = document.getElementById('hw-subject');
-  const hwTitleInput   = document.getElementById('hw-title');
-  document.getElementById('subject-chip-row').addEventListener('click', e => {
-    const chip = e.target.closest('.subject-chip');
-    if (!chip) return;
-    const wasActive = chip.classList.contains('active');
-    const prefix = chip.dataset.subject + ' - ';
-    document.querySelectorAll('.subject-chip').forEach(c => c.classList.remove('active'));
-    if (wasActive) {
-      hwSubjectInput.value = '';
-      if (hwTitleInput.value === prefix) hwTitleInput.value = '';
-    } else {
-      chip.classList.add('active');
-      hwSubjectInput.value = chip.dataset.subject;
-      hwTitleInput.value = prefix;
-    }
-    hwTitleInput.focus();
-    const caret = hwTitleInput.value.length;
-    hwTitleInput.setSelectionRange(caret, caret);
-  });
-  // Keep chip highlight in sync if the person types/edits the field manually
-  hwSubjectInput.addEventListener('input', () => {
-    document.querySelectorAll('.subject-chip').forEach(c => {
-      c.classList.toggle('active', c.dataset.subject === hwSubjectInput.value);
-    });
-  });
-  // FEATURE: quick due-date shortcut chips — tap to set #hw-due to
-  // today/tomorrow/in 2 days/next week without opening the date picker.
-  document.getElementById('due-chip-row').addEventListener('click', e => {
-    const chip = e.target.closest('.due-chip');
-    if (!chip) return;
-    document.getElementById('hw-due').value = dateStrOffset(Number(chip.dataset.offset));
-    syncDueChipHighlight();
-  });
-  // Keep chip highlight in sync if the person picks a date manually
-  document.getElementById('hw-due').addEventListener('input', syncDueChipHighlight);
+  // FIX: extracted into wireSubjectChipRow() (see bottom of file) so the new
+  // edit-modal chips below can share the exact same behavior instead of
+  // duplicating it — each row/input pair only ever touches its own chips.
+  wireSubjectChipRow('subject-chip-row', 'hw-subject', 'hw-title');
+  wireSubjectChipRow('hw-e-subject-chip-row', 'hw-e-subject', 'hw-e-title');
+  // FEATURE: quick due-date shortcut chips — tap to set the due date to
+  // no-date/today/tomorrow/in 2 days/next week without opening the date
+  // picker. FIX: extracted into wireDueChipRow() for the same reason as above.
+  wireDueChipRow('due-chip-row', 'hw-due');
+  wireDueChipRow('hw-e-due-chip-row', 'hw-e-due');
   // FEATURE: press Enter while in Title or Subject to submit instantly —
   // no need to reach for the Add button.
+  const hwTitleInput   = document.getElementById('hw-title');
+  const hwSubjectInput = document.getElementById('hw-subject');
   [hwTitleInput, hwSubjectInput].forEach(input => {
     input.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
@@ -1473,6 +1625,27 @@ window.addEventListener('DOMContentLoaded', () => {
         document.getElementById('hw-add-btn').click();
       }
     });
+  });
+  // Same Enter-to-submit convenience inside the edit modal
+  [document.getElementById('hw-e-title'), document.getElementById('hw-e-subject')].forEach(input => {
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('hw-e-save-btn').click();
+      }
+    });
+  });
+  // ── Homework edit modal (FEATURE) ─────────────────────────
+  document.getElementById('hw-edit-backdrop').addEventListener('click', e => {
+    if (e.target === document.getElementById('hw-edit-backdrop')) closeHwEditModal();
+  });
+  document.getElementById('sheet-close-hw-edit').addEventListener('click', closeHwEditModal);
+  document.getElementById('hw-e-cancel-btn').addEventListener('click', closeHwEditModal);
+  document.getElementById('hw-e-save-btn').addEventListener('click', saveHwEdit);
+  document.getElementById('hw-e-delete-btn').addEventListener('click', () => {
+    const id = hwEditingId;
+    closeHwEditModal(); // close first so the confirm dialog never stacks underneath it
+    if (id) deleteHomework(id);
   });
 
   // ── Network events ───────────────────────────────────────
@@ -1529,12 +1702,12 @@ window.addEventListener('DOMContentLoaded', () => {
   // ── Keyboard shortcuts ───────────────────────────────────
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && document.getElementById('form-card').classList.contains('open') && !isSaving) saveTransaction();
-    if (e.key === 'Escape') { closeEditModal(); closeSettingsModal(); _closeConfirm(); }
+    if (e.key === 'Escape') { closeEditModal(); closeSettingsModal(); _closeConfirm(); closeHwEditModal(); closePhotoLightbox(); }
     // 'N' shortcut opens the Add form when no modal/input is active
     if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const _tag = document.activeElement?.tagName?.toLowerCase();
       const _inInput = ['input','textarea','select'].includes(_tag);
-      const _modalOpen = ['edit-backdrop','settings-backdrop','confirm-backdrop'].some(
+      const _modalOpen = ['edit-backdrop','settings-backdrop','confirm-backdrop','hw-edit-backdrop','photo-lightbox-backdrop'].some(
         id => document.getElementById(id)?.classList.contains('open')
       );
       if (!_inInput && !_modalOpen && !document.getElementById('form-card').classList.contains('open')) {
@@ -1650,27 +1823,79 @@ function updateMonthLabel() {
   const isCurrentMonth = !isAllTime && viewYear === now.getFullYear() && viewMonth === now.getMonth();
   document.getElementById('today-btn').style.display = isCurrentMonth ? 'none' : 'inline-block';
 }
-function shiftMonth(dir) {
+async function shiftMonth(dir) {
   isAllTime = false;
   viewMonth += dir;
   if (viewMonth > 11) { viewMonth = 0; viewYear++; }
   if (viewMonth <  0) { viewMonth = 11; viewYear--; }
   updateMonthLabel();
-  renderAll();
+  renderAll(); // render immediately with whatever's already loaded — feels instant for recent months
+  await ensureMonthLoaded(viewYear, viewMonth); // then quietly fetch older pages if this month isn't covered yet
 }
-function toggleAllTime() {
+async function toggleAllTime() {
   isAllTime = !isAllTime;
   updateMonthLabel();
   renderAll();
+  if (isAllTime) await loadAllHistory(); // FIX: "All time" totals were silently incomplete until every page had been loaded
 }
 // FIX: Jump back to current month
-function goToToday() {
+async function goToToday() {
   const now = new Date();
   isAllTime = false;
   viewYear  = now.getFullYear();
   viewMonth = now.getMonth();
   updateMonthLabel();
   renderAll();
+  await ensureMonthLoaded(viewYear, viewMonth);
+}
+
+/* ══════════════════════════════════════════════════════════
+   BUG FIX — past months (and their receipt photos) not loading
+   ──────────────────────────────────────────────────────────
+   monthTxs()/getVisible() only ever filtered whatever was already sitting
+   in `allTxs`, which loadTransactions() caps at PAGE_SIZE (100) per fetch.
+   Paging further back only happened if the person manually pressed
+   "Load older transactions" — and that button was only rendered *after*
+   at least one transaction for the current view, so a month with zero
+   loaded transactions (common once you're a few pages back) showed
+   "No transactions yet" with no way to reach the button at all. Since a
+   transaction can't render its receipt photo (or anything else) if it was
+   never fetched, this is what made attachments on older months look
+   "missing" even though they were sitting in Supabase the whole time.
+   ensureMonthLoaded() now runs automatically on every month change and
+   fetches whatever's missing until the target month is covered. The
+   manual "Load older" button (see renderList) is kept as a fallback for
+   the rare case the safety cap below is hit. */
+const MONTH_LOAD_SAFETY_PAGES = 24; // ~2,400 records — generous, but bounded so a very old jump can't fetch forever
+async function ensureMonthLoaded(year, month) {
+  if (isAllTime || !db || _monthLoadInFlight) return;
+  const targetStart = new Date(year, month, 1);
+  _monthLoadInFlight = true;
+  try {
+    let pages = 0;
+    while (hasMoreTxs && pages < MONTH_LOAD_SAFETY_PAGES) {
+      const earliestLoaded = allTxs.length ? new Date(allTxs[allTxs.length - 1].date + 'T00:00:00') : null;
+      if (earliestLoaded && earliestLoaded <= targetStart) break; // already have data at/before this month
+      await loadTransactions(true, true); // append next page, skip the recurring-processor
+      pages++;
+    }
+  } finally {
+    _monthLoadInFlight = false;
+  }
+}
+// Used when "All time" is switched on, so totals/charts reflect full history
+async function loadAllHistory() {
+  if (!db || _monthLoadInFlight) return;
+  _monthLoadInFlight = true;
+  try {
+    let pages = 0;
+    while (hasMoreTxs && pages < MONTH_LOAD_SAFETY_PAGES) {
+      await loadTransactions(true, true);
+      pages++;
+    }
+  } finally {
+    _monthLoadInFlight = false;
+  }
 }
 
 function allTxsWithPending() { return _mergedTxs; }
@@ -2064,8 +2289,20 @@ function renderList() {
   if (!visible.length) {
     const icons = { income:'📥', expense:'📤', recurring:'🔄', pending:'⏳' };
     const icon  = icons[currentFilter] || '📋';
-    const msg   = searchQ ? `No results for "${esc(searchQ)}"` : 'No transactions yet.<br>Tap "Add Transaction" to start.';
+    let msg;
+    if (searchQ) {
+      msg = `No results for "${esc(searchQ)}"`;
+    } else if (hasMoreTxs) {
+      // FIX: this is the other half of the past-months bug — previously this
+      // branch returned before the load-more button ever got a chance to
+      // render, so a month with older, not-yet-fetched data (including any
+      // receipt photos on it) looked permanently empty with no way forward.
+      msg = 'This month hasn\'t finished loading.<br>Tap below to load older transactions.';
+    } else {
+      msg = 'No transactions yet.<br>Tap "Add Transaction" to start.';
+    }
     list.innerHTML = `<div class="empty-state"><div class="icon">${icon}</div><p>${msg}</p></div>`;
+    appendLoadMoreButton(list);
     return;
   }
 
@@ -2088,7 +2325,7 @@ function renderList() {
               ${esc(t.description || 'No description')}
               ${t.isPending ? '<span class="badge pending">⏳ pending sync</span>' : ''}
               ${isRec ? '<span class="badge rec">↻ recurring</span>' : ''}
-              ${t.photo_url ? '<span title="Has receipt photo" aria-hidden="true">📎</span>' : ''}
+              ${t.photo_url ? `<button type="button" class="tx-photo-badge" id="photo-${t.id}" aria-label="View receipt photo">📎</button>` : ''}
             </div>
             <div class="tx-meta">${cat}${formatDate(t.date)}</div>
           </div>
@@ -2103,28 +2340,35 @@ function renderList() {
 
   // Attach event listeners
   visible.forEach(t => {
-    const card   = document.getElementById('card-' + t.id);
-    const bg     = document.getElementById('bg-'   + t.id);
-    const delBtn = document.getElementById('del-'  + t.id);
+    const card     = document.getElementById('card-'  + t.id);
+    const bg       = document.getElementById('bg-'    + t.id);
+    const delBtn   = document.getElementById('del-'   + t.id);
+    const photoBtn = document.getElementById('photo-' + t.id);
     if (card && txClickCallbacks[t.id])    card.addEventListener('click', txClickCallbacks[t.id]);
     if (bg   && txDeleteCallbacks[t.id])   bg.addEventListener('click',   txDeleteCallbacks[t.id]);
     if (delBtn && txDeleteCallbacks[t.id]) delBtn.addEventListener('click', e => { e.stopPropagation(); txDeleteCallbacks[t.id](); });
+    // FEATURE: tap the receipt badge to enlarge the photo right from the list
+    if (photoBtn) photoBtn.addEventListener('click', e => { e.stopPropagation(); openPhotoLightbox(t.photo_url); });
     attachSwipe(t.id);
   });
   announceToSR(visible.length + ' transaction' + (visible.length !== 1 ? 's' : '') + ' shown');
 
-  // FIX: Load more button appended after list
-  if (hasMoreTxs && !searchQ) {
-    const btn = document.createElement('button');
-    btn.className   = 'load-more-btn';
-    btn.textContent = '↓ Load older transactions';
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      btn.textContent = 'Loading…';
-      await loadTransactions(true);
-    });
-    list.appendChild(btn);
-  }
+  appendLoadMoreButton(list);
+}
+
+// FIX: extracted so the empty-state branch above can offer it too — it was
+// previously only ever appended after a non-empty list.
+function appendLoadMoreButton(list) {
+  if (!(hasMoreTxs && !searchQ)) return;
+  const btn = document.createElement('button');
+  btn.className   = 'load-more-btn';
+  btn.textContent = '↓ Load older transactions';
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    btn.textContent = 'Loading…';
+    await loadTransactions(true);
+  });
+  list.appendChild(btn);
 }
 
 
@@ -2434,13 +2678,20 @@ function openEditModal(id) {
   document.getElementById('e-desc').value     = t.description || '';
   document.getElementById('e-date').value     = t.date;
   document.getElementById('e-category').value = t.category || '';
-  // FIX: photo state — show existing receipt photo if present
+  // FIX: photo state — show existing receipt photo if present. Also resets
+  // the broken-photo message and the <img>'s own display style every time,
+  // so if the previous transaction's photo had failed to load, that state
+  // doesn't linger onto this one.
   editPhotoBlob = null; editPhotoRemoved = false;
+  document.getElementById('e-photo-broken-msg').style.display = 'none';
+  const ePreviewImg = document.getElementById('e-photo-preview');
+  ePreviewImg.style.display = '';
   if (t.photo_url) {
-    document.getElementById('e-photo-preview').src = t.photo_url;
+    ePreviewImg.src = t.photo_url;
     document.getElementById('e-photo-preview-wrap').style.display = 'block';
     document.getElementById('e-photo-pick-row').style.display = 'none';
   } else {
+    ePreviewImg.removeAttribute('src');
     document.getElementById('e-photo-preview-wrap').style.display = 'none';
     document.getElementById('e-photo-pick-row').style.display = 'flex';
   }
@@ -2608,29 +2859,76 @@ function setHwFilter(f) {
   document.querySelectorAll('[data-hwfilter]').forEach(b => b.classList.toggle('active', b.dataset.hwfilter === f));
   renderHomework();
 }
+
+// FIX: best-effort creation timestamp for sorting the "No due date" list.
+// Supabase tables conventionally include an auto-populated `created_at`
+// column, which is what this relies on primarily — if your `homework`
+// table doesn't have one, add a `created_at timestamptz default now()`
+// column so this sorts correctly; until then it falls back to numeric id
+// order, which is right for a typical auto-incrementing primary key but
+// won't be meaningful for e.g. random/UUID ids.
+function hwCreatedAtMs(h) {
+  if (h.created_at) {
+    const t = new Date(h.created_at).getTime();
+    if (!isNaN(t)) return t;
+  }
+  const n = Number(h.id);
+  return isNaN(n) ? 0 : n;
+}
+
+// FIX: centralizes filter + sort logic per tab (previously only a filter,
+// with sorting left to whatever order the initial query happened to return
+// and a fragile in-place sort in addHomework() — see below).
+function getVisibleHomework() {
+  const today = todayStr();
+  switch (hwFilter) {
+    case 'nodate':
+      // FEATURE: chronological by creation date, earliest added at the top —
+      // and done items are excluded, same as Today/Upcoming.
+      return homework.filter(h => !h.done && !h.due_date)
+                      .slice().sort((a, b) => hwCreatedAtMs(a) - hwCreatedAtMs(b));
+    case 'today':
+      return homework.filter(h => !h.done && h.due_date === today);
+    case 'upcoming':
+      return homework.filter(h => !h.done && !!h.due_date && h.due_date > today)
+                      .slice().sort((a, b) => a.due_date < b.due_date ? -1 : a.due_date > b.due_date ? 1 : 0);
+    case 'done':
+      return homework.filter(h => h.done);
+    default:
+      return homework.slice(); // 'all' — everything, unfiltered
+  }
+}
+
 function renderHomework() {
   const list = document.getElementById('hw-list');
   if (!list) return;
   const today = todayStr();
-  let items = homework;
-  if (hwFilter === 'today')    items = homework.filter(h => !h.done && h.due_date === today);
-  if (hwFilter === 'upcoming') items = homework.filter(h => !h.done && h.due_date > today);
-  if (hwFilter === 'done')     items = homework.filter(h => h.done);
-  // 'all' shows everything, unfiltered
+  const items = getVisibleHomework();
 
   if (!items.length) {
-    const msgs = { today: 'Nothing due today. 🎉', upcoming: 'No upcoming homework.', done: 'No completed homework yet.', all: 'No homework yet.<br>Add your first item above.' };
+    const msgs = {
+      nodate:   'Nothing here yet.<br>New homework without a due date lands in this list.',
+      today:    'Nothing due today. 🎉',
+      upcoming: 'No upcoming homework.',
+      done:     'No completed homework yet.',
+      all:      'No homework yet.<br>Add your first item above.'
+    };
     list.innerHTML = `<div class="empty-state"><div class="icon">📚</div><p>${msgs[hwFilter] || msgs.all}</p></div>`;
     return;
   }
   list.innerHTML = items.map(h => {
-    const overdue = !h.done && h.due_date < today;
+    // FIX: guard on h.due_date being truthy first — with due dates now
+    // nullable, "" or null compared with < / > against today's date string
+    // can't be trusted to just fall out false across every JS engine, and
+    // an item with no due date should never be able to read as overdue.
+    const overdue = !h.done && !!h.due_date && h.due_date < today;
+    const dueText = h.due_date ? `Due ${formatDate(h.due_date)}` : 'No due date';
     return `
-    <div class="hw-card${h.done ? ' hw-done' : ''}">
+    <div class="hw-card${h.done ? ' hw-done' : ''}" data-hw-edit="${h.id}">
       <button class="hw-check" data-hw-check="${h.id}" aria-label="${h.done ? 'Mark incomplete' : 'Mark complete'}">${h.done ? '✓' : ''}</button>
       <div class="hw-info">
         <div class="hw-title">${esc(h.title)}</div>
-        <div class="hw-meta${overdue ? ' hw-overdue' : ''}">${h.subject ? esc(h.subject) + ' · ' : ''}${overdue ? 'Overdue · ' : ''}Due ${formatDate(h.due_date)}</div>
+        <div class="hw-meta${overdue ? ' hw-overdue' : ''}">${h.subject ? esc(h.subject) + ' · ' : ''}${overdue ? 'Overdue · ' : ''}${dueText}</div>
       </div>
       <button class="hw-del" data-hw-del="${h.id}" aria-label="Delete ${esc(h.title)}">🗑</button>
     </div>`;
@@ -2639,7 +2937,9 @@ function renderHomework() {
 async function addHomework() {
   const title = document.getElementById('hw-title').value.trim();
   const subject = document.getElementById('hw-subject').value.trim();
-  const due = document.getElementById('hw-due').value || todayStr();
+  // FIX: blank due-date field now means "no due date" (stored as null),
+  // instead of silently defaulting to today.
+  const due = document.getElementById('hw-due').value || null;
   if (!title) { showToast('Enter a homework title'); return; }
   if (!db) { showToast('Not connected'); return; }
   const btn = document.getElementById('hw-add-btn');
@@ -2648,12 +2948,15 @@ async function addHomework() {
     const payload = { title, subject: subject || null, due_date: due, done: false };
     const { data, error } = await db.from('homework').insert([payload]).select();
     if (error) throw error;
+    // FIX: no longer re-sorts the whole master array here (a due_date-based
+    // comparator doesn't have a sane answer for two null dates, and broke
+    // insertion order for the very list this ships alongside). renderHomework()
+    // now sorts freshly per active filter via getVisibleHomework() instead.
     homework.push(data[0]);
-    homework.sort((a,b) => a.due_date < b.due_date ? -1 : 1);
     document.getElementById('hw-title').value = '';
     document.getElementById('hw-subject').value = '';
-    document.querySelectorAll('.subject-chip').forEach(c => c.classList.remove('active'));
-    document.getElementById('hw-due').value = todayStr();
+    document.querySelectorAll('#subject-chip-row .subject-chip').forEach(c => c.classList.remove('active'));
+    document.getElementById('hw-due').value = '';
     syncDueChipHighlight();
     renderHomework();
     showToast('✓ Homework added');
@@ -2687,6 +2990,49 @@ function deleteHomework(id) {
     },
     { title: 'Delete homework?', confirmText: 'Delete', icon: '🗑', danger: true }
   );
+}
+
+/* ─── HOMEWORK EDIT MODAL — FEATURE ───────────────────────── */
+function openHwEditModal(id) {
+  const h = homework.find(x => String(x.id) === String(id));
+  if (!h) return;
+  hwEditingId = id;
+  document.getElementById('hw-e-title').value   = h.title || '';
+  document.getElementById('hw-e-subject').value = h.subject || '';
+  document.getElementById('hw-e-due').value     = h.due_date || '';
+  syncSubjectChipHighlight('hw-e-subject-chip-row', 'hw-e-subject');
+  syncDueChipHighlight('hw-e-due-chip-row', 'hw-e-due');
+  document.getElementById('hw-edit-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('hw-e-title').focus(), 80);
+}
+function closeHwEditModal() {
+  document.getElementById('hw-edit-backdrop').classList.remove('open');
+  document.body.style.overflow = '';
+  hwEditingId = null;
+}
+async function saveHwEdit() {
+  if (!hwEditingId) return;
+  const title = document.getElementById('hw-e-title').value.trim();
+  if (!title) { showToast('Enter a homework title'); return; }
+  if (!db) { showToast('Not connected'); return; }
+  const btn = document.getElementById('hw-e-save-btn');
+  btn.disabled = true; btn.textContent = 'Updating…';
+  try {
+    const updates = {
+      title,
+      subject: document.getElementById('hw-e-subject').value.trim() || null,
+      due_date: document.getElementById('hw-e-due').value || null
+    };
+    const { error } = await db.from('homework').update(updates).eq('id', hwEditingId);
+    if (error) throw error;
+    const idx = homework.findIndex(x => String(x.id) === String(hwEditingId));
+    if (idx !== -1) homework[idx] = { ...homework[idx], ...updates };
+    renderHomework();
+    closeHwEditModal();
+    showToast('✓ Homework updated');
+  } catch (e) { showToast('Error: ' + (e?.message || 'Unknown')); }
+  finally { btn.disabled = false; btn.textContent = 'Update'; }
 }
 
 /* ─── CSV EXPORT ──────────────────────────────────────────── */
@@ -2890,10 +3236,75 @@ function dateStrOffset(days) {
   d.setDate(d.getDate() + days);
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
-function syncDueChipHighlight() {
-  const due = document.getElementById('hw-due')?.value;
-  document.querySelectorAll('.due-chip').forEach(c => {
-    c.classList.toggle('active', dateStrOffset(Number(c.dataset.offset)) === due);
+// FIX: parameterized (default args preserve the original hw-due call sites)
+// so the homework edit modal's own due-chip row can sync independently
+// instead of a single document-wide query cross-talking between both rows.
+function syncDueChipHighlight(rowId = 'due-chip-row', dueInputId = 'hw-due') {
+  const due = document.getElementById(dueInputId)?.value;
+  document.getElementById(rowId)?.querySelectorAll('.due-chip').forEach(c => {
+    if (c.dataset.offset === 'none') { c.classList.toggle('active', !due); return; }
+    c.classList.toggle('active', !!due && dateStrOffset(Number(c.dataset.offset)) === due);
+  });
+}
+// FEATURE: wires a due-date chip row (add form or edit modal) to its own
+// date input — clicking "No due date" clears the field; the other chips
+// set it to the corresponding offset from today.
+function wireDueChipRow(rowId, dueInputId) {
+  document.getElementById(rowId).addEventListener('click', e => {
+    const chip = e.target.closest('.due-chip');
+    if (!chip) return;
+    document.getElementById(dueInputId).value = chip.dataset.offset === 'none' ? '' : dateStrOffset(Number(chip.dataset.offset));
+    syncDueChipHighlight(rowId, dueInputId);
+  });
+  document.getElementById(dueInputId).addEventListener('input', () => syncDueChipHighlight(rowId, dueInputId));
+}
+// FEATURE: same idea for the subject chip row — extracted so the add-form
+// and the edit-modal's chips can share one implementation instead of two
+// near-identical copies drifting apart over time.
+function wireSubjectChipRow(rowId, subjectInputId, titleInputId) {
+  const row     = document.getElementById(rowId);
+  const subject = document.getElementById(subjectInputId);
+  const title   = document.getElementById(titleInputId);
+  row.addEventListener('click', e => {
+    const chip = e.target.closest('.subject-chip');
+    if (!chip) return;
+    const wasActive = chip.classList.contains('active');
+    const prefix = chip.dataset.subject + ' - ';
+    // FIX: only ever auto-fill Title when it's blank or still exactly matches
+    // an earlier auto-filled prefix from one of this row's own chips — i.e.
+    // never overwrite text the person actually typed. Matters most in the
+    // edit modal, where Title starts out holding the item's real saved name.
+    const rowPrefixes = Array.from(row.querySelectorAll('.subject-chip')).map(c => c.dataset.subject + ' - ');
+    const titleIsAutoFillable = title.value === '' || rowPrefixes.includes(title.value);
+    row.querySelectorAll('.subject-chip').forEach(c => c.classList.remove('active'));
+    if (wasActive) {
+      subject.value = '';
+      if (title.value === prefix) title.value = '';
+    } else {
+      chip.classList.add('active');
+      subject.value = chip.dataset.subject;
+      if (titleIsAutoFillable) {
+        title.value = prefix;
+        title.focus();
+        const caret = title.value.length;
+        title.setSelectionRange(caret, caret);
+      }
+    }
+  });
+  // Keep chip highlight in sync if the person types/edits the field manually
+  subject.addEventListener('input', () => {
+    row.querySelectorAll('.subject-chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.subject === subject.value);
+    });
+  });
+}
+// Used when a subject field is populated programmatically (e.g. opening the
+// edit modal) rather than by the person typing, since setting .value in JS
+// doesn't fire an 'input' event on its own.
+function syncSubjectChipHighlight(rowId, subjectInputId) {
+  const val = document.getElementById(subjectInputId)?.value || '';
+  document.getElementById(rowId)?.querySelectorAll('.subject-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.subject === val);
   });
 }
 function esc(s)        { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
