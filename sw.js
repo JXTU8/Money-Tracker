@@ -1,17 +1,14 @@
-/* ─── Money Record — Service Worker v17 ──────────────────────────────
-   Changes from v16:
-   ✅ Removed the 'push' and 'notificationclick' handlers — this was
-      dead weight: index.html never had a subscribe flow or a listener
-      for the 'open-tab' message these sent, so nothing could ever have
-      reached them client-side. Removed rather than left unused.
-      (If a send-homework-notifications Supabase Edge Function is still
-      running server-side, it's now sending pushes nothing will handle —
-      worth pausing/removing that too if you're dropping the feature.)
-   ✅ Cache version bumped to v17 so installed users pick up this file
-      instead of continuing to run whatever version they last cached.
+/* ─── Money Record — Service Worker v18 ──────────────────────────────
+   Changes from v17:
+   ✅ Cache version bumped to v18 — index.html changed (dark-mode
+      active-tab fix: bold weight + lifted background + green
+      underline) and the old v17 cache was still serving the stale
+      file cache-first. Nothing else in this worker needed to change;
+      bumping CACHE is what makes the activate handler below purge the
+      old cache and forces a fresh fetch of index.html on next install.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v17';
+const CACHE = 'money-app-v18';
 
 const STATIC_ASSETS = [
   '/',
