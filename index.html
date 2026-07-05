@@ -503,9 +503,19 @@
     }
 
     /* ─── HOMEWORK ────────────────────────────────────────── */
+    /* Spacing between rows now lives on the list container's gap (matches
+       .transaction-list) instead of margin-bottom on the card, since each
+       card is now wrapped for swipe-to-delete — see .hw-wrapper below. */
+    #hw-list { display: flex; flex-direction: column; gap: 8px; }
+    .hw-wrapper { position: relative; overflow: hidden; border-radius: var(--radius); }
+    .hw-wrapper.collapsing { animation: collapseRow 0.35s ease forwards; pointer-events: none; overflow: hidden; }
+    .hw-swipe-bg { position: absolute; right: 0; top: 0; bottom: 0; width: 88px; background: transparent; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); cursor: pointer; overflow: hidden; opacity: 0; }
+    .hw-swipe-bg .bin-icon { font-size: 24px; display: block; transition: transform 0.15s ease; z-index: 1; pointer-events: none; color: var(--red); }
+    .hw-swipe-bg.hard-swipe { background: rgba(226,75,74,0.12); }
+    .hw-swipe-bg.exploding .bin-icon { animation: binPop 0.35s cubic-bezier(.36,.07,.19,.97) forwards; }
     .hw-card {
       background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-      padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 10px;
+      padding: 12px 14px; display: flex; align-items: flex-start; gap: 10px;
       transition: opacity .2s;
     }
     .hw-card.hw-done { opacity: .55; }
@@ -530,6 +540,7 @@
     .hw-del {
       background: none; border: none; color: var(--muted); cursor: pointer;
       font-size: 15px; padding: 4px 6px; border-radius: 6px; transition: all .15s; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; margin-top: 1px;
     }
     .hw-del:hover { color: var(--red); background: var(--red-light); }
     /* FEATURE: quick-add subject chips — horizontally-scrollable tap shortcuts
@@ -568,7 +579,7 @@
     .due-chip.active { background: var(--blue); border-color: var(--blue); color: white; }
 
     /* ─── HOMEWORK CARD — now tappable to edit (matches .tx-card treatment) ── */
-    .hw-card { cursor: pointer; transition: border-color .15s; }
+    .hw-card { cursor: pointer; position: relative; touch-action: pan-y; will-change: transform; transition: border-color .15s; }
     .hw-card:hover { border-color: rgba(0,0,0,.2); }
     [data-theme="dark"] .hw-card:hover { border-color: rgba(255,255,255,.2); }
 
@@ -1126,6 +1137,7 @@ let hwEditingId = null;     // FEATURE: id of the homework item open in the edit
 // FIX: Callback maps replace eval() in swipe-to-delete
 const txClickCallbacks  = {};
 const txDeleteCallbacks = {};
+const hwDeleteCallbacks = {};
 /* ── Performance: merged tx cache, recomputed once per renderAll ─── */
 let _mergedTxs = [];
 /* ── Undo delete buffer ─────────────────────────────────────────── */
@@ -2482,6 +2494,91 @@ function attachSwipe(id) {
   });
 }
 
+/* ─── SWIPE TO DELETE (HOMEWORK) — mirrors attachSwipe() exactly ──
+   Same thresholds, timings and animation as the transaction list;
+   only the element-id prefixes and callback map differ, so homework
+   ids never collide with transaction ids. */
+function attachHwSwipe(id) {
+  const card    = document.getElementById('hw-card-' + id);
+  const wrapper = document.getElementById('hw-wrap-' + id);
+  const bg      = document.getElementById('hw-bg-'   + id);
+  if (!card || !wrapper || !bg) return;
+
+  let startX=0, startY=0, curX=0, swiping=false, intentSet=false, isHoriz=false, deleted=false;
+  const SOFT = 88;
+  const HARD = 200;
+
+  async function triggerDelete() {
+    if (deleted) return;
+    deleted = true;
+    card.style.transition = 'transform 0.22s ease';
+    card.style.transform  = 'translateX(-110%)';
+    bg.classList.add('hard-swipe', 'exploding');
+    setTimeout(() => {
+      wrapper.classList.add('collapsing');
+      const action = hwDeleteCallbacks[id];
+      if (action) setTimeout(action, 180);
+    }, 300);
+  }
+
+  card.addEventListener('touchstart', e => {
+    if (deleted) return;
+    startX=e.touches[0].clientX; startY=e.touches[0].clientY;
+    curX=0; swiping=true; intentSet=false; isHoriz=false;
+    card.style.transition = 'none';
+    bg.classList.remove('hard-swipe');
+  }, { passive: true });
+
+  card.addEventListener('touchmove', e => {
+    if (!swiping || deleted) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+    if (!intentSet && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+      intentSet = true;
+      isHoriz   = Math.abs(dx) > Math.abs(dy);
+    }
+    if (!isHoriz) return;
+    e.preventDefault();
+    curX = Math.min(0, dx);
+    const clamped = Math.max(-HARD - 20, curX);
+    card.style.transform = `translateX(${clamped}px)`;
+    const progress = Math.min(1, Math.abs(curX) / SOFT);
+    bg.style.opacity = String(Math.min(1, progress * 1.4));
+    const binIcon = bg.querySelector('.bin-icon');
+    if (binIcon) binIcon.style.transform = `scale(${1 + Math.min(1, Math.abs(curX) / HARD) * 0.6})`;
+    bg.classList.toggle('hard-swipe', Math.abs(curX) > SOFT);
+  }, { passive: false });
+
+  card.addEventListener('touchend', async () => {
+    if (!swiping || deleted) return;
+    swiping = false;
+    if (curX < -HARD) {
+      await triggerDelete();
+    } else if (curX < -SOFT) {
+      card.style.transition = 'transform 0.2s ease';
+      card.style.transform  = `translateX(-${SOFT}px)`;
+      bg.classList.add('hard-swipe');
+      setTimeout(() => {
+        if (!deleted && card.isConnected) {
+          card.style.transition = 'transform 0.25s ease';
+          card.style.transform  = '';
+          bg.style.opacity      = '0';
+          bg.classList.remove('hard-swipe');
+          const binIcon = bg.querySelector('.bin-icon');
+          if (binIcon) binIcon.style.transform = '';
+        }
+      }, 3000);
+    } else {
+      card.style.transition = 'transform 0.2s ease';
+      card.style.transform  = '';
+      bg.style.opacity      = '0';
+      bg.classList.remove('hard-swipe');
+      const binIcon = bg.querySelector('.bin-icon');
+      if (binIcon) binIcon.style.transform = '';
+    }
+  });
+}
+
 /* ─── CHARTS — FIX: lazy Chart.js ────────────────────────── */
 async function renderCharts() {
   if (!document.getElementById('panel-charts').classList.contains('open')) return;
@@ -2932,6 +3029,12 @@ function renderHomework() {
   const today = todayStr();
   const items = getVisibleHomework();
 
+  // Rebuild the delete-callback map fresh each render (same no-eval pattern,
+  // and same ordering, as renderList()/txDeleteCallbacks) — cleared before
+  // the empty-state check so no stale callbacks ever linger.
+  Object.keys(hwDeleteCallbacks).forEach(k => delete hwDeleteCallbacks[k]);
+  items.forEach(h => { hwDeleteCallbacks[h.id] = () => deleteHomework(h.id); });
+
   if (!items.length) {
     const msgs = {
       nodate:   'Nothing here yet.<br>New homework without a due date lands in this list.',
@@ -2951,15 +3054,25 @@ function renderHomework() {
     const overdue = !h.done && !!h.due_date && h.due_date < today;
     const dueText = h.due_date ? `Due ${formatDate(h.due_date)}` : 'No due date';
     return `
-    <div class="hw-card${h.done ? ' hw-done' : ''}" data-hw-edit="${h.id}">
-      <button class="hw-check" data-hw-check="${h.id}" aria-label="${h.done ? 'Mark incomplete' : 'Mark complete'}">${h.done ? '✓' : ''}</button>
-      <div class="hw-info">
-        <div class="hw-title">${esc(h.title)}</div>
-        <div class="hw-meta${overdue ? ' hw-overdue' : ''}">${h.subject ? esc(h.subject) + ' · ' : ''}${overdue ? 'Overdue · ' : ''}${dueText}</div>
+    <div class="hw-wrapper" id="hw-wrap-${h.id}">
+      <div class="hw-swipe-bg" id="hw-bg-${h.id}"><span class="bin-icon">${BIN_SVG}</span></div>
+      <div class="hw-card${h.done ? ' hw-done' : ''}" id="hw-card-${h.id}" data-hw-edit="${h.id}">
+        <button class="hw-check" data-hw-check="${h.id}" aria-label="${h.done ? 'Mark incomplete' : 'Mark complete'}">${h.done ? '✓' : ''}</button>
+        <div class="hw-info">
+          <div class="hw-title">${esc(h.title)}</div>
+          <div class="hw-meta${overdue ? ' hw-overdue' : ''}">${h.subject ? esc(h.subject) + ' · ' : ''}${overdue ? 'Overdue · ' : ''}${dueText}</div>
+        </div>
+        <button class="hw-del" data-hw-del="${h.id}" aria-label="Delete ${esc(h.title)}">${BIN_SVG}</button>
       </div>
-      <button class="hw-del" data-hw-del="${h.id}" aria-label="Delete ${esc(h.title)}">${BIN_SVG}</button>
     </div>`;
   }).join('');
+
+  // Wire up swipe-to-delete for each row (callbacks were already built above).
+  items.forEach(h => {
+    const bg = document.getElementById('hw-bg-' + h.id);
+    if (bg) bg.addEventListener('click', hwDeleteCallbacks[h.id]);
+    attachHwSwipe(h.id);
+  });
 }
 async function addHomework() {
   const title = document.getElementById('hw-title').value.trim();

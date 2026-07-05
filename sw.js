@@ -1,15 +1,15 @@
-/* ─── Money Record — Service Worker v19 ──────────────────────────────
-   Changes from v18:
-   ✅ Cache version bumped to v19 — index.html changed (the 🗑 emoji
-      delete icon was replaced with a hand-drawn SVG bin icon across
-      every delete button/row/confirm-dialog) and the old v18 cache
-      was still serving that file cache-first. Nothing else in this
-      worker needed to change; bumping CACHE is what makes the
+/* ─── Money Record — Service Worker v20 ──────────────────────────────
+   Changes from v19:
+   ✅ Cache version bumped to v20 — index.html changed again (hw-del
+      icon centering fixed, and homework rows now support the same
+      swipe-to-delete gesture as the transaction list) and the old v19
+      cache was still serving that file cache-first. Nothing else in
+      this worker needed to change; bumping CACHE is what makes the
       activate handler below purge the old cache and forces a fresh
       fetch of index.html on next install.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v19';
+const CACHE = 'money-app-v20';
 
 const STATIC_ASSETS = [
   '/',
