@@ -1,15 +1,16 @@
-/* ─── Money Record — Service Worker v20 ──────────────────────────────
-   Changes from v19:
-   ✅ Cache version bumped to v20 — index.html changed again (hw-del
-      icon centering fixed, and homework rows now support the same
-      swipe-to-delete gesture as the transaction list) and the old v19
-      cache was still serving that file cache-first. Nothing else in
-      this worker needed to change; bumping CACHE is what makes the
-      activate handler below purge the old cache and forces a fresh
-      fetch of index.html on next install.
+/* ─── Money Record — Service Worker v21 ──────────────────────────────
+   Changes from v20:
+   ✅ Cache version bumped to v21 — index.html changed again (the
+      homework edit modal now shows an "Added <date/time>" line, e.g.
+      "Friday 13th June 2026 12:08 pm", so opening any homework item
+      tells you exactly when it was created) and the old v20 cache was
+      still serving that file cache-first. Nothing else in this worker
+      needed to change; bumping CACHE is what makes the activate
+      handler below purge the old cache and forces a fresh fetch of
+      index.html on next install.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v20';
+const CACHE = 'money-app-v21';
 
 const STATIC_ASSETS = [
   '/',

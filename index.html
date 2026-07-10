@@ -537,6 +537,11 @@
     .hw-card.hw-done .hw-title { text-decoration: line-through; }
     .hw-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
     .hw-meta.hw-overdue { color: var(--red); font-weight: 600; }
+    /* FEATURE: "Added" timestamp shown at the top of the homework edit modal —
+       tells you exactly when the item was created (from its created_at
+       column), e.g. "Friday 13th June 2026 12:08 pm". Hidden via JS when a
+       row has no created_at (see formatAddedAt()). */
+    .hw-e-added { font-size: 12px; color: var(--muted); margin: -6px 0 14px; }
     .hw-del {
       background: none; border: none; color: var(--muted); cursor: pointer;
       font-size: 15px; padding: 4px 6px; border-radius: 6px; transition: all .15s; flex-shrink: 0;
@@ -721,6 +726,7 @@
       <h3 id="hw-edit-modal-title">Edit Homework</h3>
       <button class="sheet-close" id="sheet-close-hw-edit" aria-label="Close">×</button>
     </div>
+    <div class="hw-e-added" id="hw-e-added-at"></div>
     <div class="form-group"><label for="hw-e-title">Title</label><input type="text" id="hw-e-title" /></div>
     <div class="form-group">
       <label for="hw-e-subject">Subject <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label>
@@ -3140,6 +3146,13 @@ function openHwEditModal(id) {
   document.getElementById('hw-e-title').value   = h.title || '';
   document.getElementById('hw-e-subject').value = h.subject || '';
   document.getElementById('hw-e-due').value     = h.due_date || '';
+  // FEATURE: "Added <date/time>" line — see formatAddedAt(). Hidden entirely
+  // if this row has no created_at (e.g. the homework table doesn't have that
+  // column yet — see the note above hwCreatedAtMs() for how to add it).
+  const addedEl    = document.getElementById('hw-e-added-at');
+  const addedText  = formatAddedAt(h.created_at);
+  addedEl.textContent   = addedText ? `Added ${addedText}` : '';
+  addedEl.style.display = addedText ? '' : 'none';
   syncSubjectChipHighlight('hw-e-subject-chip-row', 'hw-e-subject');
   syncDueChipHighlight('hw-e-due-chip-row', 'hw-e-due');
   document.getElementById('hw-edit-backdrop').classList.add('open');
@@ -3368,6 +3381,39 @@ function importSettings(file) {
 function fmt(n) { return 'RM ' + Math.abs(+n).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function formatDate(d) { if (!d) return '—'; const _dt = new Date(d + 'T00:00:00'); return isNaN(_dt) ? '—' : _dt.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }); }
 function todayStr()    { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+// FEATURE: "1st"/"2nd"/"3rd"/"4th"… suffix for a day-of-month number.
+// The 11–13 range is a standard exception (11th/12th/13th, not 11st/12nd/13rd).
+function ordinalSuffix(n) {
+  const v = n % 100;
+  if (v >= 11 && v <= 13) return 'th';
+  switch (n % 10) {
+    case 1: return 'st';
+    case 2: return 'nd';
+    case 3: return 'rd';
+    default: return 'th';
+  }
+}
+// FEATURE: full "Added" timestamp for the homework edit modal, e.g.
+// "Friday 13th June 2026 12:08 pm". Reads the row's created_at (a Supabase
+// timestamptz), which Date() parses correctly regardless of the timezone it
+// was stored in — getHours()/getDate()/etc. below then report it in the
+// device's own local time, which is what "when I added it" should mean.
+// Returns '' for a missing/invalid timestamp so callers can hide the line.
+function formatAddedAt(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const weekday = d.toLocaleDateString('en-MY', { weekday: 'long' });
+  const day     = d.getDate();
+  const month   = d.toLocaleDateString('en-MY', { month: 'long' });
+  const year    = d.getFullYear();
+  let hh = d.getHours();
+  const mm   = String(d.getMinutes()).padStart(2, '0');
+  const ampm = hh >= 12 ? 'pm' : 'am';
+  hh = hh % 12; if (hh === 0) hh = 12;
+  return `${weekday} ${day}${ordinalSuffix(day)} ${month} ${year} ${hh}:${mm} ${ampm}`;
+}
 /* FEATURE: quick due-date shortcut chips — date math + highlight sync,
    kept global (like todayStr) so both the init wiring and addHomework()
    can call them. */
