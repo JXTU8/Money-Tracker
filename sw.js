@@ -1,16 +1,21 @@
-/* ─── Money Record — Service Worker v21 ──────────────────────────────
-   Changes from v20:
-   ✅ Cache version bumped to v21 — index.html changed again (the
-      homework edit modal now shows an "Added <date/time>" line, e.g.
-      "Friday 13th June 2026 12:08 pm", so opening any homework item
-      tells you exactly when it was created) and the old v20 cache was
-      still serving that file cache-first. Nothing else in this worker
-      needed to change; bumping CACHE is what makes the activate
-      handler below purge the old cache and forces a fresh fetch of
-      index.html on next install.
+/* ─── Money Record — Service Worker v22 ──────────────────────────────
+   Changes from v21:
+   ✅ Cache version bumped to v22 — index.html changed again (several
+      bug fixes: transaction edits weren't refreshing the list, offline
+      refresh could wipe the loaded transaction list, swipe-to-delete
+      animated the row away before the confirm dialog opened, and a few
+      others) so the old v21 cache was still serving the previous
+      index.html cache-first.
+   ✅ FIX: isCacheable() only ever checked STATIC_ASSETS, never
+      ICON_ASSETS — so icon-192.png/icon-512.png were precached on
+      install but then always went through the network-first fetch
+      path at runtime (falling back to cache only if the network
+      request failed), unlike '/', '/index.html' and '/manifest.json',
+      which were genuinely served cache-first. Icons are now checked
+      the same way as the other static assets.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v21';
+const CACHE = 'money-app-v22';
 
 const STATIC_ASSETS = [
   '/',
@@ -33,7 +38,7 @@ const CDN_ASSETS = [
 const isCacheable = req => {
   try {
     const url = new URL(req.url);
-    return STATIC_ASSETS.includes(url.pathname) || req.url.includes('jsdelivr.net');
+    return STATIC_ASSETS.includes(url.pathname) || ICON_ASSETS.includes(url.pathname) || req.url.includes('jsdelivr.net');
   } catch {
     return false;
   }

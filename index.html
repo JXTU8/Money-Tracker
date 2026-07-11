@@ -321,15 +321,6 @@
     .badge.rec     { background: var(--amber-light); color: var(--amber); }
     .badge.pending { background: var(--amber); color: white; }
 
-    /* ─── LOAD MORE — FIX: new ────────────────────────────── */
-    .load-more-btn {
-      width: 100%; padding: 11px; margin-top: 4px;
-      background: transparent; color: var(--muted);
-      border: 1px dashed var(--border); border-radius: var(--radius);
-      font-size: 13px; cursor: pointer; transition: all .15s; font-family: inherit;
-    }
-    .load-more-btn:hover { background: var(--card); color: var(--text); border-style: solid; }
-
     /* ─── EMPTY / LOADING ─────────────────────────────────── */
     .empty-state { text-align: center; padding: 36px 20px; color: var(--muted); }
     .empty-state .icon { font-size: 32px; margin-bottom: 10px; }
@@ -516,7 +507,6 @@
     .hw-card {
       background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
       padding: 12px 14px; display: flex; align-items: flex-start; gap: 10px;
-      transition: opacity .2s;
     }
     .hw-card.hw-done { opacity: .55; }
     /* FEATURE: Apple-Notes-style circular checklist toggle — a plain ring that
@@ -584,7 +574,7 @@
     .due-chip.active { background: var(--blue); border-color: var(--blue); color: white; }
 
     /* ─── HOMEWORK CARD — now tappable to edit (matches .tx-card treatment) ── */
-    .hw-card { cursor: pointer; position: relative; touch-action: pan-y; will-change: transform; transition: border-color .15s; }
+    .hw-card { cursor: pointer; position: relative; touch-action: pan-y; will-change: transform; transition: opacity .2s, border-color .15s; }
     .hw-card:hover { border-color: rgba(0,0,0,.2); }
     [data-theme="dark"] .hw-card:hover { border-color: rgba(255,255,255,.2); }
 
@@ -1028,7 +1018,7 @@
       ⚠ Charts show only loaded transactions. Tap "↓ Load older" below for full history.
     </div>
     <div class="chart-card"><h3>Expenses by category</h3><div class="chart-wrap" id="pie-wrap"><canvas id="pie-chart"></canvas></div></div>
-    <div class="chart-card"><h3>Monthly overview — last 6 months</h3><div class="chart-wrap"><canvas id="bar-chart"></canvas></div></div>
+    <div class="chart-card"><h3 id="bar-chart-heading">Monthly overview — last 6 months</h3><div class="chart-wrap"><canvas id="bar-chart"></canvas></div></div>
   </div>
 
   <!-- ── GOALS PANEL ───────────────────────────────────── -->
@@ -1133,6 +1123,14 @@ let goals        = [];
 // FIX: photo attach state for add-transaction and edit-transaction forms
 let pendingPhotoBlob     = null;  // compressed Blob queued for upload on Save
 let editPhotoBlob        = null;  // new blob chosen while editing (null = unchanged)
+// FIX: photo preview <img> src was being repointed to a fresh
+// URL.createObjectURL() every time a photo was attached/swapped, with the
+// previous one never revoked — a small memory leak. Only ever revoke blob:
+// URLs (an edit-modal preview can also legitimately point at a real,
+// already-uploaded photo_url, which must NOT be revoked).
+function _revokeBlobPreview(imgEl) {
+  if (imgEl && imgEl.src && imgEl.src.startsWith('blob:')) URL.revokeObjectURL(imgEl.src);
+}
 let editPhotoRemoved     = false; // true if user explicitly removed the existing photo
 
 // Homework feature
@@ -1231,8 +1229,9 @@ function showSyncBanner(on) {
 
 /* ─── CUSTOM CONFIRM — replaces browser confirm() ────────── */
 let _confirmCb = null;
+let _confirmCancelCb = null;
 
-function showConfirm(message, onConfirm, { title = 'Are you sure?', confirmText = 'Confirm', icon = '❓', danger = true } = {}) {
+function showConfirm(message, onConfirm, { title = 'Are you sure?', confirmText = 'Confirm', icon = '❓', danger = true, onCancel = null } = {}) {
   document.getElementById('confirm-icon').innerHTML      = icon;
   document.getElementById('confirm-heading').textContent = title;
   document.getElementById('confirm-body').textContent    = message;
@@ -1240,6 +1239,7 @@ function showConfirm(message, onConfirm, { title = 'Are you sure?', confirmText 
   okBtn.textContent = confirmText;
   okBtn.className   = 'confirm-ok ' + (danger ? 'danger' : 'primary');
   _confirmCb = onConfirm;
+  _confirmCancelCb = onCancel;
   document.getElementById('confirm-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
   // Focus the cancel button by default — safer for destructive actions
@@ -1249,11 +1249,18 @@ function showConfirm(message, onConfirm, { title = 'Are you sure?', confirmText 
 function _closeConfirm() {
   document.getElementById('confirm-backdrop').classList.remove('open');
   document.body.style.overflow = '';
+  // FIX: run the cancel hook (if any) whenever the dialog closes WITHOUT
+  // confirming, so callers like swipe-to-delete can undo their "in
+  // progress" visual state instead of leaving it stuck.
+  const cancelCb = _confirmCancelCb;
   _confirmCb = null;
+  _confirmCancelCb = null;
+  if (cancelCb) cancelCb();
 }
 
 function _executeConfirm() {
   const cb = _confirmCb;
+  _confirmCancelCb = null; // confirmed, not cancelled — skip the cancel hook below
   _closeConfirm();
   if (cb) {
     const result = cb();
@@ -1543,6 +1550,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (!file) return;
     try {
       pendingPhotoBlob = await compressImage(file, { maxDim: 1280, maxBytes: 1024 * 1024 });
+      _revokeBlobPreview(document.getElementById('f-photo-preview'));
       document.getElementById('f-photo-preview').src = URL.createObjectURL(pendingPhotoBlob);
       document.getElementById('f-photo-preview-wrap').style.display = 'block';
       document.getElementById('f-photo-pick-row').style.display = 'none';
@@ -1556,6 +1564,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('f-photo-remove-btn').addEventListener('click', () => {
     pendingPhotoBlob = null;
+    _revokeBlobPreview(document.getElementById('f-photo-preview'));
     document.getElementById('f-photo-preview-wrap').style.display = 'none';
     document.getElementById('f-photo-pick-row').style.display = 'flex';
   });
@@ -1571,6 +1580,7 @@ window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('e-photo-broken-msg').style.display = 'none';
       const _eImg = document.getElementById('e-photo-preview');
       _eImg.style.display = '';
+      _revokeBlobPreview(_eImg);
       _eImg.src = URL.createObjectURL(editPhotoBlob);
       document.getElementById('e-photo-preview-wrap').style.display = 'block';
       document.getElementById('e-photo-pick-row').style.display = 'none';
@@ -1585,6 +1595,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('e-photo-remove-btn').addEventListener('click', () => {
     editPhotoBlob = null;
     editPhotoRemoved = true;
+    _revokeBlobPreview(document.getElementById('e-photo-preview'));
     document.getElementById('e-photo-preview-wrap').style.display = 'none';
     document.getElementById('e-photo-pick-row').style.display = 'flex';
   });
@@ -1914,13 +1925,21 @@ async function goToToday() {
 const MONTH_LOAD_SAFETY_PAGES = 24; // ~2,400 records — generous, but bounded so a very old jump can't fetch forever
 async function ensureMonthLoaded(year, month) {
   if (isAllTime || !db || _monthLoadInFlight) return;
-  const targetStart = new Date(year, month, 1);
+  // FIX: previously this stopped as soon as the earliest loaded transaction
+  // fell at/before the 1st of the *viewed* month — which can happen after
+  // loading only part of the month before it. updateSummary()'s "vs last
+  // month" comparison reads straight from allTxs with no loaded/complete
+  // check of its own, so it could silently compare against an incomplete
+  // previous month. Load one month further back so that's always whole.
+  let cmpMonth = month - 1, cmpYear = year;
+  if (cmpMonth < 0) { cmpMonth = 11; cmpYear--; }
+  const targetStart = new Date(cmpYear, cmpMonth, 1);
   _monthLoadInFlight = true;
   try {
     let pages = 0;
     while (hasMoreTxs && pages < MONTH_LOAD_SAFETY_PAGES) {
       const earliestLoaded = allTxs.length ? new Date(allTxs[allTxs.length - 1].date + 'T00:00:00') : null;
-      if (earliestLoaded && earliestLoaded <= targetStart) break; // already have data at/before this month
+      if (earliestLoaded && earliestLoaded <= targetStart) break; // already have data at/before the prior month too
       await loadTransactions(true, true); // append next page, skip the recurring-processor
       pages++;
     }
@@ -2030,7 +2049,10 @@ async function loadTransactions(append = false, skipRecurring = false) {
     if (!skipRecurring) await processRecurring();
   } catch (e) {
     if (!navigator.onLine) {
-      allTxs = [];
+      // FIX: this used to wipe allTxs, so tapping refresh (or an
+      // auto-retry from processRecurring) while offline made the whole
+      // transaction list disappear even though nothing needed re-fetching
+      // to keep showing it. Leave what's already loaded alone.
       renderAll();
     } else {
       const msg = e?.message || JSON.stringify(e) || 'Unknown error';
@@ -2168,7 +2190,16 @@ function addGoal() {
 /* ─── DATE GROUPING HELPERS ─────────────────────────────── */
 let _groupDateKey = '', _groupDateResult = [];
 function groupByDate(txs) {
-  const key = txs.map(t => t.id || t.tempId || t.date).join('|');
+  // FIX: the key used to be built from ids alone, so editing a transaction
+  // (saveEdit() replaces the object but keeps the same id) never changed
+  // it — this function kept handing back the pre-edit objects, and the
+  // list wouldn't visually update until something else (add/delete/filter/
+  // month change) happened to change the id set. Now the key reflects the
+  // actual rendered fields, so any real change invalidates the cache.
+  const key = txs.map(t => JSON.stringify([
+    t.id || t.tempId || t.date, t.amount, t.description, t.date,
+    t.category, t.type, t.photo_url, t.isPending
+  ])).join('|');
   if (key === _groupDateKey) return _groupDateResult;
   _groupDateKey = key;
   const groups = {}, order = [];
@@ -2314,6 +2345,11 @@ function getVisible() {
   return txs;
 }
 function isRecurringTx(t) {
+  // FIX: only match on description when there actually is one — two blank
+  // descriptions used to count as equal, so any undescribed transaction
+  // matched any recurring template of the same type that also had no
+  // description, tagging unrelated entries as "recurring".
+  if (!t.description) return false;
   return recTemplates.some(tpl => tpl.type === t.type && tpl.description === t.description);
 }
 
@@ -2327,8 +2363,8 @@ function renderList() {
   visible.forEach(t => {
     if (!t.isPending) txClickCallbacks[t.id]  = () => openEditModal(t.id);
     txDeleteCallbacks[t.id] = t.isPending
-      ? () => cancelPending(t.tempId || t.id)
-      : () => confirmDelete(t.id);
+      ? (onCancel) => cancelPending(t.tempId || t.id, onCancel)
+      : (onCancel) => confirmDelete(t.id, onCancel);
   });
 
   if (!visible.length) {
@@ -2390,7 +2426,7 @@ function renderList() {
     const delBtn   = document.getElementById('del-'   + t.id);
     const photoBtn = document.getElementById('photo-' + t.id);
     if (card && txClickCallbacks[t.id])    card.addEventListener('click', txClickCallbacks[t.id]);
-    if (bg   && txDeleteCallbacks[t.id])   bg.addEventListener('click',   txDeleteCallbacks[t.id]);
+    if (bg   && txDeleteCallbacks[t.id])   bg.addEventListener('click',   () => txDeleteCallbacks[t.id]());
     if (delBtn && txDeleteCallbacks[t.id]) delBtn.addEventListener('click', e => { e.stopPropagation(); txDeleteCallbacks[t.id](); });
     // FEATURE: tap the receipt badge to enlarge the photo right from the list
     if (photoBtn) photoBtn.addEventListener('click', e => { e.stopPropagation(); openPhotoLightbox(t.photo_url); });
@@ -2424,26 +2460,40 @@ function attachSwipe(id) {
   const bg      = document.getElementById('bg-'   + id);
   if (!card || !wrapper || !bg) return;
 
-  let startX=0, startY=0, curX=0, swiping=false, intentSet=false, isHoriz=false, deleted=false;
+  let startX=0, startY=0, curX=0, swiping=false, intentSet=false, isHoriz=false, confirming=false;
   const SOFT = 88;
   const HARD = 200;
 
-  async function triggerDelete() {
-    if (deleted) return;
-    deleted = true;
-    card.style.transition = 'transform 0.22s ease';
-    card.style.transform  = 'translateX(-110%)';
+  function snapBack() {
+    confirming = false;
+    if (!card.isConnected) return;
+    card.style.transition = 'transform 0.2s ease';
+    card.style.transform  = '';
+    bg.style.opacity      = '0';
+    bg.classList.remove('hard-swipe', 'exploding');
+    const binIcon = bg.querySelector('.bin-icon');
+    if (binIcon) binIcon.style.transform = '';
+  }
+
+  // FIX: this used to slide the card off-screen and collapse the row
+  // *before* the delete confirmation even opened — cancelling then left a
+  // gone-looking row in the list even though nothing was actually deleted.
+  // Now the swipe just holds the card out and opens the same confirm
+  // dialog used by the trash icon / revealed background; the row is only
+  // removed once the delete is actually confirmed (via the normal
+  // re-render), and snaps back to place on cancel.
+  function triggerDelete() {
+    if (confirming) return;
+    confirming = true;
+    card.style.transition = 'transform 0.18s ease';
+    card.style.transform  = `translateX(-${HARD}px)`;
     bg.classList.add('hard-swipe', 'exploding');
-    setTimeout(() => {
-      wrapper.classList.add('collapsing');
-      // FIX: use callback map — no eval()
-      const action = txDeleteCallbacks[id];
-      if (action) setTimeout(action, 180);
-    }, 300);
+    const action = txDeleteCallbacks[id];
+    if (action) action(snapBack); else snapBack();
   }
 
   card.addEventListener('touchstart', e => {
-    if (deleted) return;
+    if (confirming) return;
     startX=e.touches[0].clientX; startY=e.touches[0].clientY;
     curX=0; swiping=true; intentSet=false; isHoriz=false;
     card.style.transition = 'none';
@@ -2451,7 +2501,7 @@ function attachSwipe(id) {
   }, { passive: true });
 
   card.addEventListener('touchmove', e => {
-    if (!swiping || deleted) return;
+    if (!swiping || confirming) return;
     const dx = e.touches[0].clientX - startX;
     const dy = e.touches[0].clientY - startY;
     if (!intentSet && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
@@ -2470,17 +2520,17 @@ function attachSwipe(id) {
     bg.classList.toggle('hard-swipe', Math.abs(curX) > SOFT);
   }, { passive: false });
 
-  card.addEventListener('touchend', async () => {
-    if (!swiping || deleted) return;
+  card.addEventListener('touchend', () => {
+    if (!swiping || confirming) return;
     swiping = false;
     if (curX < -HARD) {
-      await triggerDelete();
+      triggerDelete();
     } else if (curX < -SOFT) {
       card.style.transition = 'transform 0.2s ease';
       card.style.transform  = `translateX(-${SOFT}px)`;
       bg.classList.add('hard-swipe');
       setTimeout(() => {
-        if (!deleted && card.isConnected) {
+        if (!confirming && card.isConnected) {
           card.style.transition = 'transform 0.25s ease';
           card.style.transform  = '';
           bg.style.opacity      = '0';
@@ -2510,25 +2560,34 @@ function attachHwSwipe(id) {
   const bg      = document.getElementById('hw-bg-'   + id);
   if (!card || !wrapper || !bg) return;
 
-  let startX=0, startY=0, curX=0, swiping=false, intentSet=false, isHoriz=false, deleted=false;
+  let startX=0, startY=0, curX=0, swiping=false, intentSet=false, isHoriz=false, confirming=false;
   const SOFT = 88;
   const HARD = 200;
 
-  async function triggerDelete() {
-    if (deleted) return;
-    deleted = true;
-    card.style.transition = 'transform 0.22s ease';
-    card.style.transform  = 'translateX(-110%)';
+  function snapBack() {
+    confirming = false;
+    if (!card.isConnected) return;
+    card.style.transition = 'transform 0.2s ease';
+    card.style.transform  = '';
+    bg.style.opacity      = '0';
+    bg.classList.remove('hard-swipe', 'exploding');
+    const binIcon = bg.querySelector('.bin-icon');
+    if (binIcon) binIcon.style.transform = '';
+  }
+
+  // FIX: see attachSwipe() — same premature-collapse-before-confirmation bug.
+  function triggerDelete() {
+    if (confirming) return;
+    confirming = true;
+    card.style.transition = 'transform 0.18s ease';
+    card.style.transform  = `translateX(-${HARD}px)`;
     bg.classList.add('hard-swipe', 'exploding');
-    setTimeout(() => {
-      wrapper.classList.add('collapsing');
-      const action = hwDeleteCallbacks[id];
-      if (action) setTimeout(action, 180);
-    }, 300);
+    const action = hwDeleteCallbacks[id];
+    if (action) action(snapBack); else snapBack();
   }
 
   card.addEventListener('touchstart', e => {
-    if (deleted) return;
+    if (confirming) return;
     startX=e.touches[0].clientX; startY=e.touches[0].clientY;
     curX=0; swiping=true; intentSet=false; isHoriz=false;
     card.style.transition = 'none';
@@ -2536,7 +2595,7 @@ function attachHwSwipe(id) {
   }, { passive: true });
 
   card.addEventListener('touchmove', e => {
-    if (!swiping || deleted) return;
+    if (!swiping || confirming) return;
     const dx = e.touches[0].clientX - startX;
     const dy = e.touches[0].clientY - startY;
     if (!intentSet && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
@@ -2555,17 +2614,17 @@ function attachHwSwipe(id) {
     bg.classList.toggle('hard-swipe', Math.abs(curX) > SOFT);
   }, { passive: false });
 
-  card.addEventListener('touchend', async () => {
-    if (!swiping || deleted) return;
+  card.addEventListener('touchend', () => {
+    if (!swiping || confirming) return;
     swiping = false;
     if (curX < -HARD) {
-      await triggerDelete();
+      triggerDelete();
     } else if (curX < -SOFT) {
       card.style.transition = 'transform 0.2s ease';
       card.style.transform  = `translateX(-${SOFT}px)`;
       bg.classList.add('hard-swipe');
       setTimeout(() => {
-        if (!deleted && card.isConnected) {
+        if (!confirming && card.isConnected) {
           card.style.transition = 'transform 0.25s ease';
           card.style.transform  = '';
           bg.style.opacity      = '0';
@@ -2623,7 +2682,7 @@ function renderPieChart() {
   if (pieChart) pieChart.destroy();
   pieChart = new Chart(ctx, {
     type: 'doughnut',
-    data: { labels, datasets: [{ data: values, backgroundColor: CHART_COLORS.slice(0, labels.length), borderWidth: 0 }] },
+    data: { labels, datasets: [{ data: values, backgroundColor: labels.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]), borderWidth: 0 }] },
     options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: {
       legend: { position: 'right', labels: { font: { size: 11 }, color: chartText(), boxWidth: 12, padding: 8 } },
       tooltip: { callbacks: { label: c => ` ${c.label}: RM ${(+c.raw).toFixed(2)}` } }
@@ -2640,6 +2699,10 @@ function renderBarChart() {
     incs.push(mT.filter(t=>t.type==='income').reduce((s,t)=>s+ +t.amount,0));
     exps.push(mT.filter(t=>t.type==='expense').reduce((s,t)=>s+ +t.amount,0));
   }
+  // FIX: see comment on the id="bar-chart-heading" element — spell out the
+  // actual range instead of a static "last 6 months" claim.
+  const barHeading = document.getElementById('bar-chart-heading');
+  if (barHeading) barHeading.textContent = `Monthly overview — ${labels[0]} to ${labels[labels.length - 1]}`;
   const ctx = document.getElementById('bar-chart').getContext('2d');
   if (barChart) barChart.destroy();
   barChart = new Chart(ctx, {
@@ -2659,6 +2722,15 @@ function renderBarChart() {
 
 /* ─── TABS ────────────────────────────────────────────────── */
 function switchTab(tab) {
+  // FIX: the add-transaction form used to stay logically "open" (and its
+  // Enter-to-save shortcut live) even after navigating away from the Txs
+  // tab, since nothing ever closed it on tab switch. Left open, pressing
+  // Enter somewhere else entirely (e.g. the homework title field) could
+  // silently submit the abandoned transaction in the background. Close &
+  // clear it whenever we actually leave the tab.
+  if (tab !== 'txs' && document.getElementById('form-card').classList.contains('open')) {
+    toggleForm();
+  }
   ['txs','homework','charts','goals'].forEach(t => {
     const tabBtn   = document.getElementById('tab-'   + t);
     const panelEl  = document.getElementById('panel-' + t);
@@ -2710,14 +2782,20 @@ function clearForm() {
   document.getElementById('f-recurring').checked = false;
   document.getElementById('freq-wrap').classList.remove('show');
   pendingPhotoBlob = null;
+  _revokeBlobPreview(document.getElementById('f-photo-preview'));
   document.getElementById('f-photo-preview-wrap').style.display = 'none';
   document.getElementById('f-photo-pick-row').style.display = 'flex';
   setType('expense');
 }
-function buildCategorySelect(id, type) {
+function buildCategorySelect(id, type, extraValue) {
   const cats = type === 'income'
     ? [...DEF_INCOME,  ...customCats.filter(c=>c.type==='income').map(c=>c.name)]
     : [...DEF_EXPENSE, ...customCats.filter(c=>c.type==='expense').map(c=>c.name)];
+  // FIX: if the transaction being edited has a category that's since been
+  // deleted from Settings, keep it selectable instead of silently losing
+  // it — otherwise the select shows no selection, and saving ANY unrelated
+  // change (e.g. just fixing the amount) would blank the category out.
+  if (extraValue && !cats.includes(extraValue)) cats.push(extraValue);
   const el = document.getElementById(id);
   if (!el) return;
   el.innerHTML = '<option value="">-- Select category --</option>' +
@@ -2790,11 +2868,11 @@ async function saveTransaction() {
 }
 
 /* ─── CANCEL PENDING ──────────────────────────────────────── */
-function cancelPending(tempId) {
+function cancelPending(tempId, onCancel) {
   showConfirm(
     'This entry is still waiting to sync. Removing it means it will never reach Supabase.',
     () => { dequeue(tempId); updatePendingUI(); renderAll(); showToast('Pending transaction removed'); },
-    { title: 'Remove pending entry?', confirmText: 'Remove', icon: '⏳', danger: true }
+    { title: 'Remove pending entry?', confirmText: 'Remove', icon: '⏳', danger: true, onCancel }
   );
 }
 
@@ -2804,6 +2882,9 @@ function openEditModal(id) {
   if (!t) return;
   editingId = id;
   setEditType(t.type);
+  // FIX: re-run with the transaction's own category grandfathered in, in
+  // case it was removed from Settings after this transaction was created.
+  if (t.category) buildCategorySelect('e-category', t.type, t.category);
   document.getElementById('e-amount').value   = t.amount;
   document.getElementById('e-desc').value     = t.description || '';
   document.getElementById('e-date').value     = t.date;
@@ -2833,6 +2914,7 @@ function closeEditModal() {
   document.getElementById('edit-backdrop').classList.remove('open');
   document.body.style.overflow = '';
   editingId = null;
+  _revokeBlobPreview(document.getElementById('e-photo-preview'));
   editPhotoBlob = null; editPhotoRemoved = false;
 }
 function setEditType(type) {
@@ -2884,11 +2966,11 @@ async function deleteFromEditModal() {
     { title: 'Delete transaction?', confirmText: 'Delete', icon: BIN_SVG_RED, danger: true }
   );
 }
-async function confirmDelete(id) {
+async function confirmDelete(id, onCancel) {
   showConfirm(
     'This action cannot be undone.',
     () => deleteTransaction(id),
-    { title: 'Delete transaction?', confirmText: 'Delete', icon: BIN_SVG_RED, danger: true }
+    { title: 'Delete transaction?', confirmText: 'Delete', icon: BIN_SVG_RED, danger: true, onCancel }
   );
 }
 async function deleteTransaction(id) {
@@ -3039,7 +3121,7 @@ function renderHomework() {
   // and same ordering, as renderList()/txDeleteCallbacks) — cleared before
   // the empty-state check so no stale callbacks ever linger.
   Object.keys(hwDeleteCallbacks).forEach(k => delete hwDeleteCallbacks[k]);
-  items.forEach(h => { hwDeleteCallbacks[h.id] = () => deleteHomework(h.id); });
+  items.forEach(h => { hwDeleteCallbacks[h.id] = (onCancel) => deleteHomework(h.id, onCancel); });
 
   if (!items.length) {
     const msgs = {
@@ -3076,7 +3158,7 @@ function renderHomework() {
   // Wire up swipe-to-delete for each row (callbacks were already built above).
   items.forEach(h => {
     const bg = document.getElementById('hw-bg-' + h.id);
-    if (bg) bg.addEventListener('click', hwDeleteCallbacks[h.id]);
+    if (bg) bg.addEventListener('click', () => hwDeleteCallbacks[h.id]());
     attachHwSwipe(h.id);
   });
 }
@@ -3123,7 +3205,7 @@ async function toggleHomeworkDone(id) {
     showToast('Could not update: ' + (e?.message || 'Unknown'));
   }
 }
-function deleteHomework(id) {
+function deleteHomework(id, onCancel) {
   showConfirm(
     'This homework item will be removed.',
     async () => {
@@ -3134,7 +3216,7 @@ function deleteHomework(id) {
       renderHomework();
       showToast('Homework removed');
     },
-    { title: 'Delete homework?', confirmText: 'Delete', icon: BIN_SVG_RED, danger: true }
+    { title: 'Delete homework?', confirmText: 'Delete', icon: BIN_SVG_RED, danger: true, onCancel }
   );
 }
 
@@ -3194,7 +3276,7 @@ function exportCSV() {
   if (!txs.length) { showToast('No transactions to export'); return; }
   const rows = [
     ['Date','Type','Category','Description','Amount (RM)'],
-    ...txs.map(t => [t.date, t.type, t.category||'', (t.description||'').replace(/,/g,';'), (+t.amount).toFixed(2)])
+    ...txs.map(t => [t.date, t.type, (t.category||'').replace(/,/g,';'), (t.description||'').replace(/,/g,';'), (+t.amount).toFixed(2)])
   ];
   const csv  = rows.map(r => r.join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
@@ -3215,7 +3297,26 @@ function importCSV(file) {
       const lines = e.target.result.split('\n').map(l => l.trim()).filter(Boolean);
       if (lines.length < 2) { showToast('File is empty or has no data rows'); return; }
       const imported = [];
-      const _sanitizeCSV = s => String(s||'').replace(/[<>"'&]/g,'').trim().slice(0,500);
+      // FIX: this used to also strip &, ", and ' — esc() already escapes
+      // everything at render time, so stripping them here just corrupted
+      // legitimate data (e.g. the built-in "Food & Drinks" category came
+      // back as "Food  Drinks" after an export→reimport round trip, no
+      // longer matching the real category). < and > stay stripped as a
+      // defence-in-depth measure since they're the only ones that can
+      // actually open/close an HTML tag.
+      const _sanitizeCSV = s => String(s||'').replace(/[<>]/g,'').trim().slice(0,500);
+      // FIX: previously any non-empty string passed as a "date" — a
+      // malformed or differently-formatted value (e.g. from a non-app
+      // CSV) would import as literal text, and later comparisons like
+      // `new Date(t.date + 'T00:00:00')` would silently produce Invalid
+      // Date, making the row disappear from every month view.
+      const _isValidDateStr = s => {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+        if (!m) return false;
+        const y = +m[1], mo = +m[2], d = +m[3];
+        const dt = new Date(y, mo - 1, d);
+        return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d;
+      };
       for (const row of lines.slice(1)) { // skip header
         const parts = row.split(',');
         if (parts.length < 5) continue;
@@ -3224,7 +3325,7 @@ function importCSV(file) {
         const category    = _sanitizeCSV(parts[2]) || null;
         const description = _sanitizeCSV(parts[3]);
         const amt         = parseFloat(parts[4]);
-        if (!date || !['income','expense'].includes(type) || !amt || amt <= 0) continue;
+        if (!_isValidDateStr(date) || !['income','expense'].includes(type) || !amt || amt <= 0) continue;
         imported.push({ date, type, category, description, amount: amt });
       }
       if (!imported.length) { showToast('No valid rows found in CSV'); return; }
@@ -3493,7 +3594,7 @@ function syncSubjectChipHighlight(rowId, subjectInputId) {
     c.classList.toggle('active', c.dataset.subject === val);
   });
 }
-function esc(s)        { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function esc(s)        { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function updateTimestamp() { document.getElementById('sync-ts').textContent = 'Synced ' + new Date().toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit' }); }
 
 let toastTimer;
