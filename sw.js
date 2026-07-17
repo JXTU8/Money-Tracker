@@ -1,12 +1,13 @@
-/* ─── Money Record — Service Worker v23 ──────────────────────────────
-   Changes from v22:
-   ✅ Cache version bumped to v23 — index.html changed again (the
-      Goals tab was removed entirely and replaced with a new Planning
-      tab — pick a date, write a freeform note for it — so the old
-      v22 cache was still serving the previous index.html cache-first).
+/* ─── Money Record — Service Worker v24 ──────────────────────────────
+   Changes from v23:
+   ✅ Cache version bumped to v24 — index.html changed again (tab order
+      is now Transactions / Homework / Planning / Charts, and the
+      Planning date-nav shows a full "Weekday, Month Day" label instead
+      of a bare native date field) so the old v23 cache was still
+      serving the previous index.html cache-first.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v23';
+const CACHE = 'money-app-v24';
 
 const STATIC_ASSETS = [
   '/',

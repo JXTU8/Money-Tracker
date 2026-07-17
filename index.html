@@ -96,7 +96,7 @@
       border-radius: 6px; transition: background .15s, color .15s;
     }
     .mnav-btn:hover { background: var(--bg); color: var(--text); }
-    .mnav-center { text-align: center; }
+    .mnav-center { flex: 1; min-width: 0; text-align: center; }
     .mnav-label { font-size: 15px; font-weight: 600; }
     .date-group-total { font-size: 11px; font-weight: 500; color: var(--red); background: var(--red-light); padding: 2px 7px; border-radius: 8px; }
     .alltime-chip {
@@ -167,12 +167,22 @@
     }
 
     /* ─── PLANNING ────────────────────────────────────────── */
-    .plan-date-input {
-      border: none; background: transparent; color: var(--text);
-      font-size: 15px; font-weight: 600; font-family: inherit;
-      text-align: center; cursor: pointer; padding: 2px 4px; border-radius: 6px;
+    /* FIX: a bare <input type="date"> shows the browser's own native format,
+       which doesn't reliably include a weekday and isn't fully stylable — so
+       the visible piece is now a plain label showing "Weekday, Month Day",
+       with the real <input type="date"> stretched invisibly on top of it.
+       Tapping anywhere on the label taps the real input underneath and opens
+       the native date picker; nothing here depends on Element.showPicker(). */
+    .plan-date-wrap { position: relative; display: block; width: fit-content; max-width: 100%; margin: 0 auto; }
+    .plan-date-label {
+      display: block; cursor: pointer; padding: 2px 6px; border-radius: 6px;
+      transition: background .15s;
     }
-    .plan-date-input:hover { background: var(--bg); }
+    .plan-date-wrap:hover .plan-date-label { background: var(--bg); }
+    .plan-date-input {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      opacity: 0; cursor: pointer; border: none; padding: 0; margin: 0;
+    }
     .plan-editor-card {
       background: var(--card); border: 1px solid var(--border);
       border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px;
@@ -867,8 +877,8 @@
   <div class="tab-bar" role="tablist">
     <button class="tab-btn active" id="tab-txs"      role="tab" aria-selected="true">🧾 Transactions</button>
     <button class="tab-btn"        id="tab-homework" role="tab" aria-selected="false">📚 Homework</button>
-    <button class="tab-btn"        id="tab-charts"   role="tab" aria-selected="false">📊 Charts</button>
     <button class="tab-btn"        id="tab-planning" role="tab" aria-selected="false">🗓️ Planning</button>
+    <button class="tab-btn"        id="tab-charts"   role="tab" aria-selected="false">📊 Charts</button>
   </div>
 
   <!-- ── TRANSACTIONS PANEL ──────────────────────────── -->
@@ -1001,21 +1011,15 @@
     <div id="hw-list"></div>
   </div>
 
-  <!-- ── CHARTS PANEL ─────────────────────────────────── -->
-  <div class="panel" id="panel-charts" role="tabpanel">
-    <div class="chart-partial-notice" id="chart-partial-notice">
-      ⚠ Charts show only loaded transactions. Tap "↓ Load older" below for full history.
-    </div>
-    <div class="chart-card"><h3>Expenses by category</h3><div class="chart-wrap" id="pie-wrap"><canvas id="pie-chart"></canvas></div></div>
-    <div class="chart-card"><h3 id="bar-chart-heading">Monthly overview — last 6 months</h3><div class="chart-wrap"><canvas id="bar-chart"></canvas></div></div>
-  </div>
-
   <!-- ── PLANNING PANEL ───────────────────────────────────── -->
   <div class="panel" id="panel-planning" role="tabpanel">
     <div class="month-nav">
       <button class="mnav-btn" id="plan-prev-btn" aria-label="Previous day">‹</button>
       <div class="mnav-center">
-        <input type="date" id="plan-date-input" class="plan-date-input" aria-label="Selected date" />
+        <div class="plan-date-wrap">
+          <label for="plan-date-input" class="mnav-label plan-date-label" id="plan-date-label">Friday, July 17</label>
+          <input type="date" id="plan-date-input" class="plan-date-input" />
+        </div>
         <button class="today-btn" id="plan-today-btn">Today</button>
       </div>
       <button class="mnav-btn" id="plan-next-btn" aria-label="Next day">›</button>
@@ -1031,6 +1035,15 @@
 
     <div class="section-header"><h2>🗓️ All plans</h2></div>
     <div id="plan-list"></div>
+  </div>
+
+  <!-- ── CHARTS PANEL ─────────────────────────────────── -->
+  <div class="panel" id="panel-charts" role="tabpanel">
+    <div class="chart-partial-notice" id="chart-partial-notice">
+      ⚠ Charts show only loaded transactions. Tap "↓ Load older" below for full history.
+    </div>
+    <div class="chart-card"><h3>Expenses by category</h3><div class="chart-wrap" id="pie-wrap"><canvas id="pie-chart"></canvas></div></div>
+    <div class="chart-card"><h3 id="bar-chart-heading">Monthly overview — last 6 months</h3><div class="chart-wrap"><canvas id="bar-chart"></canvas></div></div>
   </div>
 </main>
 
@@ -1398,6 +1411,7 @@ window.addEventListener('DOMContentLoaded', () => {
   updateOfflineBanner();
   document.getElementById('f-date').value = todayStr();
   document.getElementById('plan-date-input').value = planningDate;
+  document.getElementById('plan-date-label').textContent = formatPlanDateLabel(planningDate);
 
   // ── FIX: check localStorage for credentials ──────────────
   const sbUrl = localStorage.getItem(LS_SB_URL);
@@ -1422,7 +1436,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('today-btn').addEventListener('click', goToToday);
 
   // ── Tabs ─────────────────────────────────────────────────
-  ['txs','homework','charts','planning'].forEach(tab => {
+  ['txs','homework','planning','charts'].forEach(tab => {
     document.getElementById('tab-' + tab).addEventListener('click', () => switchTab(tab));
   });
 
@@ -2082,6 +2096,20 @@ function shiftDateStr(dateStr, days) {
 }
 function shiftPlanDay(dir) { loadPlanningEditor(shiftDateStr(planningDate, dir)); }
 
+// FIX: toLocaleDateString's weekday/month ordering is locale-dependent (e.g.
+// 'en-MY' — used for every other date on this page — renders "Friday, 17
+// July", day before month). This screen specifically needs the day name
+// paired with "Month Day" in that order, so it's built by hand instead of
+// leaning on Intl formatting, which guarantees the same output everywhere.
+const PLAN_WEEKDAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const PLAN_MONTHS   = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+function formatPlanDateLabel(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d)) return dateStr;
+  const yearSuffix = d.getFullYear() !== new Date().getFullYear() ? `, ${d.getFullYear()}` : '';
+  return `${PLAN_WEEKDAYS[d.getDay()]}, ${PLAN_MONTHS[d.getMonth()]} ${d.getDate()}${yearSuffix}`;
+}
+
 // FIX: show "Today" only when viewing a day other than today, matching the
 // exact same pattern as the month-nav's today-btn.
 function updatePlanTodayBtn() {
@@ -2132,6 +2160,7 @@ function loadPlanningEditor(dateStr) {
   flushPlanningSave();
   planningDate = dateStr;
   document.getElementById('plan-date-input').value = dateStr;
+  document.getElementById('plan-date-label').textContent = formatPlanDateLabel(dateStr);
   updatePlanTodayBtn();
   const note = planningNotes[dateStr];
   textEl.value = note ? note.text : '';
@@ -2182,12 +2211,16 @@ function renderPlanningList() {
     return;
   }
   // FIX: use data-date attributes — event delegation handles clicks
+  const _yesterday = shiftDateStr(todayStr(), -1);
   container.innerHTML = dates.map(d => {
     const note    = planningNotes[d];
     const preview = esc(note.text.split('\n').find(line => line.trim() !== '') || '');
+    const suffix  = d === todayStr()  ? ' <span style="color:var(--green)">· Today</span>'
+                  : d === _yesterday  ? ' <span style="color:var(--muted)">· Yesterday</span>'
+                  : '';
     return `<div class="plan-item${d === planningDate ? ' plan-item-active' : ''}" data-date="${d}">
       <div class="plan-item-body">
-        <div class="plan-item-date">${esc(labelDate(d))}</div>
+        <div class="plan-item-date">${esc(formatPlanDateLabel(d))}${suffix}</div>
         <div class="plan-item-preview">${preview}</div>
       </div>
       <button class="plan-item-del" data-date="${d}" aria-label="Delete note for ${esc(formatDate(d))}">×</button>
@@ -2285,9 +2318,9 @@ function renderAll() {
     updateSummary();
     renderList();
     const _activeTab = document.querySelector('.tab-btn.active')?.id?.replace('tab-','');
-    if (_activeTab === 'charts')   renderCharts();
-    if (_activeTab === 'planning') renderPlanning();
     if (_activeTab === 'homework') renderHomework();
+    if (_activeTab === 'planning') renderPlanning();
+    if (_activeTab === 'charts')   renderCharts();
   }, 50);
 }
 
@@ -2739,7 +2772,7 @@ function switchTab(tab) {
   if (tab !== 'txs' && document.getElementById('form-card').classList.contains('open')) {
     toggleForm();
   }
-  ['txs','homework','charts','planning'].forEach(t => {
+  ['txs','homework','planning','charts'].forEach(t => {
     const tabBtn   = document.getElementById('tab-'   + t);
     const panelEl  = document.getElementById('panel-' + t);
     const isActive = t === tab;
@@ -2756,9 +2789,9 @@ function switchTab(tab) {
     if (_sc)  _sc.style.display  = searchQ ? 'block' : 'none';
     if (_sic) _sic.style.display = searchQ ? 'none'  : 'block';
   }
-  if (tab === 'charts')   renderCharts();
-  if (tab === 'planning') renderPlanning();
   if (tab === 'homework') renderHomework();
+  if (tab === 'planning') renderPlanning();
+  if (tab === 'charts')   renderCharts();
 }
 
 /* ─── FORM ────────────────────────────────────────────────── */
