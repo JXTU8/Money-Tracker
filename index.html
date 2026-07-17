@@ -166,59 +166,55 @@
       border-radius: 8px; border: 1px solid var(--amber);
     }
 
-    .budget-save-btn { width: 100%; margin-top: 12px; padding: 10px; background: var(--text); color: var(--card); border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity .15s; font-family: inherit; }
-    .budget-save-btn:hover { opacity: .85; }
-
-    /* ─── GOALS — FIX: all classes were missing ───────────── */
-    .goal-card {
+    /* ─── PLANNING ────────────────────────────────────────── */
+    .plan-date-input {
+      border: none; background: transparent; color: var(--text);
+      font-size: 15px; font-weight: 600; font-family: inherit;
+      text-align: center; cursor: pointer; padding: 2px 4px; border-radius: 6px;
+    }
+    .plan-date-input:hover { background: var(--bg); }
+    .plan-editor-card {
       background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 14px 16px;
-      margin-bottom: 10px; transition: border-color .2s;
+      border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px;
     }
-    .goal-card.goal-done { border-color: var(--green); }
-    .goal-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
-    .goal-emoji { font-size: 26px; line-height: 1; flex-shrink: 0; margin-top: 2px; }
-    .goal-info { flex: 1; min-width: 0; }
-    .goal-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .goal-amounts { font-size: 12px; color: var(--muted); margin-top: 2px; }
-    .goal-del {
-      background: none; border: none; color: var(--muted); font-size: 20px;
-      cursor: pointer; padding: 2px 4px; line-height: 1; border-radius: 6px;
-      transition: color .15s, background .15s; flex-shrink: 0; font-family: inherit;
+    .plan-note-text {
+      display: block; width: 100%; min-height: 140px; resize: vertical;
+      border: none; outline: none; background: transparent; color: var(--text);
+      font-family: inherit; font-size: 14px; line-height: 1.6;
     }
-    .goal-del:hover { color: var(--red); background: var(--red-light); }
-    .goal-bar-bg { background: var(--bg); border-radius: 4px; height: 8px; overflow: hidden; margin-bottom: 10px; }
-    .goal-bar-fill { height: 100%; border-radius: 4px; background: var(--green); transition: width .5s ease; }
-    .goal-card.goal-done .goal-bar-fill { background: linear-gradient(90deg, #0F6E56, var(--green)); }
-    .goal-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
-    .goal-pct { font-size: 11px; color: var(--muted); font-weight: 500; }
-    .goal-add-row { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
-    .goal-quick {
-      padding: 5px 10px; border-radius: 8px; border: 1.5px solid var(--border);
-      background: var(--card); font-size: 12px; font-weight: 600; cursor: pointer;
-      color: var(--text); transition: all .12s; -webkit-tap-highlight-color: transparent;
-      font-family: inherit;
+    .plan-note-text::placeholder { color: var(--muted); }
+    .plan-editor-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);
+      gap: 8px; flex-wrap: wrap;
     }
-    .goal-quick:hover, .goal-quick:active { background: var(--green-light); border-color: var(--green); color: var(--green); }
-    .goal-custom {
-      width: 80px; padding: 5px 8px; border: 1.5px solid var(--border);
-      border-radius: 8px; font-size: 12px; background: var(--card); color: var(--text);
-      outline: none; transition: border-color .15s; font-family: inherit;
+    .plan-save-status { font-size: 11px; color: var(--muted); }
+    .plan-del-btn {
+      background: none; border: none; color: var(--muted); font-size: 12px;
+      cursor: pointer; padding: 4px 6px; border-radius: 6px; font-family: inherit;
+      display: inline-flex; align-items: center; gap: 4px;
+      transition: color .15s, background .15s; margin-left: auto;
     }
-    .goal-custom:focus { border-color: var(--blue); }
-    .goal-add-btn {
-      padding: 5px 10px; border-radius: 8px; background: var(--text); color: var(--card);
-      border: none; font-size: 12px; font-weight: 500; cursor: pointer;
-      transition: opacity .15s; font-family: inherit;
+    .plan-del-btn:hover { color: var(--red); background: var(--red-light); }
+    .plan-item {
+      display: flex; align-items: center; gap: 10px; background: var(--card);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 12px 14px; margin-bottom: 8px; cursor: pointer; transition: border-color .15s;
     }
-    .goal-add-btn:hover { opacity: .85; }
-    .goal-form-card {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 14px 16px; margin-top: 10px;
+    .plan-item:hover { border-color: var(--green); }
+    .plan-item-active { border-color: var(--green); background: var(--green-light); }
+    .plan-item-body { flex: 1; min-width: 0; }
+    .plan-item-date { font-size: 13px; font-weight: 600; }
+    .plan-item-preview {
+      font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
     }
-    .goal-form-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
-    .goal-form-row { display: flex; gap: 10px; }
-    .goal-emoji-field { text-align: center; font-size: 18px; }
+    .plan-item-del {
+      background: none; border: none; color: var(--muted); font-size: 18px;
+      cursor: pointer; padding: 2px 6px; line-height: 1; border-radius: 6px;
+      flex-shrink: 0; transition: color .15s, background .15s; font-family: inherit;
+    }
+    .plan-item-del:hover { color: var(--red); background: var(--red-light); }
 
     /* ─── ADD FORM ────────────────────────────────────────── */
     .add-btn {
@@ -458,13 +454,6 @@
     }
     /* ─── RECURRING PAUSED STATE ─────────────────────────────── */
     .rec-paused { opacity: .5; }
-    /* ─── GOAL SURPLUS SUGGESTION ────────────────────────────── */
-    .goal-suggest-card {
-      background: var(--green-light,#e6f7f0); border: 1px solid var(--green,#1D9E75);
-      border-radius: var(--radius); padding: 10px 14px; margin-top: 10px;
-      display: flex; align-items: center; justify-content: space-between; gap: 8px;
-      font-size: 13px; color: var(--green,#1D9E75); flex-wrap: wrap;
-    }
     /* ─── PULL TO REFRESH ────────────────────────────────────── */
     .ptr-indicator { display: none; text-align: center; font-size: 13px; color: var(--muted); padding: 8px 0; }
     .ptr-indicator.show { display: block; }
@@ -808,7 +797,7 @@
       <div class="settings-row">
         <div class="settings-row-label">
           Settings backup
-          <small>Categories, goals, templates</small>
+          <small>Categories, planning notes, templates</small>
         </div>
         <div class="settings-btn-row">
           <button class="csv-btn" id="export-settings-btn" aria-label="Export settings as JSON">⬆ Export</button>
@@ -879,7 +868,7 @@
     <button class="tab-btn active" id="tab-txs"      role="tab" aria-selected="true">🧾 Transactions</button>
     <button class="tab-btn"        id="tab-homework" role="tab" aria-selected="false">📚 Homework</button>
     <button class="tab-btn"        id="tab-charts"   role="tab" aria-selected="false">📊 Charts</button>
-    <button class="tab-btn"        id="tab-goals"    role="tab" aria-selected="false">🏦 Goals</button>
+    <button class="tab-btn"        id="tab-planning" role="tab" aria-selected="false">🗓️ Planning</button>
   </div>
 
   <!-- ── TRANSACTIONS PANEL ──────────────────────────── -->
@@ -1021,27 +1010,27 @@
     <div class="chart-card"><h3 id="bar-chart-heading">Monthly overview — last 6 months</h3><div class="chart-wrap"><canvas id="bar-chart"></canvas></div></div>
   </div>
 
-  <!-- ── GOALS PANEL ───────────────────────────────────── -->
-  <div class="panel" id="panel-goals" role="tabpanel">
-    <div id="goals-list"></div>
-    <div class="goal-form-card">
-      <h3>New savings goal</h3>
-      <div class="goal-form-row">
-        <div class="form-group">
-          <label for="new-goal-emoji">Emoji</label>
-          <input type="text" id="new-goal-emoji" class="goal-emoji-field" placeholder="🎯" maxlength="2" />
-        </div>
-        <div class="form-group" style="flex:3">
-          <label for="new-goal-name">Goal name</label>
-          <input type="text" id="new-goal-name" placeholder="e.g. New laptop, Vacation…" />
-        </div>
+  <!-- ── PLANNING PANEL ───────────────────────────────────── -->
+  <div class="panel" id="panel-planning" role="tabpanel">
+    <div class="month-nav">
+      <button class="mnav-btn" id="plan-prev-btn" aria-label="Previous day">‹</button>
+      <div class="mnav-center">
+        <input type="date" id="plan-date-input" class="plan-date-input" aria-label="Selected date" />
+        <button class="today-btn" id="plan-today-btn">Today</button>
       </div>
-      <div class="form-group">
-        <label for="new-goal-target">Target amount (RM)</label>
-        <input type="number" id="new-goal-target" placeholder="5000" min="1" step="1" />
-      </div>
-      <button class="budget-save-btn" id="add-goal-btn">＋ Create goal</button>
+      <button class="mnav-btn" id="plan-next-btn" aria-label="Next day">›</button>
     </div>
+
+    <div class="plan-editor-card">
+      <textarea id="plan-note-text" class="plan-note-text" placeholder="Write your plan for this day…" aria-label="Note for the selected date"></textarea>
+      <div class="plan-editor-footer">
+        <span class="plan-save-status" id="plan-save-status"></span>
+        <button class="plan-del-btn" id="plan-del-btn" aria-label="Delete this note" style="display:none"><svg class="bin-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.6 7.2 7.1 19.6 9 21.3 15 21.3 16.9 19.6 18.4 7.2"/><path d="M10 10.8V17.6M14 10.8V17.6"/><g class="bin-lid"><path d="M4.2 7.2H19.8"/><path d="M9.3 7.2 9.3 5.4 10.9 3.8 13.1 3.8 14.7 5.4 14.7 7.2"/></g></svg> Delete note</button>
+      </div>
+    </div>
+
+    <div class="section-header"><h2>🗓️ All plans</h2></div>
+    <div id="plan-list"></div>
   </div>
 </main>
 
@@ -1057,7 +1046,8 @@
    MONEY RECORD — index.html
    All fixes applied:
    ✅ No hardcoded credentials (setup overlay stores to localStorage)
-   ✅ Goals panel CSS fully defined
+   ✅ Planning tab (replaces Goals) — pick a date, write a freeform
+      note for it, just like a Notes app entry
    ✅ No eval() — callback maps used for swipe-to-delete
    ✅ Lazy Chart.js (loaded only when Charts tab opens)
    ✅ Dark mode respects prefers-color-scheme on first visit
@@ -1118,7 +1108,9 @@ let isAllTime = false;
 
 let customCats   = [];
 let recTemplates = [];
-let goals        = [];
+let planningNotes  = {};             // { 'YYYY-MM-DD': { text, updatedAt } }
+let planningDate   = todayStr();     // currently selected date in the Planning tab
+let _planSaveTimer = null;           // pending debounced autosave, if any
 
 // FIX: photo attach state for add-transaction and edit-transaction forms
 let pendingPhotoBlob     = null;  // compressed Blob queued for upload on Save
@@ -1151,8 +1143,7 @@ let _undoPendingDelete = null;
 const LS_CATS    = 'money_custom_cats';
 const LS_REC     = 'money_rec';
 const LS_PENDING = 'money_pending';
-const LS_GOALS   = 'money_goals';
-const LS_GOAL_SURPLUS_USED = 'money_goal_surplus_used'; // FIX: prevents the surplus-suggestion exploit below
+const LS_PLANNING = 'money_planning_notes';
 const LS_SB_URL  = 'money_sb_url';
 const LS_SB_KEY  = 'money_sb_key';
 
@@ -1406,6 +1397,7 @@ window.addEventListener('DOMContentLoaded', () => {
   updatePendingUI();
   updateOfflineBanner();
   document.getElementById('f-date').value = todayStr();
+  document.getElementById('plan-date-input').value = planningDate;
 
   // ── FIX: check localStorage for credentials ──────────────
   const sbUrl = localStorage.getItem(LS_SB_URL);
@@ -1430,7 +1422,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('today-btn').addEventListener('click', goToToday);
 
   // ── Tabs ─────────────────────────────────────────────────
-  ['txs','homework','charts','goals'].forEach(tab => {
+  ['txs','homework','charts','planning'].forEach(tab => {
     document.getElementById('tab-' + tab).addEventListener('click', () => switchTab(tab));
   });
 
@@ -1500,17 +1492,28 @@ window.addEventListener('DOMContentLoaded', () => {
     if (e.target.files[0]) importSettings(e.target.files[0]);
   });
 
-  // ── Goals ───────────────────────────────────────────────
-  document.getElementById('add-goal-btn').addEventListener('click', addGoal);
+  // ── Planning ─────────────────────────────────────────────
+  document.getElementById('plan-prev-btn').addEventListener('click', () => shiftPlanDay(-1));
+  document.getElementById('plan-next-btn').addEventListener('click', () => shiftPlanDay(1));
+  document.getElementById('plan-today-btn').addEventListener('click', () => loadPlanningEditor(todayStr()));
+  document.getElementById('plan-date-input').addEventListener('change', e => {
+    if (e.target.value) loadPlanningEditor(e.target.value);
+  });
+  document.getElementById('plan-del-btn').addEventListener('click', () => deletePlanningNote(planningDate));
 
-  // FIX: Event delegation for dynamically rendered goal cards
-  document.getElementById('goals-list').addEventListener('click', e => {
-    const delBtn   = e.target.closest('.goal-del[data-idx]');
-    const quickBtn = e.target.closest('.goal-quick[data-idx]');
-    const addBtn   = e.target.closest('.goal-add-btn[data-idx]');
-    if (delBtn)   deleteGoal(parseInt(delBtn.dataset.idx));
-    if (quickBtn) addToGoal(parseInt(quickBtn.dataset.idx), parseFloat(quickBtn.dataset.amount));
-    if (addBtn)   addCustomToGoal(parseInt(addBtn.dataset.idx));
+  const planTextEl = document.getElementById('plan-note-text');
+  planTextEl.addEventListener('input', () => {
+    autoGrowTextarea(planTextEl);
+    clearTimeout(_planSaveTimer);
+    _planSaveTimer = setTimeout(() => { _planSaveTimer = null; savePlanningNote(planTextEl.value); }, 400);
+  });
+
+  // FIX: Event delegation for dynamically rendered plan-list rows
+  document.getElementById('plan-list').addEventListener('click', e => {
+    const delBtn = e.target.closest('.plan-item-del[data-date]');
+    if (delBtn) { deletePlanningNote(delBtn.dataset.date); return; }
+    const item = e.target.closest('.plan-item[data-date]');
+    if (item) loadPlanningEditor(item.dataset.date);
   });
 
   // FIX: Delegation for dynamically rendered settings lists
@@ -1817,14 +1820,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
 /* ─── LOCAL SETTINGS ──────────────────────────────────────── */
 function loadSettings() {
-  customCats   = JSON.parse(localStorage.getItem(LS_CATS)    || '[]');
-  recTemplates = JSON.parse(localStorage.getItem(LS_REC)     || '[]');
-  goals        = JSON.parse(localStorage.getItem(LS_GOALS)   || '[]');
+  customCats    = JSON.parse(localStorage.getItem(LS_CATS)     || '[]');
+  recTemplates  = JSON.parse(localStorage.getItem(LS_REC)      || '[]');
+  planningNotes = JSON.parse(localStorage.getItem(LS_PLANNING) || '{}');
 }
 function saveSettings() {
-  localStorage.setItem(LS_CATS,    JSON.stringify(customCats));
-  localStorage.setItem(LS_REC,     JSON.stringify(recTemplates));
-  localStorage.setItem(LS_GOALS,   JSON.stringify(goals));
+  localStorage.setItem(LS_CATS,     JSON.stringify(customCats));
+  localStorage.setItem(LS_REC,      JSON.stringify(recTemplates));
+  localStorage.setItem(LS_PLANNING, JSON.stringify(planningNotes));
 }
 
 /* ─── DARK MODE — FIX: system preference respected ───────── */
@@ -2062,129 +2065,134 @@ async function loadTransactions(append = false, skipRecurring = false) {
   }
 }
 
-/* ─── SAVINGS GOALS ───────────────────────────────────────── */
-function renderGoals() {
-  const panel = document.getElementById('panel-goals');
+/* ─── DAY PLANNING — pick a date, write a freeform note for it ──── */
+function renderPlanning() {
+  const panel = document.getElementById('panel-planning');
   if (!panel || !panel.classList.contains('open')) return;
-  const container = document.getElementById('goals-list');
-  if (!goals.length) {
-    container.innerHTML = '<div class="empty-state"><div class="icon">🏦</div><p>No savings goals yet.<br>Create one below to start tracking!</p></div>';
-    return;
-  }
-  // FIX: use data-idx attributes — event delegation handles clicks
-  container.innerHTML = goals.map((g, i) => {
-    const saved  = g.saved || 0;
-    const pct    = Math.min(100, (saved / g.target) * 100);
-    const done   = pct >= 100;
-    const remain = Math.max(0, g.target - saved);
-    return `<div class="goal-card${done ? ' goal-done' : ''}">
-      <div class="goal-header">
-        <span class="goal-emoji">${esc(g.emoji || '🎯')}</span>
-        <div class="goal-info">
-          <div class="goal-name">${esc(g.name)}</div>
-          <!-- FIX: use fmt() for the remaining amount too, instead of a manually
-               built "RM " + toFixed(2) string — the manual version skipped fmt()'s
-               thousands separators, so larger goals showed e.g. "RM 12345.60"
-               instead of "RM 12,345.60", inconsistent with every other amount
-               on this card. -->
-          <div class="goal-amounts">${fmt(saved)} of ${fmt(g.target)}${done ? '' : ` · ${fmt(remain)} to go`}</div>
-        </div>
-        <button class="goal-del" data-idx="${i}" aria-label="Delete ${esc(g.name)}">×</button>
-      </div>
-      <div class="goal-bar-bg"><div class="goal-bar-fill" style="width:${pct}%"></div></div>
-      <div class="goal-footer">
-        <!-- FIX: Math.floor instead of toFixed(0) — toFixed rounds, so a goal at
-             e.g. 99.6% displayed "100% complete" (with the progress bar still
-             short of the end and the quick-add buttons still showing) a tick
-             before it was actually marked done. Flooring only ever shows 100%
-             once the goal has truly been reached. -->
-        <span class="goal-pct">${Math.floor(pct)}% complete</span>
-        ${done
-          ? '<span style="color:var(--green);font-size:12px;font-weight:600">🎊 Goal reached!</span>'
-          : `<div class="goal-add-row">
-               <button class="goal-quick" data-idx="${i}" data-amount="10">+RM10</button>
-               <button class="goal-quick" data-idx="${i}" data-amount="50">+RM50</button>
-               <button class="goal-quick" data-idx="${i}" data-amount="100">+RM100</button>
-               <input class="goal-custom" type="number" id="gi-${i}" placeholder="custom" min="0" step="0.01" aria-label="Custom amount" />
-               <button class="goal-add-btn" data-idx="${i}">Add</button>
-             </div>`}
-      </div>
-    </div>`;
-  }).join('');
-  // UX: show surplus suggestion if this month has positive balance and there are active goals
-  //
-  // FIX (was using the *viewed* month, not the real current month): monthTxs()
-  // is based on whatever month the user has navigated to with the month-nav
-  // arrows, so the card could say "surplus this month" while actually showing
-  // a past or future month's numbers. It now only appears while genuinely
-  // viewing today's calendar month, matching the pattern already used for the
-  // spending forecast above (see _isCur in updateSummary()).
-  const _now        = new Date();
-  const _isCurMonth = !isAllTime && viewYear === _now.getFullYear() && viewMonth === _now.getMonth();
-  const _mInc   = monthTxs().filter(t=>t.type==='income'&&!t.isPending).reduce((s,t)=>s+ +t.amount,0);
-  const _mExp   = monthTxs().filter(t=>t.type==='expense'&&!t.isPending).reduce((s,t)=>s+ +t.amount,0);
-  const _surplus = _mInc - _mExp;
-  const _pending = goals.filter(g=>(g.saved||0)<g.target);
-  // FIX: the card used to reappear with the SAME full surplus amount every time
-  // renderGoals() ran — including right after "Allocate to top goal" was
-  // clicked, since the suggestion never tracked that it had already been
-  // acted on. That let one real surplus be allocated over and over by
-  // clicking repeatedly. It's now allowed once per real calendar month.
-  const _monthKey     = `${_now.getFullYear()}-${_now.getMonth()}`;
-  const _alreadyUsed  = localStorage.getItem(LS_GOAL_SURPLUS_USED) === _monthKey;
-  if (_isCurMonth && !_alreadyUsed && _surplus > 0.01 && _pending.length) {
-    const _sg  = document.createElement('div');
-    _sg.className = 'goal-suggest-card';
-    const _stxt = document.createElement('span');
-    _stxt.textContent = `💡 ${fmt(_surplus)} surplus this month`;
-    const _sbtn = document.createElement('button');
-    _sbtn.className   = 'goal-quick';
-    _sbtn.textContent = 'Allocate to top goal';
-    _sbtn.addEventListener('click', () => {
-      localStorage.setItem(LS_GOAL_SURPLUS_USED, _monthKey);
-      addToGoal(goals.indexOf(_pending[0]), _surplus);
-    });
-    _sg.appendChild(_stxt);
-    _sg.appendChild(_sbtn);
-    container.appendChild(_sg);
+  loadPlanningEditor(planningDate); // also refreshes the list (see below)
+}
+
+// Shift an arbitrary 'YYYY-MM-DD' string by N days (unlike dateStrOffset(),
+// which is always relative to *today* — this needs to shift from whatever
+// day is currently open in the editor).
+function shiftDateStr(dateStr, days) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function shiftPlanDay(dir) { loadPlanningEditor(shiftDateStr(planningDate, dir)); }
+
+// FIX: show "Today" only when viewing a day other than today, matching the
+// exact same pattern as the month-nav's today-btn.
+function updatePlanTodayBtn() {
+  document.getElementById('plan-today-btn').style.display = (planningDate === todayStr()) ? 'none' : 'inline-block';
+}
+
+// UX: textarea grows with the note instead of scrolling internally, closer
+// to how a phone's Notes app feels.
+function autoGrowTextarea(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+function updatePlanEditorStatus() {
+  const note     = planningNotes[planningDate];
+  const statusEl = document.getElementById('plan-save-status');
+  const delBtn   = document.getElementById('plan-del-btn');
+  if (note) {
+    statusEl.textContent = '✓ Saved ' + new Date(note.updatedAt).toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit' });
+    delBtn.style.display = 'inline-flex';
+  } else {
+    statusEl.textContent = '';
+    delBtn.style.display = 'none';
   }
 }
 
-function addToGoal(i, amount) {
-  if (!goals[i]) return;
-  goals[i].saved = Math.min(goals[i].target, (goals[i].saved || 0) + amount);
+// Commit any pending debounced edit immediately. Called before switching to a
+// different date so a fast prev/next/list-tap can't drop an in-flight edit
+// that hasn't hit its 400ms debounce yet.
+function flushPlanningSave() {
+  if (_planSaveTimer) {
+    clearTimeout(_planSaveTimer);
+    _planSaveTimer = null;
+    const textEl = document.getElementById('plan-note-text');
+    if (textEl) savePlanningNote(textEl.value);
+  }
+}
+
+function loadPlanningEditor(dateStr) {
+  const textEl = document.getElementById('plan-note-text');
+  // FIX: renderPlanning() can be re-triggered for the *same* date by an
+  // unrelated background event (e.g. reconnect-and-sync while the user is
+  // sitting on the Planning tab) — reloading textEl.value in that case would
+  // yank the cursor away from wherever the user is actively typing. Only
+  // reload when we're genuinely changing dates, or when the field isn't the
+  // one currently focused.
+  if (dateStr === planningDate && document.activeElement === textEl) return;
+  flushPlanningSave();
+  planningDate = dateStr;
+  document.getElementById('plan-date-input').value = dateStr;
+  updatePlanTodayBtn();
+  const note = planningNotes[dateStr];
+  textEl.value = note ? note.text : '';
+  autoGrowTextarea(textEl);
+  updatePlanEditorStatus();
+  renderPlanningList(); // refresh so the newly-selected day highlights below
+}
+
+// Autosaved from the textarea's debounced input handler. An empty (or
+// whitespace-only) note is treated as "no note" for that date, so clearing
+// the text removes the day from the list below instead of leaving a blank entry.
+function savePlanningNote(text) {
+  if (text.trim() === '') {
+    delete planningNotes[planningDate];
+  } else {
+    planningNotes[planningDate] = { text, updatedAt: Date.now() };
+  }
   saveSettings();
-  renderGoals();
-  const done = goals[i].saved >= goals[i].target;
-  showToast(done ? `🎊 Goal "${goals[i].name}" complete!` : `+${fmt(amount)} added to "${goals[i].name}"`);
+  updatePlanEditorStatus();
+  renderPlanningList();
 }
-function addCustomToGoal(i) {
-  const input = document.getElementById('gi-' + i);
-  const val   = parseFloat(input ? input.value : 0);
-  if (!val || val <= 0) { showToast('Enter a valid amount'); return; }
-  addToGoal(i, val);
-  if (input) input.value = '';
-}
-function deleteGoal(i) {
+
+function deletePlanningNote(dateStr) {
+  if (!planningNotes[dateStr]) return;
   showConfirm(
-    `"${goals[i].name}" and all saved progress will be permanently lost.`,
-    () => { goals.splice(i, 1); saveSettings(); renderGoals(); showToast('Goal removed'); },
-    { title: 'Delete goal?', confirmText: 'Delete', icon: '🏦', danger: true }
+    `The note for ${formatDate(dateStr)} will be permanently deleted.`,
+    () => {
+      delete planningNotes[dateStr];
+      saveSettings();
+      if (dateStr === planningDate) {
+        document.getElementById('plan-note-text').value = '';
+        autoGrowTextarea(document.getElementById('plan-note-text'));
+        updatePlanEditorStatus();
+      }
+      renderPlanningList();
+      showToast('Note deleted');
+    },
+    { title: 'Delete note?', confirmText: 'Delete', icon: BIN_SVG_RED, danger: true }
   );
 }
-function addGoal() {
-  const name   = document.getElementById('new-goal-name').value.trim();
-  const target = parseFloat(document.getElementById('new-goal-target').value);
-  const emoji  = document.getElementById('new-goal-emoji').value.trim() || '🎯';
-  if (!name)              { showToast('Enter a goal name'); return; }
-  if (!target || target <= 0) { showToast('Enter a target amount'); return; }
-  goals.push({ id: 'g_' + Date.now(), name, target, saved: 0, emoji });
-  saveSettings();
-  document.getElementById('new-goal-name').value   = '';
-  document.getElementById('new-goal-target').value = '';
-  document.getElementById('new-goal-emoji').value  = '';
-  renderGoals();
-  showToast(`✓ "${name}" goal created!`);
+
+function renderPlanningList() {
+  const container = document.getElementById('plan-list');
+  if (!container) return;
+  const dates = Object.keys(planningNotes).sort().reverse(); // most recent/future date first
+  if (!dates.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">🗓️</div><p>No plans yet.<br>Write a note above to start planning your days!</p></div>';
+    return;
+  }
+  // FIX: use data-date attributes — event delegation handles clicks
+  container.innerHTML = dates.map(d => {
+    const note    = planningNotes[d];
+    const preview = esc(note.text.split('\n').find(line => line.trim() !== '') || '');
+    return `<div class="plan-item${d === planningDate ? ' plan-item-active' : ''}" data-date="${d}">
+      <div class="plan-item-body">
+        <div class="plan-item-date">${esc(labelDate(d))}</div>
+        <div class="plan-item-preview">${preview}</div>
+      </div>
+      <button class="plan-item-del" data-date="${d}" aria-label="Delete note for ${esc(formatDate(d))}">×</button>
+    </div>`;
+  }).join('');
 }
 
 /* ─── DATE GROUPING HELPERS ─────────────────────────────── */
@@ -2278,7 +2286,7 @@ function renderAll() {
     renderList();
     const _activeTab = document.querySelector('.tab-btn.active')?.id?.replace('tab-','');
     if (_activeTab === 'charts')   renderCharts();
-    if (_activeTab === 'goals')    renderGoals();
+    if (_activeTab === 'planning') renderPlanning();
     if (_activeTab === 'homework') renderHomework();
   }, 50);
 }
@@ -2731,7 +2739,7 @@ function switchTab(tab) {
   if (tab !== 'txs' && document.getElementById('form-card').classList.contains('open')) {
     toggleForm();
   }
-  ['txs','homework','charts','goals'].forEach(t => {
+  ['txs','homework','charts','planning'].forEach(t => {
     const tabBtn   = document.getElementById('tab-'   + t);
     const panelEl  = document.getElementById('panel-' + t);
     const isActive = t === tab;
@@ -2749,7 +2757,7 @@ function switchTab(tab) {
     if (_sic) _sic.style.display = searchQ ? 'none'  : 'block';
   }
   if (tab === 'charts')   renderCharts();
-  if (tab === 'goals')    renderGoals();
+  if (tab === 'planning') renderPlanning();
   if (tab === 'homework') renderHomework();
 }
 
@@ -3440,7 +3448,7 @@ function removeRecTemplate(i) {
 
 /* ─── SETTINGS BACKUP — FIX: new feature ─────────────────── */
 function exportSettings() {
-  const data = { version: 1, exported: new Date().toISOString(), customCats, recTemplates, goals };
+  const data = { version: 1, exported: new Date().toISOString(), customCats, recTemplates, planningNotes };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a    = Object.assign(document.createElement('a'), {
     href: URL.createObjectURL(blob),
@@ -3458,16 +3466,16 @@ function importSettings(file) {
       if (!data.version) { showToast('Unrecognised settings file'); return; }
 
       showConfirm(
-        'Categories, goals and recurring templates will be replaced.',
+        'Categories, planning notes and recurring templates will be replaced.',
         () => {
-          if (data.customCats)   customCats   = data.customCats;
-          if (data.recTemplates) recTemplates = data.recTemplates;
-          if (data.goals)        goals        = data.goals;
+          if (data.customCats)    customCats    = data.customCats;
+          if (data.recTemplates)  recTemplates  = data.recTemplates;
+          if (data.planningNotes) planningNotes = data.planningNotes;
           saveSettings();
           buildCategorySelects();
           renderCustomCatsList();
           renderRecurringList();
-          if (document.getElementById('panel-goals').classList.contains('open')) renderGoals();
+          if (document.getElementById('panel-planning').classList.contains('open')) renderPlanning();
           showToast('✓ Settings imported');
         },
         { title: 'Import settings?', confirmText: 'Import', icon: '⬇', danger: false }

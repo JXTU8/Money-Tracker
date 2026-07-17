@@ -1,21 +1,12 @@
-/* ─── Money Record — Service Worker v22 ──────────────────────────────
-   Changes from v21:
-   ✅ Cache version bumped to v22 — index.html changed again (several
-      bug fixes: transaction edits weren't refreshing the list, offline
-      refresh could wipe the loaded transaction list, swipe-to-delete
-      animated the row away before the confirm dialog opened, and a few
-      others) so the old v21 cache was still serving the previous
-      index.html cache-first.
-   ✅ FIX: isCacheable() only ever checked STATIC_ASSETS, never
-      ICON_ASSETS — so icon-192.png/icon-512.png were precached on
-      install but then always went through the network-first fetch
-      path at runtime (falling back to cache only if the network
-      request failed), unlike '/', '/index.html' and '/manifest.json',
-      which were genuinely served cache-first. Icons are now checked
-      the same way as the other static assets.
+/* ─── Money Record — Service Worker v23 ──────────────────────────────
+   Changes from v22:
+   ✅ Cache version bumped to v23 — index.html changed again (the
+      Goals tab was removed entirely and replaced with a new Planning
+      tab — pick a date, write a freeform note for it — so the old
+      v22 cache was still serving the previous index.html cache-first).
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v22';
+const CACHE = 'money-app-v23';
 
 const STATIC_ASSETS = [
   '/',
