@@ -1,4 +1,11 @@
-/* ─── Money Record — Service Worker v27 ──────────────────────────────
+/* ─── Money Record — Service Worker v28 ──────────────────────────────
+   Changes from v27:
+   ✅ Cache version bumped to v28 — index.html changed again (Homework
+      filter tabs: "No due date" and "Today" removed and merged into
+      "Upcoming", which now covers every not-done item — overdue, today,
+      future, and undated — sorted chronologically with undated items
+      last; tabs are now just Upcoming / Done / All) so the old v27 cache
+      was still serving the previous index.html cache-first.
    Changes from v26:
    ✅ Cache version bumped to v27 — index.html changed again (Homework's
       Subject shortcut panel: scrolling the option list closed the panel
@@ -16,7 +23,7 @@
       index.html cache-first.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v27';
+const CACHE = 'money-app-v28';
 
 const STATIC_ASSETS = [
   '/',

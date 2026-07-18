@@ -1053,9 +1053,7 @@
     </div>
     <div class="section-header"><h2>📚 Homework</h2></div>
     <div class="filter-row" role="group" aria-label="Filter homework">
-      <button class="filter-btn active" data-hwfilter="nodate">No due date</button>
-      <button class="filter-btn"        data-hwfilter="today">Today</button>
-      <button class="filter-btn"        data-hwfilter="upcoming">Upcoming</button>
+      <button class="filter-btn active" data-hwfilter="upcoming">Upcoming</button>
       <button class="filter-btn"        data-hwfilter="done">Done</button>
       <button class="filter-btn"        data-hwfilter="all">All</button>
     </div>
@@ -1191,7 +1189,7 @@ let editPhotoRemoved     = false; // true if user explicitly removed the existin
 
 // Homework feature
 let homework    = [];
-let hwFilter    = 'nodate'; // FIX: dashboard now opens on "No due date" instead of "Today"
+let hwFilter    = 'upcoming'; // FIX: 'nodate' and 'today' tabs removed and merged into 'upcoming' (see getVisibleHomework); dashboard now opens on "Upcoming" instead of "No due date"
 let hwEditingId = null;     // FEATURE: id of the homework item open in the edit modal
 
 // FIX: Callback maps replace eval() in swipe-to-delete
@@ -3164,13 +3162,15 @@ function setHwFilter(f) {
   renderHomework();
 }
 
-// FIX: best-effort creation timestamp for sorting the "No due date" list.
-// Supabase tables conventionally include an auto-populated `created_at`
-// column, which is what this relies on primarily — if your `homework`
-// table doesn't have one, add a `created_at timestamptz default now()`
-// column so this sorts correctly; until then it falls back to numeric id
-// order, which is right for a typical auto-incrementing primary key but
-// won't be meaningful for e.g. random/UUID ids.
+// FIX: best-effort creation timestamp for sorting the undated tail of the
+// "Upcoming" list (homework with no due date, sorted after every dated
+// item — see getVisibleHomework). Supabase tables conventionally include
+// an auto-populated `created_at` column, which is what this relies on
+// primarily — if your `homework` table doesn't have one, add a
+// `created_at timestamptz default now()` column so this sorts correctly;
+// until then it falls back to numeric id order, which is right for a
+// typical auto-incrementing primary key but won't be meaningful for e.g.
+// random/UUID ids.
 function hwCreatedAtMs(h) {
   if (h.created_at) {
     const t = new Date(h.created_at).getTime();
@@ -3184,18 +3184,24 @@ function hwCreatedAtMs(h) {
 // with sorting left to whatever order the initial query happened to return
 // and a fragile in-place sort in addHomework() — see below).
 function getVisibleHomework() {
-  const today = todayStr();
   switch (hwFilter) {
-    case 'nodate':
-      // FEATURE: chronological by creation date, earliest added at the top —
-      // and done items are excluded, same as Today/Upcoming.
-      return homework.filter(h => !h.done && !h.due_date)
-                      .slice().sort((a, b) => hwCreatedAtMs(a) - hwCreatedAtMs(b));
-    case 'today':
-      return homework.filter(h => !h.done && h.due_date === today);
     case 'upcoming':
-      return homework.filter(h => !h.done && !!h.due_date && h.due_date > today)
-                      .slice().sort((a, b) => a.due_date < b.due_date ? -1 : a.due_date > b.due_date ? 1 : 0);
+      // FIX: 'nodate' and 'today' tabs removed and folded into 'upcoming',
+      // which now covers every not-done item regardless of due-date status
+      // — including overdue, which previously matched neither 'today' nor
+      // 'upcoming' (due_date > today) and so only ever showed under 'all'.
+      // Sort rule: dated items chronologically ascending — this alone
+      // naturally puts overdue first, then today, then future — then
+      // undated items are appended after, sorted by creation date same as
+      // the old 'nodate' tab.
+      return homework.filter(h => !h.done)
+                      .slice()
+                      .sort((a, b) => {
+                        if (!a.due_date && !b.due_date) return hwCreatedAtMs(a) - hwCreatedAtMs(b);
+                        if (!a.due_date) return 1;
+                        if (!b.due_date) return -1;
+                        return a.due_date < b.due_date ? -1 : a.due_date > b.due_date ? 1 : 0;
+                      });
     case 'done':
       return homework.filter(h => h.done);
     default:
@@ -3217,9 +3223,7 @@ function renderHomework() {
 
   if (!items.length) {
     const msgs = {
-      nodate:   'Nothing here yet.<br>New homework without a due date lands in this list.',
-      today:    'Nothing due today. 🎉',
-      upcoming: 'No upcoming homework.',
+      upcoming: 'Nothing due. 🎉',
       done:     'No completed homework yet.',
       all:      'No homework yet.<br>Add your first item above.'
     };
