@@ -537,23 +537,13 @@
       display: flex; align-items: center; justify-content: center; margin-top: 1px;
     }
     .hw-del:hover { color: var(--red); background: var(--red-light); }
-    /* FEATURE: quick-add subject chips — horizontally-scrollable tap shortcuts
-       above the Subject field so common subjects can be filled in one tap
-       instead of typing them out every time. */
-    .subject-chip-row {
-      display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch;
-      scrollbar-width: none; margin-bottom: 8px; padding-bottom: 1px;
-    }
-    .subject-chip-row::-webkit-scrollbar { display: none; }
-    .subject-chip {
-      flex: 0 0 auto; padding: 6px 13px; border-radius: 20px;
-      border: 1.5px solid var(--border); background: var(--card);
-      font-size: 12px; font-weight: 500; color: var(--muted); cursor: pointer;
-      white-space: nowrap; transition: all .15s; font-family: inherit;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .subject-chip:hover { border-color: var(--green); color: var(--green); }
-    .subject-chip.active { background: var(--green); border-color: var(--green); color: white; }
+    /* FEATURE: subject shortcut dropdown — a grouped <select> above the
+       Subject field so common subjects can be filled in one tap. Replaces
+       the old horizontally-scrollable chip row (swiping required to reach
+       later options); every subject is now reachable in one open of the
+       native dropdown, organized under its discipline — Math / Chemistry /
+       Physics / Computer Science — via <optgroup>. */
+    .subject-select { margin-bottom: 8px; cursor: pointer; }
     /* FEATURE: quick due-date shortcut chips — same interaction pattern as
        the subject chips above, placed under the Due date field. Blue accent
        keeps the group visually distinct from the green subject chips. */
@@ -719,18 +709,28 @@
     <div class="form-group"><label for="hw-e-title">Title</label><input type="text" id="hw-e-title" /></div>
     <div class="form-group">
       <label for="hw-e-subject">Subject <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label>
-      <div class="subject-chip-row" id="hw-e-subject-chip-row" role="group" aria-label="Quick-add subject">
-        <button type="button" class="subject-chip" data-subject="Math Lecture">Math Lecture</button>
-        <button type="button" class="subject-chip" data-subject="Math Tutorial">Math Tutorial</button>
-        <button type="button" class="subject-chip" data-subject="Chem Lecture">Chem Lecture</button>
-        <button type="button" class="subject-chip" data-subject="Chem Tutorial">Chem Tutorial</button>
-        <button type="button" class="subject-chip" data-subject="Physics Lecture">Physics Lecture</button>
-        <button type="button" class="subject-chip" data-subject="Physics Tutorial">Physics Tutorial</button>
-        <button type="button" class="subject-chip" data-subject="Computer Science Lecture">CS Lecture</button>
-        <button type="button" class="subject-chip" data-subject="Computer Science Tutorial">CS Tutorial</button>
-        <button type="button" class="subject-chip" data-subject="Kulliah">Kulliah</button>
-      </div>
-      <input type="text" id="hw-e-subject" placeholder="Tap a shortcut above, or type your own" />
+      <select class="subject-select" id="hw-e-subject-select" aria-label="Subject shortcut">
+        <option value="">Select a subject…</option>
+        <optgroup label="Math">
+          <option value="Math Lecture">Math Lecture</option>
+          <option value="Math Tutorial">Math Tutorial</option>
+        </optgroup>
+        <optgroup label="Chemistry">
+          <option value="Chemistry Lecture">Chemistry Lecture</option>
+          <option value="Chemistry Tutorial">Chemistry Tutorial</option>
+          <option value="Chemistry Report">Chemistry Report</option>
+        </optgroup>
+        <optgroup label="Physics">
+          <option value="Physics Lecture">Physics Lecture</option>
+          <option value="Physics Tutorial">Physics Tutorial</option>
+          <option value="Physics Report">Physics Report</option>
+        </optgroup>
+        <optgroup label="Computer Science">
+          <option value="Computer Science Lecture">CS Lecture</option>
+          <option value="Computer Science Tutorial">CS Tutorial</option>
+        </optgroup>
+      </select>
+      <input type="text" id="hw-e-subject" placeholder="Choose a shortcut above, or type your own" />
     </div>
     <div class="form-group">
       <label for="hw-e-due">Due date</label>
@@ -974,18 +974,28 @@
       <div class="form-group"><label for="hw-title">Title</label><input type="text" id="hw-title" placeholder="e.g. Math worksheet ch.4" /></div>
       <div class="form-group">
         <label for="hw-subject">Subject <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label>
-        <div class="subject-chip-row" id="subject-chip-row" role="group" aria-label="Quick-add subject">
-          <button type="button" class="subject-chip" data-subject="Math Lecture">Math Lecture</button>
-          <button type="button" class="subject-chip" data-subject="Math Tutorial">Math Tutorial</button>
-          <button type="button" class="subject-chip" data-subject="Chem Lecture">Chem Lecture</button>
-          <button type="button" class="subject-chip" data-subject="Chem Tutorial">Chem Tutorial</button>
-          <button type="button" class="subject-chip" data-subject="Physics Lecture">Physics Lecture</button>
-          <button type="button" class="subject-chip" data-subject="Physics Tutorial">Physics Tutorial</button>
-          <button type="button" class="subject-chip" data-subject="Computer Science Lecture">CS Lecture</button>
-          <button type="button" class="subject-chip" data-subject="Computer Science Tutorial">CS Tutorial</button>
-          <button type="button" class="subject-chip" data-subject="Kulliah">Kulliah</button>
-        </div>
-        <input type="text" id="hw-subject" placeholder="Tap a shortcut above, or type your own" />
+        <select class="subject-select" id="subject-select" aria-label="Subject shortcut">
+          <option value="">Select a subject…</option>
+          <optgroup label="Math">
+            <option value="Math Lecture">Math Lecture</option>
+            <option value="Math Tutorial">Math Tutorial</option>
+          </optgroup>
+          <optgroup label="Chemistry">
+            <option value="Chemistry Lecture">Chemistry Lecture</option>
+            <option value="Chemistry Tutorial">Chemistry Tutorial</option>
+            <option value="Chemistry Report">Chemistry Report</option>
+          </optgroup>
+          <optgroup label="Physics">
+            <option value="Physics Lecture">Physics Lecture</option>
+            <option value="Physics Tutorial">Physics Tutorial</option>
+            <option value="Physics Report">Physics Report</option>
+          </optgroup>
+          <optgroup label="Computer Science">
+            <option value="Computer Science Lecture">CS Lecture</option>
+            <option value="Computer Science Tutorial">CS Tutorial</option>
+          </optgroup>
+        </select>
+        <input type="text" id="hw-subject" placeholder="Choose a shortcut above, or type your own" />
       </div>
       <div class="form-group">
         <label for="hw-due">Due date</label>
@@ -1671,17 +1681,17 @@ window.addEventListener('DOMContentLoaded', () => {
     const card  = e.target.closest('[data-hw-edit]');
     if (card) openHwEditModal(card.dataset.hwEdit);
   });
-  // FEATURE: quick-add subject chips — tap to instantly fill the Subject
-  // field AND pre-fill Title with "<Subject> - ", with the cursor parked
-  // right after the dash so you can type the specific task immediately.
-  // Tap the same chip again to clear both — the title is only cleared if
-  // it still matches the auto-filled prefix untouched, so anything you've
-  // already typed past the dash is never wiped out.
-  // FIX: extracted into wireSubjectChipRow() (see bottom of file) so the new
-  // edit-modal chips below can share the exact same behavior instead of
-  // duplicating it — each row/input pair only ever touches its own chips.
-  wireSubjectChipRow('subject-chip-row', 'hw-subject', 'hw-title');
-  wireSubjectChipRow('hw-e-subject-chip-row', 'hw-e-subject', 'hw-e-title');
+  // FEATURE: subject shortcut dropdown — picking an option instantly fills
+  // the Subject field AND pre-fills Title with "<Subject> - ", with the
+  // cursor parked right after the dash so you can type the specific task
+  // immediately. Picking the blank option again clears both — the title is
+  // only cleared if it still matches the auto-filled prefix untouched, so
+  // anything you've already typed past the dash is never wiped out.
+  // FIX: extracted into wireSubjectSelect() (see bottom of file) so the new
+  // edit-modal dropdown below can share the exact same behavior instead of
+  // duplicating it — each select/input pair only ever touches its own field.
+  wireSubjectSelect('subject-select', 'hw-subject', 'hw-title');
+  wireSubjectSelect('hw-e-subject-select', 'hw-e-subject', 'hw-e-title');
   // FEATURE: quick due-date shortcut chips — tap to set the due date to
   // no-date/today/tomorrow/in 2 days/next week without opening the date
   // picker. FIX: extracted into wireDueChipRow() for the same reason as above.
@@ -3224,7 +3234,7 @@ async function addHomework() {
     homework.push(data[0]);
     document.getElementById('hw-title').value = '';
     document.getElementById('hw-subject').value = '';
-    document.querySelectorAll('#subject-chip-row .subject-chip').forEach(c => c.classList.remove('active'));
+    syncSubjectSelect('subject-select', 'hw-subject');
     document.getElementById('hw-due').value = '';
     syncDueChipHighlight();
     renderHomework();
@@ -3276,7 +3286,7 @@ function openHwEditModal(id) {
   const addedText  = formatAddedAt(h.created_at);
   addedEl.textContent   = addedText ? `Added ${addedText}` : '';
   addedEl.style.display = addedText ? '' : 'none';
-  syncSubjectChipHighlight('hw-e-subject-chip-row', 'hw-e-subject');
+  syncSubjectSelect('hw-e-subject-select', 'hw-e-subject');
   syncDueChipHighlight('hw-e-due-chip-row', 'hw-e-due');
   document.getElementById('hw-edit-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -3586,54 +3596,57 @@ function wireDueChipRow(rowId, dueInputId) {
   });
   document.getElementById(dueInputId).addEventListener('input', () => syncDueChipHighlight(rowId, dueInputId));
 }
-// FEATURE: same idea for the subject chip row — extracted so the add-form
-// and the edit-modal's chips can share one implementation instead of two
+// FEATURE: same idea for the subject shortcut — extracted so the add-form
+// and the edit-modal's dropdowns can share one implementation instead of two
 // near-identical copies drifting apart over time.
-function wireSubjectChipRow(rowId, subjectInputId, titleInputId) {
-  const row     = document.getElementById(rowId);
+// FIX: swapped from a swipable chip row to a native <select> with <optgroup>s
+// so every subject is reachable without scrolling, and related subjects
+// (e.g. all three Chemistry options) sit grouped together under one heading.
+function wireSubjectSelect(selectId, subjectInputId, titleInputId) {
+  const select  = document.getElementById(selectId);
   const subject = document.getElementById(subjectInputId);
   const title   = document.getElementById(titleInputId);
-  row.addEventListener('click', e => {
-    const chip = e.target.closest('.subject-chip');
-    if (!chip) return;
-    const wasActive = chip.classList.contains('active');
-    const prefix = chip.dataset.subject + ' - ';
+  const optionValues = Array.from(select.options).map(o => o.value).filter(Boolean);
+  select.addEventListener('change', () => {
+    const value = select.value;
     // FIX: only ever auto-fill Title when it's blank or still exactly matches
-    // an earlier auto-filled prefix from one of this row's own chips — i.e.
-    // never overwrite text the person actually typed. Matters most in the
+    // an earlier auto-filled prefix from one of this dropdown's own options —
+    // i.e. never overwrite text the person actually typed. Matters most in the
     // edit modal, where Title starts out holding the item's real saved name.
-    const rowPrefixes = Array.from(row.querySelectorAll('.subject-chip')).map(c => c.dataset.subject + ' - ');
-    const titleIsAutoFillable = title.value === '' || rowPrefixes.includes(title.value);
-    row.querySelectorAll('.subject-chip').forEach(c => c.classList.remove('active'));
-    if (wasActive) {
+    const titleIsAutoFillable = title.value === '' || optionValues.some(v => title.value === v + ' - ');
+    if (!value) {
+      const oldPrefix = (select.dataset.prevValue || '') + ' - ';
       subject.value = '';
-      if (title.value === prefix) title.value = '';
+      if (title.value === oldPrefix) title.value = '';
     } else {
-      chip.classList.add('active');
-      subject.value = chip.dataset.subject;
+      subject.value = value;
       if (titleIsAutoFillable) {
-        title.value = prefix;
+        title.value = value + ' - ';
         title.focus();
         const caret = title.value.length;
         title.setSelectionRange(caret, caret);
       }
     }
+    select.dataset.prevValue = value;
   });
-  // Keep chip highlight in sync if the person types/edits the field manually
+  // Keep the dropdown's selection in sync if the person types/edits the
+  // field manually instead of picking from the list.
   subject.addEventListener('input', () => {
-    row.querySelectorAll('.subject-chip').forEach(c => {
-      c.classList.toggle('active', c.dataset.subject === subject.value);
-    });
+    const match = optionValues.includes(subject.value) ? subject.value : '';
+    select.value = match;
+    select.dataset.prevValue = match;
   });
 }
 // Used when a subject field is populated programmatically (e.g. opening the
-// edit modal) rather than by the person typing, since setting .value in JS
-// doesn't fire an 'input' event on its own.
-function syncSubjectChipHighlight(rowId, subjectInputId) {
+// edit modal, or after a successful add clears the form) rather than by the
+// person typing, since setting .value in JS doesn't fire an 'input' event.
+function syncSubjectSelect(selectId, subjectInputId) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
   const val = document.getElementById(subjectInputId)?.value || '';
-  document.getElementById(rowId)?.querySelectorAll('.subject-chip').forEach(c => {
-    c.classList.toggle('active', c.dataset.subject === val);
-  });
+  const match = Array.from(select.options).some(o => o.value === val) ? val : '';
+  select.value = match;
+  select.dataset.prevValue = match;
 }
 function esc(s)        { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function updateTimestamp() { document.getElementById('sync-ts').textContent = 'Synced ' + new Date().toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit' }); }

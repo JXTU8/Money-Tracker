@@ -1,13 +1,14 @@
-/* ─── Money Record — Service Worker v24 ──────────────────────────────
-   Changes from v23:
-   ✅ Cache version bumped to v24 — index.html changed again (tab order
-      is now Transactions / Homework / Planning / Charts, and the
-      Planning date-nav shows a full "Weekday, Month Day" label instead
-      of a bare native date field) so the old v23 cache was still
-      serving the previous index.html cache-first.
+/* ─── Money Record — Service Worker v25 ──────────────────────────────
+   Changes from v24:
+   ✅ Cache version bumped to v25 — index.html changed again (Homework's
+      Subject shortcut is now a grouped dropdown <select> instead of a
+      swipable chip row; removed "Kulliah", added "Chemistry Report" and
+      "Physics Report", and Chemistry/Physics/Math/Computer Science each
+      sit under their own group in the list) so the old v24 cache was
+      still serving the previous index.html cache-first.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v24';
+const CACHE = 'money-app-v25';
 
 const STATIC_ASSETS = [
   '/',
