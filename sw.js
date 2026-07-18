@@ -1,14 +1,14 @@
-/* ─── Money Record — Service Worker v25 ──────────────────────────────
-   Changes from v24:
-   ✅ Cache version bumped to v25 — index.html changed again (Homework's
-      Subject shortcut is now a grouped dropdown <select> instead of a
-      swipable chip row; removed "Kulliah", added "Chemistry Report" and
-      "Physics Report", and Chemistry/Physics/Math/Computer Science each
-      sit under their own group in the list) so the old v24 cache was
-      still serving the previous index.html cache-first.
+/* ─── Money Record — Service Worker v26 ──────────────────────────────
+   Changes from v25:
+   ✅ Cache version bumped to v26 — index.html changed again (Homework's
+      Subject shortcut dropdown is now a small custom-built panel instead
+      of a native <select> — the native picker rendered full-screen on
+      Android, so this opens a compact anchored menu near the field
+      instead) so the old v25 cache was still serving the previous
+      index.html cache-first.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v25';
+const CACHE = 'money-app-v26';
 
 const STATIC_ASSETS = [
   '/',

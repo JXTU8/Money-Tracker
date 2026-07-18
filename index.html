@@ -537,13 +537,50 @@
       display: flex; align-items: center; justify-content: center; margin-top: 1px;
     }
     .hw-del:hover { color: var(--red); background: var(--red-light); }
-    /* FEATURE: subject shortcut dropdown — a grouped <select> above the
-       Subject field so common subjects can be filled in one tap. Replaces
-       the old horizontally-scrollable chip row (swiping required to reach
-       later options); every subject is now reachable in one open of the
-       native dropdown, organized under its discipline — Math / Chemistry /
-       Physics / Computer Science — via <optgroup>. */
-    .subject-select { margin-bottom: 8px; cursor: pointer; }
+    /* FEATURE: subject shortcut dropdown — a compact, custom-built dropdown
+       (NOT a native <select>) above the Subject field so common subjects
+       can be filled in one tap.
+       FIX: a native <select> was tried first, but Android renders <select>
+       as a large OS-level picker sheet that can cover most of the screen
+       — worse with grouped <optgroup> options, which take up even more
+       vertical space. This hand-built version opens a small panel
+       anchored just below the field instead, with its own internal
+       scroll, so the rest of the page stays visible. */
+    .subject-dropdown { position: relative; margin-bottom: 8px; }
+    .subject-dropdown-toggle {
+      width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--card); color: var(--text); font-size: 14px; font-family: inherit;
+      text-align: left; cursor: pointer; -webkit-appearance: none; appearance: none;
+      transition: border-color .15s; -webkit-tap-highlight-color: transparent;
+    }
+    .subject-dropdown-toggle:focus { outline: none; border-color: var(--blue); }
+    .subject-dropdown-toggle.placeholder { color: var(--muted); }
+    .subject-dropdown-chevron { color: var(--muted); font-size: 10px; transition: transform .15s; flex-shrink: 0; }
+    .subject-dropdown.open .subject-dropdown-chevron { transform: rotate(180deg); }
+    /* position:fixed (coordinates set in JS from the toggle's on-screen
+       position) rather than position:absolute — the edit-modal's .sheet
+       scrolls (overflow-y:auto), which would otherwise clip an absolutely
+       positioned panel that opens near the bottom of a short viewport. */
+    .subject-dropdown-menu {
+      display: none; position: fixed; z-index: 30;
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      max-height: 260px; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      box-shadow: 0 8px 24px rgba(0,0,0,.2); padding: 6px;
+    }
+    .subject-dropdown.open .subject-dropdown-menu { display: block; }
+    .subject-dropdown-group-label {
+      font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em;
+      color: var(--muted); padding: 8px 8px 3px;
+    }
+    .subject-dropdown-option {
+      display: block; width: 100%; padding: 8px; border: none; border-radius: 6px;
+      background: none; text-align: left; font-size: 14px; color: var(--text);
+      cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent;
+    }
+    .subject-dropdown-option:hover { background: var(--bg); }
+    .subject-dropdown-option.selected { background: var(--green-light); color: var(--green); font-weight: 500; }
+    .subject-dropdown-clear { color: var(--muted); border-bottom: 1px solid var(--border); border-radius: 6px 6px 0 0; margin-bottom: 4px; }
     /* FEATURE: quick due-date shortcut chips — same interaction pattern as
        the subject chips above, placed under the Due date field. Blue accent
        keeps the group visually distinct from the green subject chips. */
@@ -709,27 +746,29 @@
     <div class="form-group"><label for="hw-e-title">Title</label><input type="text" id="hw-e-title" /></div>
     <div class="form-group">
       <label for="hw-e-subject">Subject <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label>
-      <select class="subject-select" id="hw-e-subject-select" aria-label="Subject shortcut">
-        <option value="">Select a subject…</option>
-        <optgroup label="Math">
-          <option value="Math Lecture">Math Lecture</option>
-          <option value="Math Tutorial">Math Tutorial</option>
-        </optgroup>
-        <optgroup label="Chemistry">
-          <option value="Chemistry Lecture">Chemistry Lecture</option>
-          <option value="Chemistry Tutorial">Chemistry Tutorial</option>
-          <option value="Chemistry Report">Chemistry Report</option>
-        </optgroup>
-        <optgroup label="Physics">
-          <option value="Physics Lecture">Physics Lecture</option>
-          <option value="Physics Tutorial">Physics Tutorial</option>
-          <option value="Physics Report">Physics Report</option>
-        </optgroup>
-        <optgroup label="Computer Science">
-          <option value="Computer Science Lecture">CS Lecture</option>
-          <option value="Computer Science Tutorial">CS Tutorial</option>
-        </optgroup>
-      </select>
+      <div class="subject-dropdown" id="hw-e-subject-dropdown">
+        <button type="button" class="subject-dropdown-toggle placeholder" id="hw-e-subject-toggle" aria-haspopup="listbox" aria-expanded="false">
+          <span class="subject-dropdown-toggle-text">Select a subject…</span>
+          <span class="subject-dropdown-chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="subject-dropdown-menu" role="listbox" aria-label="Subject shortcut">
+          <button type="button" class="subject-dropdown-option subject-dropdown-clear" role="option" data-value="">No subject</button>
+          <div class="subject-dropdown-group-label">Math</div>
+          <button type="button" class="subject-dropdown-option" role="option" data-value="Math Lecture">Math Lecture</button>
+          <button type="button" class="subject-dropdown-option" role="option" data-value="Math Tutorial">Math Tutorial</button>
+          <div class="subject-dropdown-group-label">Chemistry</div>
+          <button type="button" class="subject-dropdown-option" role="option" data-value="Chemistry Lecture">Chemistry Lecture</button>
+          <button type="button" class="subject-dropdown-option" role="option" data-value="Chemistry Tutorial">Chemistry Tutorial</button>
+          <button type="button" class="subject-dropdown-option" role="option" data-value="Chemistry Report">Chemistry Report</button>
+          <div class="subject-dropdown-group-label">Physics</div>
+          <button type="button" class="subject-dropdown-option" role="option" data-value="Physics Lecture">Physics Lecture</button>
+          <button type="button" class="subject-dropdown-option" role="option" data-value="Physics Tutorial">Physics Tutorial</button>
+          <button type="button" class="subject-dropdown-option" role="option" data-value="Physics Report">Physics Report</button>
+          <div class="subject-dropdown-group-label">Computer Science</div>
+          <button type="button" class="subject-dropdown-option" role="option" data-value="Computer Science Lecture">CS Lecture</button>
+          <button type="button" class="subject-dropdown-option" role="option" data-value="Computer Science Tutorial">CS Tutorial</button>
+        </div>
+      </div>
       <input type="text" id="hw-e-subject" placeholder="Choose a shortcut above, or type your own" />
     </div>
     <div class="form-group">
@@ -974,27 +1013,29 @@
       <div class="form-group"><label for="hw-title">Title</label><input type="text" id="hw-title" placeholder="e.g. Math worksheet ch.4" /></div>
       <div class="form-group">
         <label for="hw-subject">Subject <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label>
-        <select class="subject-select" id="subject-select" aria-label="Subject shortcut">
-          <option value="">Select a subject…</option>
-          <optgroup label="Math">
-            <option value="Math Lecture">Math Lecture</option>
-            <option value="Math Tutorial">Math Tutorial</option>
-          </optgroup>
-          <optgroup label="Chemistry">
-            <option value="Chemistry Lecture">Chemistry Lecture</option>
-            <option value="Chemistry Tutorial">Chemistry Tutorial</option>
-            <option value="Chemistry Report">Chemistry Report</option>
-          </optgroup>
-          <optgroup label="Physics">
-            <option value="Physics Lecture">Physics Lecture</option>
-            <option value="Physics Tutorial">Physics Tutorial</option>
-            <option value="Physics Report">Physics Report</option>
-          </optgroup>
-          <optgroup label="Computer Science">
-            <option value="Computer Science Lecture">CS Lecture</option>
-            <option value="Computer Science Tutorial">CS Tutorial</option>
-          </optgroup>
-        </select>
+        <div class="subject-dropdown" id="subject-dropdown">
+          <button type="button" class="subject-dropdown-toggle placeholder" id="subject-toggle" aria-haspopup="listbox" aria-expanded="false">
+            <span class="subject-dropdown-toggle-text">Select a subject…</span>
+            <span class="subject-dropdown-chevron" aria-hidden="true">▾</span>
+          </button>
+          <div class="subject-dropdown-menu" role="listbox" aria-label="Subject shortcut">
+            <button type="button" class="subject-dropdown-option subject-dropdown-clear" role="option" data-value="">No subject</button>
+            <div class="subject-dropdown-group-label">Math</div>
+            <button type="button" class="subject-dropdown-option" role="option" data-value="Math Lecture">Math Lecture</button>
+            <button type="button" class="subject-dropdown-option" role="option" data-value="Math Tutorial">Math Tutorial</button>
+            <div class="subject-dropdown-group-label">Chemistry</div>
+            <button type="button" class="subject-dropdown-option" role="option" data-value="Chemistry Lecture">Chemistry Lecture</button>
+            <button type="button" class="subject-dropdown-option" role="option" data-value="Chemistry Tutorial">Chemistry Tutorial</button>
+            <button type="button" class="subject-dropdown-option" role="option" data-value="Chemistry Report">Chemistry Report</button>
+            <div class="subject-dropdown-group-label">Physics</div>
+            <button type="button" class="subject-dropdown-option" role="option" data-value="Physics Lecture">Physics Lecture</button>
+            <button type="button" class="subject-dropdown-option" role="option" data-value="Physics Tutorial">Physics Tutorial</button>
+            <button type="button" class="subject-dropdown-option" role="option" data-value="Physics Report">Physics Report</button>
+            <div class="subject-dropdown-group-label">Computer Science</div>
+            <button type="button" class="subject-dropdown-option" role="option" data-value="Computer Science Lecture">CS Lecture</button>
+            <button type="button" class="subject-dropdown-option" role="option" data-value="Computer Science Tutorial">CS Tutorial</button>
+          </div>
+        </div>
         <input type="text" id="hw-subject" placeholder="Choose a shortcut above, or type your own" />
       </div>
       <div class="form-group">
@@ -1690,8 +1731,8 @@ window.addEventListener('DOMContentLoaded', () => {
   // FIX: extracted into wireSubjectSelect() (see bottom of file) so the new
   // edit-modal dropdown below can share the exact same behavior instead of
   // duplicating it — each select/input pair only ever touches its own field.
-  wireSubjectSelect('subject-select', 'hw-subject', 'hw-title');
-  wireSubjectSelect('hw-e-subject-select', 'hw-e-subject', 'hw-e-title');
+  wireSubjectSelect('subject-dropdown', 'hw-subject', 'hw-title');
+  wireSubjectSelect('hw-e-subject-dropdown', 'hw-e-subject', 'hw-e-title');
   // FEATURE: quick due-date shortcut chips — tap to set the due date to
   // no-date/today/tomorrow/in 2 days/next week without opening the date
   // picker. FIX: extracted into wireDueChipRow() for the same reason as above.
@@ -3234,7 +3275,7 @@ async function addHomework() {
     homework.push(data[0]);
     document.getElementById('hw-title').value = '';
     document.getElementById('hw-subject').value = '';
-    syncSubjectSelect('subject-select', 'hw-subject');
+    syncSubjectSelect('subject-dropdown', 'hw-subject');
     document.getElementById('hw-due').value = '';
     syncDueChipHighlight();
     renderHomework();
@@ -3286,7 +3327,7 @@ function openHwEditModal(id) {
   const addedText  = formatAddedAt(h.created_at);
   addedEl.textContent   = addedText ? `Added ${addedText}` : '';
   addedEl.style.display = addedText ? '' : 'none';
-  syncSubjectSelect('hw-e-subject-select', 'hw-e-subject');
+  syncSubjectSelect('hw-e-subject-dropdown', 'hw-e-subject');
   syncDueChipHighlight('hw-e-due-chip-row', 'hw-e-due');
   document.getElementById('hw-edit-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -3599,54 +3640,120 @@ function wireDueChipRow(rowId, dueInputId) {
 // FEATURE: same idea for the subject shortcut — extracted so the add-form
 // and the edit-modal's dropdowns can share one implementation instead of two
 // near-identical copies drifting apart over time.
-// FIX: swapped from a swipable chip row to a native <select> with <optgroup>s
-// so every subject is reachable without scrolling, and related subjects
-// (e.g. all three Chemistry options) sit grouped together under one heading.
-function wireSubjectSelect(selectId, subjectInputId, titleInputId) {
-  const select  = document.getElementById(selectId);
-  const subject = document.getElementById(subjectInputId);
-  const title   = document.getElementById(titleInputId);
-  const optionValues = Array.from(select.options).map(o => o.value).filter(Boolean);
-  select.addEventListener('change', () => {
-    const value = select.value;
-    // FIX: only ever auto-fill Title when it's blank or still exactly matches
-    // an earlier auto-filled prefix from one of this dropdown's own options —
-    // i.e. never overwrite text the person actually typed. Matters most in the
-    // edit modal, where Title starts out holding the item's real saved name.
-    const titleIsAutoFillable = title.value === '' || optionValues.some(v => title.value === v + ' - ');
-    if (!value) {
-      const oldPrefix = (select.dataset.prevValue || '') + ' - ';
-      subject.value = '';
-      if (title.value === oldPrefix) title.value = '';
-    } else {
-      subject.value = value;
-      if (titleIsAutoFillable) {
+// FIX: swapped from a native <select> to a hand-built dropdown — Android
+// renders <select> as a large OS picker sheet that can cover most of the
+// screen (worse with grouped <optgroup> options). This version is a toggle
+// button plus a small panel positioned from the toggle's own on-screen
+// coordinates, so it opens as a compact, anchored menu instead.
+function wireSubjectSelect(dropdownId, subjectInputId, titleInputId) {
+  const dropdown   = document.getElementById(dropdownId);
+  const toggle     = dropdown.querySelector('.subject-dropdown-toggle');
+  const toggleText = dropdown.querySelector('.subject-dropdown-toggle-text');
+  const menu       = dropdown.querySelector('.subject-dropdown-menu');
+  const options    = Array.from(dropdown.querySelectorAll('.subject-dropdown-option'));
+  const subject    = document.getElementById(subjectInputId);
+  const title      = document.getElementById(titleInputId);
+  const optionValues = options.map(o => o.dataset.value).filter(Boolean);
+
+  // Panel is position:fixed, so its coordinates come from the toggle's
+  // current on-screen rect rather than normal CSS flow — this keeps it
+  // from being clipped by a scrolling ancestor (e.g. the edit-modal's
+  // .sheet) and lets it shrink itself to whatever room is actually left
+  // below the toggle on short screens.
+  function positionMenu() {
+    const r = toggle.getBoundingClientRect();
+    const availableBelow = window.innerHeight - r.bottom - 12;
+    menu.style.left      = r.left + 'px';
+    menu.style.top       = (r.bottom + 4) + 'px';
+    menu.style.width     = r.width + 'px';
+    menu.style.maxHeight = Math.max(120, Math.min(260, availableBelow)) + 'px';
+  }
+  function openMenu() {
+    positionMenu();
+    dropdown.classList.add('open');
+    toggle.setAttribute('aria-expanded', 'true');
+  }
+  function closeMenu() {
+    dropdown.classList.remove('open');
+    toggle.setAttribute('aria-expanded', 'false');
+  }
+  function applyValue(value) {
+    subject.value = value;
+    toggleText.textContent = value || 'Select a subject…';
+    toggle.classList.toggle('placeholder', !value);
+    options.forEach(o => {
+      const isSelected = o.dataset.value === value;
+      o.classList.toggle('selected', isSelected);
+      o.setAttribute('aria-selected', String(isSelected));
+    });
+    dropdown.dataset.prevValue = value;
+  }
+
+  toggle.addEventListener('click', () => {
+    dropdown.classList.contains('open') ? closeMenu() : openMenu();
+  });
+  options.forEach(opt => {
+    opt.addEventListener('click', () => {
+      const value = opt.dataset.value;
+      // FIX: only ever auto-fill Title when it's blank or still exactly matches
+      // an earlier auto-filled prefix from one of this dropdown's own options —
+      // i.e. never overwrite text the person actually typed. Matters most in the
+      // edit modal, where Title starts out holding the item's real saved name.
+      const titleIsAutoFillable = title.value === '' || optionValues.some(v => title.value === v + ' - ');
+      if (!value) {
+        const oldPrefix = (dropdown.dataset.prevValue || '') + ' - ';
+        if (title.value === oldPrefix) title.value = '';
+      } else if (titleIsAutoFillable) {
         title.value = value + ' - ';
+      }
+      applyValue(value);
+      closeMenu();
+      if (value) {
         title.focus();
         const caret = title.value.length;
         title.setSelectionRange(caret, caret);
       }
-    }
-    select.dataset.prevValue = value;
+    });
+  });
+  // Close on an outside tap, a page scroll, or a resize (e.g. orientation
+  // change) so the panel never lingers open in a stale position.
+  document.addEventListener('click', e => {
+    if (dropdown.classList.contains('open') && !dropdown.contains(e.target)) closeMenu();
+  });
+  document.addEventListener('scroll', () => {
+    if (dropdown.classList.contains('open')) closeMenu();
+  }, true);
+  window.addEventListener('resize', () => {
+    if (dropdown.classList.contains('open')) closeMenu();
   });
   // Keep the dropdown's selection in sync if the person types/edits the
   // field manually instead of picking from the list.
   subject.addEventListener('input', () => {
     const match = optionValues.includes(subject.value) ? subject.value : '';
-    select.value = match;
-    select.dataset.prevValue = match;
+    applyValue(match);
   });
 }
 // Used when a subject field is populated programmatically (e.g. opening the
 // edit modal, or after a successful add clears the form) rather than by the
 // person typing, since setting .value in JS doesn't fire an 'input' event.
-function syncSubjectSelect(selectId, subjectInputId) {
-  const select = document.getElementById(selectId);
-  if (!select) return;
+function syncSubjectSelect(dropdownId, subjectInputId) {
+  const dropdown = document.getElementById(dropdownId);
+  if (!dropdown) return;
+  const toggle     = dropdown.querySelector('.subject-dropdown-toggle');
+  const toggleText = dropdown.querySelector('.subject-dropdown-toggle-text');
+  const options    = Array.from(dropdown.querySelectorAll('.subject-dropdown-option'));
   const val = document.getElementById(subjectInputId)?.value || '';
-  const match = Array.from(select.options).some(o => o.value === val) ? val : '';
-  select.value = match;
-  select.dataset.prevValue = match;
+  const match = options.some(o => o.dataset.value === val) ? val : '';
+  toggleText.textContent = match || 'Select a subject…';
+  toggle.classList.toggle('placeholder', !match);
+  options.forEach(o => {
+    const isSelected = o.dataset.value === match;
+    o.classList.toggle('selected', isSelected);
+    o.setAttribute('aria-selected', String(isSelected));
+  });
+  dropdown.dataset.prevValue = match;
+  dropdown.classList.remove('open');
+  toggle.setAttribute('aria-expanded', 'false');
 }
 function esc(s)        { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function updateTimestamp() { document.getElementById('sync-ts').textContent = 'Synced ' + new Date().toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit' }); }
