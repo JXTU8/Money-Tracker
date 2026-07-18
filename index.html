@@ -3244,7 +3244,7 @@ function renderHomework() {
         <button class="hw-check" data-hw-check="${h.id}" aria-label="${h.done ? 'Mark incomplete' : 'Mark complete'}">${h.done ? '✓' : ''}</button>
         <div class="hw-info">
           <div class="hw-title">${esc(h.title)}</div>
-          <div class="hw-meta${overdue ? ' hw-overdue' : ''}">${h.subject ? esc(h.subject) + ' · ' : ''}${overdue ? 'Overdue · ' : ''}${dueText}</div>
+          <div class="hw-meta${overdue ? ' hw-overdue' : ''}">${overdue ? 'Overdue · ' : ''}${dueText}</div>
         </div>
         <button class="hw-del" data-hw-del="${h.id}" aria-label="Delete ${esc(h.title)}">${BIN_SVG}</button>
       </div>
