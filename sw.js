@@ -1,4 +1,12 @@
-/* ─── Money Record — Service Worker v26 ──────────────────────────────
+/* ─── Money Record — Service Worker v27 ──────────────────────────────
+   Changes from v26:
+   ✅ Cache version bumped to v27 — index.html changed again (Homework's
+      Subject shortcut panel: scrolling the option list closed the panel
+      mid-touch because a document-level capture scroll listener meant to
+      close the panel on an outside/page scroll didn't exclude the panel's
+      OWN internal scroll, so the pending tap still landed as a selection
+      instead of a scroll; fixed) so the old v26 cache was still serving
+      the previous index.html cache-first.
    Changes from v25:
    ✅ Cache version bumped to v26 — index.html changed again (Homework's
       Subject shortcut dropdown is now a small custom-built panel instead
@@ -8,7 +16,7 @@
       index.html cache-first.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v26';
+const CACHE = 'money-app-v27';
 
 const STATIC_ASSETS = [
   '/',

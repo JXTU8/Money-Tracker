@@ -3720,8 +3720,14 @@ function wireSubjectSelect(dropdownId, subjectInputId, titleInputId) {
   document.addEventListener('click', e => {
     if (dropdown.classList.contains('open') && !dropdown.contains(e.target)) closeMenu();
   });
-  document.addEventListener('scroll', () => {
-    if (dropdown.classList.contains('open')) closeMenu();
+  document.addEventListener('scroll', e => {
+    // FIX: only close for a scroll OUTSIDE the menu (page/.sheet scrolling
+    // out from under it). Without the menu.contains(e.target) check, this
+    // capture-phase listener also caught the menu's OWN internal scroll —
+    // since scroll events fire during capture regardless of bubbling — so
+    // browsing the subject list closed the panel mid-touch, and the still-
+    // pending tap resolved as a selection instead of a scroll.
+    if (dropdown.classList.contains('open') && !menu.contains(e.target)) closeMenu();
   }, true);
   window.addEventListener('resize', () => {
     if (dropdown.classList.contains('open')) closeMenu();
