@@ -30,7 +30,7 @@
       index.html cache-first.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v29';
+const CACHE = 'money-app-v30';
 
 const STATIC_ASSETS = [
   '/',
