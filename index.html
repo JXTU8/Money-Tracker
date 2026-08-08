@@ -1191,6 +1191,7 @@ let editPhotoRemoved     = false; // true if user explicitly removed the existin
 let homework    = [];
 let hwFilter    = 'upcoming'; // FIX: 'nodate' and 'today' tabs removed and merged into 'upcoming' (see getVisibleHomework); dashboard now opens on "Upcoming" instead of "No due date"
 let hwEditingId = null;     // FEATURE: id of the homework item open in the edit modal
+let hwUpdatesInFlight = new Set();
 
 // FIX: Callback maps replace eval() in swipe-to-delete
 const txClickCallbacks  = {};
@@ -3150,7 +3151,17 @@ async function loadHomework() {
   try {
     const { data, error } = await db.from('homework').select('*').order('due_date', { ascending: true });
     if (error) throw error;
-    homework = data || [];
+    const fetched = data || [];
+    fetched.forEach(item => {
+      const itemIdStr = String(item.id);
+      if (hwUpdatesInFlight.has(itemIdStr)) {
+        const local = homework.find(x => String(x.id) === itemIdStr);
+        if (local) {
+          item.done = local.done;
+        }
+      }
+    });
+    homework = fetched;
     renderHomework();
   } catch (e) {
     if (navigator.onLine) showToast('Could not load homework: ' + (e?.message || 'Unknown'));
@@ -3293,12 +3304,16 @@ async function toggleHomeworkDone(id) {
   const done = !h.done;
   h.done = done; // optimistic
   renderHomework();
+  const idStr = String(h.id);
+  hwUpdatesInFlight.add(idStr);
   try {
-    const { error } = await db.from('homework').update({ done }).eq('id', id);
+    const { error } = await db.from('homework').update({ done }).eq('id', h.id);
     if (error) throw error;
   } catch (e) {
     h.done = !done; renderHomework();
     showToast('Could not update: ' + (e?.message || 'Unknown'));
+  } finally {
+    hwUpdatesInFlight.delete(idStr);
   }
 }
 function deleteHomework(id, onCancel) {
@@ -3306,9 +3321,11 @@ function deleteHomework(id, onCancel) {
     'This homework item will be removed.',
     async () => {
       if (!db) return;
-      const { error } = await db.from('homework').delete().eq('id', id);
+      const h = homework.find(x => String(x.id) === String(id));
+      if (!h) return;
+      const { error } = await db.from('homework').delete().eq('id', h.id);
       if (error) { showToast('Error: ' + error.message); return; }
-      homework = homework.filter(h => String(h.id) !== String(id));
+      homework = homework.filter(item => String(item.id) !== String(id));
       renderHomework();
       showToast('Homework removed');
     },
@@ -3347,6 +3364,8 @@ async function saveHwEdit() {
   const title = document.getElementById('hw-e-title').value.trim();
   if (!title) { showToast('Enter a homework title'); return; }
   if (!db) { showToast('Not connected'); return; }
+  const h = homework.find(x => String(x.id) === String(hwEditingId));
+  if (!h) return;
   const btn = document.getElementById('hw-e-save-btn');
   btn.disabled = true; btn.textContent = 'Updating…';
   try {
@@ -3355,7 +3374,7 @@ async function saveHwEdit() {
       subject: document.getElementById('hw-e-subject').value.trim() || null,
       due_date: document.getElementById('hw-e-due').value || null
     };
-    const { error } = await db.from('homework').update(updates).eq('id', hwEditingId);
+    const { error } = await db.from('homework').update(updates).eq('id', h.id);
     if (error) throw error;
     const idx = homework.findIndex(x => String(x.id) === String(hwEditingId));
     if (idx !== -1) homework[idx] = { ...homework[idx], ...updates };
