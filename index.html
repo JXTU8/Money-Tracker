@@ -508,6 +508,22 @@
       padding: 12px 14px; display: flex; align-items: flex-start; gap: 10px;
     }
     .hw-card.hw-done { opacity: .55; }
+    .hw-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--red);
+      color: white;
+      font-size: 10px;
+      font-weight: bold;
+      border-radius: 50%;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      margin-left: 4px;
+      vertical-align: middle;
+      line-height: 1;
+    }
     /* FEATURE: Apple-Notes-style circular checklist toggle — a plain ring that
        fills solid with a white check the instant it's tapped (toggling is
        already optimistic in JS, so this just gives it the right look/feel). */
@@ -915,7 +931,7 @@
   <!-- Tabs -->
   <div class="tab-bar" role="tablist">
     <button class="tab-btn active" id="tab-txs"      role="tab" aria-selected="true">🧾 Transactions</button>
-    <button class="tab-btn"        id="tab-homework" role="tab" aria-selected="false">📚 Homework</button>
+    <button class="tab-btn"        id="tab-homework" role="tab" aria-selected="false">📚 Homework<span id="hw-badge" class="hw-badge" style="display:none"></span></button>
     <button class="tab-btn"        id="tab-planning" role="tab" aria-selected="false">🗓️ Planning</button>
     <button class="tab-btn"        id="tab-charts"   role="tab" aria-selected="false">📊 Charts</button>
   </div>
@@ -1089,7 +1105,7 @@
   <!-- ── CHARTS PANEL ─────────────────────────────────── -->
   <div class="panel" id="panel-charts" role="tabpanel">
     <div class="chart-partial-notice" id="chart-partial-notice">
-      ⚠ Charts show only loaded transactions. Tap "↓ Load older" below for full history.
+      ⚠ Charts show only loaded transactions. <button id="chart-load-all-btn" style="background:var(--text);color:var(--card);border:none;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;margin-left:6px;font-family:inherit">Load full history</button>
     </div>
     <div class="chart-card"><h3>Expenses by category</h3><div class="chart-wrap" id="pie-wrap"><canvas id="pie-chart"></canvas></div></div>
     <div class="chart-card"><h3 id="bar-chart-heading">Monthly overview — last 6 months</h3><div class="chart-wrap"><canvas id="bar-chart"></canvas></div></div>
@@ -1489,6 +1505,15 @@ window.addEventListener('DOMContentLoaded', () => {
   ['txs','homework','planning','charts'].forEach(tab => {
     document.getElementById('tab-' + tab).addEventListener('click', () => switchTab(tab));
   });
+
+  const chartLoadAllBtn = document.getElementById('chart-load-all-btn');
+  if (chartLoadAllBtn) {
+    chartLoadAllBtn.addEventListener('click', async () => {
+      chartLoadAllBtn.disabled = true;
+      chartLoadAllBtn.textContent = 'Loading...';
+      await loadAllHistory();
+    });
+  }
 
   // ── Add form ─────────────────────────────────────────────
   document.getElementById('add-btn').addEventListener('click', toggleForm);
@@ -2781,14 +2806,29 @@ function renderPieChart() {
   });
 }
 function renderBarChart() {
-  const labels=[], incs=[], exps=[];
+  const labels=[], incs=[], exps=[], projs=[];
+  const now = new Date();
+  const currentY = now.getFullYear();
+  const currentM = now.getMonth();
+
   for (let i = 5; i >= 0; i--) {
     let m = viewMonth - i, y = viewYear;
     if (m < 0) { m += 12; y--; }
     labels.push(`${MSHORT[m]} ${y}`);
     const mT = allTxsWithPending().filter(t => { const d = new Date(t.date+'T00:00:00'); return d.getFullYear()===y && d.getMonth()===m; });
     incs.push(mT.filter(t=>t.type==='income').reduce((s,t)=>s+ +t.amount,0));
-    exps.push(mT.filter(t=>t.type==='expense').reduce((s,t)=>s+ +t.amount,0));
+    const exp = mT.filter(t=>t.type==='expense').reduce((s,t)=>s+ +t.amount,0);
+    exps.push(exp);
+
+    // Calculate projection if this is the current real-world month
+    let projRem = 0;
+    if (y === currentY && m === currentM && exp > 0) {
+      const dim = new Date(y, m + 1, 0).getDate();
+      const dp  = Math.max(1, now.getDate());
+      const projectedTotal = (exp / dp) * dim;
+      projRem = Math.max(0, projectedTotal - exp);
+    }
+    projs.push(projRem);
   }
   // FIX: see comment on the id="bar-chart-heading" element — spell out the
   // actual range instead of a static "last 6 months" claim.
@@ -2799,14 +2839,15 @@ function renderBarChart() {
   barChart = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets: [
-      { label: 'Income',   data: incs, backgroundColor: '#1D9E75', borderRadius: 4 },
-      { label: 'Expenses', data: exps, backgroundColor: '#E24B4A', borderRadius: 4 }
+      { label: 'Income',           data: incs,  backgroundColor: '#1D9E75', borderRadius: 4, stack: 'income' },
+      { label: 'Expenses',         data: exps,  backgroundColor: '#E24B4A', borderRadius: 4, stack: 'expense' },
+      { label: 'Projected Spend',  data: projs, backgroundColor: 'rgba(226,75,74,0.4)', borderRadius: 4, stack: 'expense' }
     ]},
     options: { responsive: true, maintainAspectRatio: false, plugins: {
       legend: { labels: { font: { size: 11 }, color: chartText() } }
     }, scales: {
-      x: { ticks: { font: { size: 10 }, color: chartText() }, grid: { color: chartGrid() } },
-      y: { ticks: { font: { size: 10 }, color: chartText(), callback: v => 'RM' + v }, grid: { color: chartGrid() } }
+      x: { ticks: { font: { size: 10 }, color: chartText() }, grid: { color: chartGrid() }, stacked: true },
+      y: { ticks: { font: { size: 10 }, color: chartText(), callback: v => 'RM' + v }, grid: { color: chartGrid() }, stacked: true }
     }}
   });
 }
@@ -3220,7 +3261,20 @@ function getVisibleHomework() {
   }
 }
 
+function updateHomeworkBadge() {
+  const badge = document.getElementById('hw-badge');
+  if (!badge) return;
+  const count = homework.filter(h => !h.done).length;
+  if (count > 0) {
+    badge.textContent = count;
+    badge.style.display = 'inline-flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
 function renderHomework() {
+  updateHomeworkBadge();
   const list = document.getElementById('hw-list');
   if (!list) return;
   const today = todayStr();
