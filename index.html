@@ -23,7 +23,7 @@
       --border: rgba(0,0,0,0.1); --radius: 12px;
     }
     [data-theme="dark"] {
-      --bg: #111318; --card: #1c1f28;
+      --bg: #0d1117; --card: #161b22;
       --text: #e8eaf0; --muted: #9ca3af;
       --border: rgba(255,255,255,0.1);
       --green-light: rgba(29,158,117,0.18);
@@ -307,8 +307,9 @@
     }
     .tx-wrapper.collapsing { animation: collapseRow 0.35s ease forwards; pointer-events:none; overflow:hidden; }
     @keyframes collapseRow { from{max-height:100px;opacity:1;margin-bottom:8px} to{max-height:0;opacity:0;margin-bottom:0} }
-    .tx-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 12px 14px; display: flex; align-items: center; gap: 10px; position: relative; cursor: pointer; touch-action: pan-y; will-change: transform; transition: border-color .15s; width: 100%; box-sizing: border-box; }
+    .tx-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 12px 14px; display: flex; align-items: center; gap: 10px; position: relative; cursor: pointer; touch-action: pan-y; will-change: transform; transition: border-color .15s, box-shadow .15s, transform .1s; width: 100%; box-sizing: border-box; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     .tx-card:hover { border-color: rgba(0,0,0,.2); }
+    .tx-card:active { transform: scale(0.98); }
     [data-theme="dark"] .tx-card:hover { border-color: rgba(255,255,255,.2); }
     .tx-card.is-pending { opacity: .8; }
     .tx-icon { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; flex-shrink: 0; }
@@ -616,8 +617,9 @@
     .due-chip.active { background: var(--blue); border-color: var(--blue); color: white; }
 
     /* ─── HOMEWORK CARD — now tappable to edit (matches .tx-card treatment) ── */
-    .hw-card { cursor: pointer; position: relative; touch-action: pan-y; will-change: transform; transition: opacity .2s, border-color .15s; }
+    .hw-card { cursor: pointer; position: relative; touch-action: pan-y; will-change: transform; transition: opacity .2s, border-color .15s, box-shadow .15s, transform .1s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     .hw-card:hover { border-color: rgba(0,0,0,.2); }
+    .hw-card:active { transform: scale(0.98); }
     [data-theme="dark"] .hw-card:hover { border-color: rgba(255,255,255,.2); }
 
     /* ─── RECEIPT PHOTO — enlarge on tap + broken-link fallback ──────────── */
@@ -930,14 +932,14 @@
 
   <!-- Tabs -->
   <div class="tab-bar" role="tablist">
-    <button class="tab-btn active" id="tab-txs"      role="tab" aria-selected="true">🧾 Transactions</button>
-    <button class="tab-btn"        id="tab-homework" role="tab" aria-selected="false">📚 Homework<span id="hw-badge" class="hw-badge" style="display:none"></span></button>
-    <button class="tab-btn"        id="tab-planning" role="tab" aria-selected="false">🗓️ Planning</button>
-    <button class="tab-btn"        id="tab-charts"   role="tab" aria-selected="false">📊 Charts</button>
+    <button class="tab-btn active" id="tab-txs"      role="tab" aria-selected="true" aria-controls="panel-txs">🧾 Transactions</button>
+    <button class="tab-btn"        id="tab-homework" role="tab" aria-selected="false" aria-controls="panel-homework">📚 Homework<span id="hw-badge" class="hw-badge" style="display:none"></span></button>
+    <button class="tab-btn"        id="tab-planning" role="tab" aria-selected="false" aria-controls="panel-planning">🗓️ Planning</button>
+    <button class="tab-btn"        id="tab-charts"   role="tab" aria-selected="false" aria-controls="panel-charts">📊 Charts</button>
   </div>
 
   <!-- ── TRANSACTIONS PANEL ──────────────────────────── -->
-  <div class="panel open" id="panel-txs" role="tabpanel">
+  <div class="panel open" id="panel-txs" role="tabpanel" aria-labelledby="tab-txs">
     <button class="add-btn" id="add-btn">
       <span id="add-icon">＋</span><span id="add-text">Add Transaction</span>
     </button>
@@ -1023,7 +1025,7 @@
   </div>
 
   <!-- ── HOMEWORK PANEL (positioned beside Transactions in the tab bar) ── -->
-  <div class="panel" id="panel-homework" role="tabpanel">
+  <div class="panel" id="panel-homework" role="tabpanel" aria-labelledby="tab-homework">
     <div class="form-card open">
       <h3>Add homework</h3>
       <div class="form-group"><label for="hw-title">Title</label><input type="text" id="hw-title" placeholder="e.g. Math worksheet ch.4" /></div>
@@ -1077,7 +1079,7 @@
   </div>
 
   <!-- ── PLANNING PANEL ───────────────────────────────────── -->
-  <div class="panel" id="panel-planning" role="tabpanel">
+  <div class="panel" id="panel-planning" role="tabpanel" aria-labelledby="tab-planning">
     <div class="month-nav">
       <button class="mnav-btn" id="plan-prev-btn" aria-label="Previous day">‹</button>
       <div class="mnav-center">
@@ -1103,7 +1105,7 @@
   </div>
 
   <!-- ── CHARTS PANEL ─────────────────────────────────── -->
-  <div class="panel" id="panel-charts" role="tabpanel">
+  <div class="panel" id="panel-charts" role="tabpanel" aria-labelledby="tab-charts">
     <div class="chart-partial-notice" id="chart-partial-notice">
       ⚠ Charts show only loaded transactions. <button id="chart-load-all-btn" style="background:var(--text);color:var(--card);border:none;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;margin-left:6px;font-family:inherit">Load full history</button>
     </div>
@@ -1258,10 +1260,15 @@ function updatePendingUI() {
   }
 }
 
+let _isSyncing = false;
 async function syncQueue() {
+  if (_isSyncing) return 0;
   const queue = getQueue();
   if (!queue.length || !navigator.onLine || !db) return 0;
-  showSyncBanner(true);
+
+  _isSyncing = true;
+  try {
+    showSyncBanner(true);
   let synced = 0, failed = 0;
   for (const item of [...queue]) {
     try {
@@ -1277,7 +1284,10 @@ async function syncQueue() {
     await loadTransactions();
   }
   if (failed > 0) showToast(`⚠ ${failed} transaction${failed>1?'s':''} couldn't sync — will retry`);
-  return synced;
+    return synced;
+  } finally {
+    _isSyncing = false;
+  }
 }
 
 async function manualSync() {
@@ -1475,6 +1485,8 @@ window.addEventListener('DOMContentLoaded', () => {
   buildCategorySelects();
   updatePendingUI();
   updateOfflineBanner();
+  setupSwipeDelegation('tx-list', 'tx-wrapper', 'tx-card', 'tx-swipe-bg', txDeleteCallbacks);
+  setupSwipeDelegation('hw-list', 'hw-wrapper', 'hw-card', 'hw-swipe-bg', hwDeleteCallbacks);
   document.getElementById('f-date').value = todayStr();
   document.getElementById('plan-date-input').value = planningDate;
   document.getElementById('plan-date-label').textContent = formatPlanDateLabel(planningDate);
@@ -1625,7 +1637,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // ── Setup overlay ────────────────────────────────────────
   document.getElementById('setup-save-btn').addEventListener('click', saveCredentials);
-  ['edit-backdrop','settings-backdrop','confirm-backdrop'].forEach(makeFocusTrap);
+  ['edit-backdrop','settings-backdrop','confirm-backdrop', 'hw-edit-backdrop', 'photo-lightbox-backdrop', 'setup-overlay'].forEach(makeFocusTrap);
 
   // ── CSV import ───────────────────────────────────────────
   document.getElementById('csv-import-btn').addEventListener('click', () => {
@@ -2546,7 +2558,6 @@ function renderList() {
     if (delBtn && txDeleteCallbacks[t.id]) delBtn.addEventListener('click', e => { e.stopPropagation(); txDeleteCallbacks[t.id](); });
     // FEATURE: tap the receipt badge to enlarge the photo right from the list
     if (photoBtn) photoBtn.addEventListener('click', e => { e.stopPropagation(); openPhotoLightbox(t.photo_url); });
-    attachSwipe(t.id);
   });
   announceToSR(visible.length + ' transaction' + (visible.length !== 1 ? 's' : '') + ' shown');
 
@@ -2569,55 +2580,65 @@ function appendLoadMoreButton(list) {
 }
 
 
-/* ─── SWIPE TO DELETE — FIX: no eval() ───────────────────── */
-function attachSwipe(id) {
-  const card    = document.getElementById('card-' + id);
-  const wrapper = document.getElementById('wrap-' + id);
-  const bg      = document.getElementById('bg-'   + id);
-  if (!card || !wrapper || !bg) return;
+/* ─── SWIPE TO DELETE — EVENT DELEGATION ─────────────────── */
+function setupSwipeDelegation(listId, wrapperClass, cardClass, bgClass, callbacksMap) {
+  const container = document.getElementById(listId);
+  if (!container) return;
 
+  let activeCard = null, activeBg = null, activeId = null;
   let startX=0, startY=0, curX=0, swiping=false, intentSet=false, isHoriz=false, confirming=false;
   const SOFT = 88;
   const HARD = 200;
 
   function snapBack() {
     confirming = false;
-    if (!card.isConnected) return;
-    card.style.transition = 'transform 0.2s ease';
-    card.style.transform  = '';
-    bg.style.opacity      = '0';
-    bg.classList.remove('hard-swipe', 'exploding');
-    const binIcon = bg.querySelector('.bin-icon');
-    if (binIcon) binIcon.style.transform = '';
+    if (!activeCard || !activeCard.isConnected) return;
+    activeCard.style.transition = 'transform 0.2s ease';
+    activeCard.style.transform  = '';
+    if (activeBg) {
+      activeBg.style.opacity      = '0';
+      activeBg.classList.remove('hard-swipe', 'exploding');
+      const binIcon = activeBg.querySelector('.bin-icon');
+      if (binIcon) binIcon.style.transform = '';
+    }
+    activeCard = null; activeBg = null; activeId = null;
   }
 
-  // FIX: this used to slide the card off-screen and collapse the row
-  // *before* the delete confirmation even opened — cancelling then left a
-  // gone-looking row in the list even though nothing was actually deleted.
-  // Now the swipe just holds the card out and opens the same confirm
-  // dialog used by the trash icon / revealed background; the row is only
-  // removed once the delete is actually confirmed (via the normal
-  // re-render), and snaps back to place on cancel.
   function triggerDelete() {
-    if (confirming) return;
+    if (confirming || !activeCard || !activeBg || !activeId) return;
     confirming = true;
-    card.style.transition = 'transform 0.18s ease';
-    card.style.transform  = `translateX(-${HARD}px)`;
-    bg.classList.add('hard-swipe', 'exploding');
-    const action = txDeleteCallbacks[id];
+    activeCard.style.transition = 'transform 0.18s ease';
+    activeCard.style.transform  = `translateX(-${HARD}px)`;
+    activeBg.classList.add('hard-swipe', 'exploding');
+    const action = callbacksMap[activeId];
     if (action) action(snapBack); else snapBack();
   }
 
-  card.addEventListener('touchstart', e => {
+  container.addEventListener('touchstart', e => {
     if (confirming) return;
-    startX=e.touches[0].clientX; startY=e.touches[0].clientY;
-    curX=0; swiping=true; intentSet=false; isHoriz=false;
-    card.style.transition = 'none';
-    bg.classList.remove('hard-swipe');
+    const targetCard = e.target.closest('.' + cardClass);
+    if (!targetCard) return;
+
+    // Extract ID safely (supports card-123 and hw-card-123)
+    const targetIdStr = targetCard.id.replace(/^(card|hw-card)-/, '');
+    if (!targetIdStr) return;
+
+    activeId = targetIdStr;
+    activeCard = targetCard;
+    // Assuming wrapper is parentNode based on layout
+    const wrapper = targetCard.parentNode;
+    if (!wrapper || !wrapper.classList.contains(wrapperClass)) return;
+    activeBg = wrapper.querySelector('.' + bgClass);
+    if (!activeBg) return;
+
+    startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+    curX = 0; swiping = true; intentSet = false; isHoriz = false;
+    activeCard.style.transition = 'none';
+    activeBg.classList.remove('hard-swipe');
   }, { passive: true });
 
-  card.addEventListener('touchmove', e => {
-    if (!swiping || confirming) return;
+  container.addEventListener('touchmove', e => {
+    if (!swiping || confirming || !activeCard || !activeBg) return;
     const dx = e.touches[0].clientX - startX;
     const dy = e.touches[0].clientY - startY;
     if (!intentSet && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
@@ -2628,134 +2649,44 @@ function attachSwipe(id) {
     e.preventDefault();
     curX = Math.min(0, dx);
     const clamped = Math.max(-HARD - 20, curX);
-    card.style.transform = `translateX(${clamped}px)`;
+    activeCard.style.transform = `translateX(${clamped}px)`;
     const progress = Math.min(1, Math.abs(curX) / SOFT);
-    bg.style.opacity = String(Math.min(1, progress * 1.4));
-    const binIcon = bg.querySelector('.bin-icon');
+    activeBg.style.opacity = String(Math.min(1, progress * 1.4));
+    const binIcon = activeBg.querySelector('.bin-icon');
     if (binIcon) binIcon.style.transform = `scale(${1 + Math.min(1, Math.abs(curX) / HARD) * 0.6})`;
-    bg.classList.toggle('hard-swipe', Math.abs(curX) > SOFT);
+    activeBg.classList.toggle('hard-swipe', Math.abs(curX) > SOFT);
   }, { passive: false });
 
-  card.addEventListener('touchend', () => {
-    if (!swiping || confirming) return;
+  container.addEventListener('touchend', () => {
+    if (!swiping || confirming || !activeCard || !activeBg) return;
     swiping = false;
     if (curX < -HARD) {
       triggerDelete();
     } else if (curX < -SOFT) {
-      card.style.transition = 'transform 0.2s ease';
-      card.style.transform  = `translateX(-${SOFT}px)`;
-      bg.classList.add('hard-swipe');
+      activeCard.style.transition = 'transform 0.2s ease';
+      activeCard.style.transform  = `translateX(-${SOFT}px)`;
+      activeBg.classList.add('hard-swipe');
+      const snapCard = activeCard;
+      const snapBg = activeBg;
       setTimeout(() => {
-        if (!confirming && card.isConnected) {
-          card.style.transition = 'transform 0.25s ease';
-          card.style.transform  = '';
-          bg.style.opacity      = '0';
-          bg.classList.remove('hard-swipe');
-          const binIcon = bg.querySelector('.bin-icon');
+        if (!confirming && snapCard.isConnected) {
+          snapCard.style.transition = 'transform 0.25s ease';
+          snapCard.style.transform  = '';
+          snapBg.style.opacity      = '0';
+          snapBg.classList.remove('hard-swipe');
+          const binIcon = snapBg.querySelector('.bin-icon');
           if (binIcon) binIcon.style.transform = '';
         }
       }, 3000);
+      activeCard = null; activeBg = null; activeId = null;
     } else {
-      card.style.transition = 'transform 0.2s ease';
-      card.style.transform  = '';
-      bg.style.opacity      = '0';
-      bg.classList.remove('hard-swipe');
-      const binIcon = bg.querySelector('.bin-icon');
+      activeCard.style.transition = 'transform 0.2s ease';
+      activeCard.style.transform  = '';
+      activeBg.style.opacity      = '0';
+      activeBg.classList.remove('hard-swipe');
+      const binIcon = activeBg.querySelector('.bin-icon');
       if (binIcon) binIcon.style.transform = '';
-    }
-  });
-}
-
-/* ─── SWIPE TO DELETE (HOMEWORK) — mirrors attachSwipe() exactly ──
-   Same thresholds, timings and animation as the transaction list;
-   only the element-id prefixes and callback map differ, so homework
-   ids never collide with transaction ids. */
-function attachHwSwipe(id) {
-  const card    = document.getElementById('hw-card-' + id);
-  const wrapper = document.getElementById('hw-wrap-' + id);
-  const bg      = document.getElementById('hw-bg-'   + id);
-  if (!card || !wrapper || !bg) return;
-
-  let startX=0, startY=0, curX=0, swiping=false, intentSet=false, isHoriz=false, confirming=false;
-  const SOFT = 88;
-  const HARD = 200;
-
-  function snapBack() {
-    confirming = false;
-    if (!card.isConnected) return;
-    card.style.transition = 'transform 0.2s ease';
-    card.style.transform  = '';
-    bg.style.opacity      = '0';
-    bg.classList.remove('hard-swipe', 'exploding');
-    const binIcon = bg.querySelector('.bin-icon');
-    if (binIcon) binIcon.style.transform = '';
-  }
-
-  // FIX: see attachSwipe() — same premature-collapse-before-confirmation bug.
-  function triggerDelete() {
-    if (confirming) return;
-    confirming = true;
-    card.style.transition = 'transform 0.18s ease';
-    card.style.transform  = `translateX(-${HARD}px)`;
-    bg.classList.add('hard-swipe', 'exploding');
-    const action = hwDeleteCallbacks[id];
-    if (action) action(snapBack); else snapBack();
-  }
-
-  card.addEventListener('touchstart', e => {
-    if (confirming) return;
-    startX=e.touches[0].clientX; startY=e.touches[0].clientY;
-    curX=0; swiping=true; intentSet=false; isHoriz=false;
-    card.style.transition = 'none';
-    bg.classList.remove('hard-swipe');
-  }, { passive: true });
-
-  card.addEventListener('touchmove', e => {
-    if (!swiping || confirming) return;
-    const dx = e.touches[0].clientX - startX;
-    const dy = e.touches[0].clientY - startY;
-    if (!intentSet && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
-      intentSet = true;
-      isHoriz   = Math.abs(dx) > Math.abs(dy);
-    }
-    if (!isHoriz) return;
-    e.preventDefault();
-    curX = Math.min(0, dx);
-    const clamped = Math.max(-HARD - 20, curX);
-    card.style.transform = `translateX(${clamped}px)`;
-    const progress = Math.min(1, Math.abs(curX) / SOFT);
-    bg.style.opacity = String(Math.min(1, progress * 1.4));
-    const binIcon = bg.querySelector('.bin-icon');
-    if (binIcon) binIcon.style.transform = `scale(${1 + Math.min(1, Math.abs(curX) / HARD) * 0.6})`;
-    bg.classList.toggle('hard-swipe', Math.abs(curX) > SOFT);
-  }, { passive: false });
-
-  card.addEventListener('touchend', () => {
-    if (!swiping || confirming) return;
-    swiping = false;
-    if (curX < -HARD) {
-      triggerDelete();
-    } else if (curX < -SOFT) {
-      card.style.transition = 'transform 0.2s ease';
-      card.style.transform  = `translateX(-${SOFT}px)`;
-      bg.classList.add('hard-swipe');
-      setTimeout(() => {
-        if (!confirming && card.isConnected) {
-          card.style.transition = 'transform 0.25s ease';
-          card.style.transform  = '';
-          bg.style.opacity      = '0';
-          bg.classList.remove('hard-swipe');
-          const binIcon = bg.querySelector('.bin-icon');
-          if (binIcon) binIcon.style.transform = '';
-        }
-      }, 3000);
-    } else {
-      card.style.transition = 'transform 0.2s ease';
-      card.style.transform  = '';
-      bg.style.opacity      = '0';
-      bg.classList.remove('hard-swipe');
-      const binIcon = bg.querySelector('.bin-icon');
-      if (binIcon) binIcon.style.transform = '';
+      activeCard = null; activeBg = null; activeId = null;
     }
   });
 }
@@ -3320,7 +3251,6 @@ function renderHomework() {
   items.forEach(h => {
     const bg = document.getElementById('hw-bg-' + h.id);
     if (bg) bg.addEventListener('click', () => hwDeleteCallbacks[h.id]());
-    attachHwSwipe(h.id);
   });
 }
 async function addHomework() {

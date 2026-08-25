@@ -92,21 +92,29 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
 
   if (isCacheable(e.request)) {
-    /* Cache-first: serve instantly from cache; update cache in background */
+    /* Cache-first: serve instantly from cache; update cache in background (stale-while-revalidate) */
     e.respondWith(
       caches.match(e.request).then(cached => {
-        if (cached) return cached;
-        return fetch(e.request).then(res => {
+        const fetchPromise = fetch(e.request).then(res => {
           const clone = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, clone));
           return res;
         });
+        if (cached) {
+          e.waitUntil(fetchPromise);
+          return cached;
+        }
+        return fetchPromise;
       })
     );
   } else {
     /* Network-first: for Supabase API calls and everything else */
     e.respondWith(
-      fetch(e.request).catch(() => caches.match(e.request))
+      fetch(e.request).then(res => {
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+        return res;
+      }).catch(() => caches.match(e.request))
     );
   }
 });
