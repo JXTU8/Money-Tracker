@@ -3278,6 +3278,7 @@ async function addHomework() {
     document.getElementById('hw-due').value = '';
     syncDueChipHighlight();
     renderHomework();
+    updateHomeworkCache();
     showToast('✓ Homework added');
   } catch (e) { showToast('Error: ' + (e?.message || 'Unknown')); }
   finally { btn.disabled = false; btn.textContent = '＋ Add homework'; }
@@ -3293,6 +3294,7 @@ async function toggleHomeworkDone(id) {
   try {
     const { error } = await db.from('homework').update({ done }).eq('id', h.id);
     if (error) throw error;
+    updateHomeworkCache();
   } catch (e) {
     h.done = !done; renderHomework();
     showToast('Could not update: ' + (e?.message || 'Unknown'));
@@ -3311,6 +3313,7 @@ function deleteHomework(id, onCancel) {
       if (error) { showToast('Error: ' + error.message); return; }
       homework = homework.filter(item => String(item.id) !== String(id));
       renderHomework();
+      updateHomeworkCache();
       showToast('Homework removed');
     },
     { title: 'Delete homework?', confirmText: 'Delete', icon: BIN_SVG_RED, danger: true, onCancel }
@@ -3363,10 +3366,34 @@ async function saveHwEdit() {
     const idx = homework.findIndex(x => String(x.id) === String(hwEditingId));
     if (idx !== -1) homework[idx] = { ...homework[idx], ...updates };
     renderHomework();
+    updateHomeworkCache();
     closeHwEditModal();
     showToast('✓ Homework updated');
   } catch (e) { showToast('Error: ' + (e?.message || 'Unknown')); }
   finally { btn.disabled = false; btn.textContent = 'Update'; }
+}
+
+/* ─── CACHE UPDATE ────────────────────────────────────────── */
+async function updateHomeworkCache() {
+  if (!window.caches) return;
+  try {
+    const cacheNames = await caches.keys();
+    for (const cacheName of cacheNames) {
+      const cache = await caches.open(cacheName);
+      const reqs = await cache.keys();
+      for (const req of reqs) {
+        if (req.url.includes('/rest/v1/homework')) {
+          const res = new Response(JSON.stringify(homework), {
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache'
+            }
+          });
+          await cache.put(req, res);
+        }
+      }
+    }
+  } catch (e) {}
 }
 
 /* ─── CSV EXPORT ──────────────────────────────────────────── */
