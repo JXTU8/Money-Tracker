@@ -1,4 +1,8 @@
-/* ─── Money Record — Service Worker v29 ──────────────────────────────
+/* ─── Money Record — Service Worker v32 ──────────────────────────────
+   Changes from v31:
+   ✅ Cache version bumped to v32 — index.html changed again (Update cache
+      manually via window.caches for homework mutations to solve stale
+      cache on reload).
    Changes from v28:
    ✅ Cache version bumped to v29 — index.html changed again (Homework
       list row: dropped the subject from the meta line — it now shows
@@ -30,7 +34,7 @@
       index.html cache-first.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v30';
+const CACHE = 'money-app-v32';
 
 const STATIC_ASSETS = [
   '/',
