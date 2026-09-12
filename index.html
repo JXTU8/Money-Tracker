@@ -2146,6 +2146,7 @@ async function loadTransactions(append = false, skipRecurring = false) {
     } else {
       allTxs = batch;
     }
+    sortTransactions(allTxs);
     txOffset = allTxs.length;
 
     renderAll();
@@ -2316,6 +2317,18 @@ function renderPlanningList() {
 }
 
 /* ─── DATE GROUPING HELPERS ─────────────────────────────── */
+function sortTransactions(txs) {
+  if (!Array.isArray(txs)) return txs;
+  return txs.sort((a, b) => {
+    const da = a.date || '';
+    const db = b.date || '';
+    if (da !== db) return db.localeCompare(da);
+    const ca = a.created_at || a.createdLocal || String(a.id || a.tempId || '');
+    const cb = b.created_at || b.createdLocal || String(b.id || b.tempId || '');
+    return cb.localeCompare(ca);
+  });
+}
+
 let _groupDateKey = '', _groupDateResult = [];
 function groupByDate(txs) {
   // FIX: the key used to be built from ids alone, so editing a transaction
@@ -2336,6 +2349,7 @@ function groupByDate(txs) {
     if (!groups[k]) { groups[k] = []; order.push(k); }
     groups[k].push(t);
   });
+  order.sort((a, b) => b.localeCompare(a));
   _groupDateResult = order.map(k => ({ date: k, txs: groups[k] }));
   return _groupDateResult;
 }
@@ -2390,7 +2404,9 @@ async function duplicateTransaction() {
     try {
       const { data, error } = await db.from('transactions').insert([payload]).select();
       if (error) throw error;
-      allTxs.unshift(data[0]); renderAll();
+      allTxs.unshift(data[0]);
+      sortTransactions(allTxs);
+      renderAll();
       showToast('✓ Transaction duplicated');
     } catch (err) { showToast('Error: ' + (err?.message || 'Unknown')); }
   }
@@ -2401,7 +2417,7 @@ let _renderTimer;
 function renderAll() {
   clearTimeout(_renderTimer);
   _renderTimer = setTimeout(() => {
-    _mergedTxs = [...pendingAsTxs(), ...allTxs]; // compute once per batch
+    _mergedTxs = sortTransactions([...pendingAsTxs(), ...allTxs]); // compute & sort once per batch
     updateSummary();
     renderList();
     const _activeTab = document.querySelector('.tab-btn.active')?.id?.replace('tab-','');
@@ -2914,6 +2930,7 @@ async function saveTransaction() {
     const { data, error } = await db.from('transactions').insert([payload]).select();
     if (error) throw error;
     allTxs.unshift(data[0]);
+    sortTransactions(allTxs);
     renderAll(); toggleForm();
     showToast(currentType==='income' ? '✓ Income added!' : '✓ Expense added!');
   } catch (e) {
@@ -3009,6 +3026,7 @@ async function saveEdit() {
     if (error) throw error;
     const idx = allTxs.findIndex(t => t.id === editingId);
     if (idx !== -1) allTxs[idx] = { ...allTxs[idx], ...updates };
+    sortTransactions(allTxs);
     renderAll(); closeEditModal(); showToast('✓ Transaction updated');
   } catch (e) { showToast('Error: ' + (e?.message || 'Unknown')); }
   finally { btn.disabled = false; btn.textContent = 'Update'; }
@@ -3084,10 +3102,7 @@ function undoDelete() {
   _undoPendingDelete = null;
   clearTimeout(toastTimer);
   allTxs.push(tx);
-  allTxs.sort((a,b) => {
-    const dd = (b.date||'').localeCompare(a.date||'');
-    return dd !== 0 ? dd : (b.created_at||'').localeCompare(a.created_at||'');
-  });
+  sortTransactions(allTxs);
   renderAll();
   document.getElementById('toast').classList.remove('show');
   showToast('↩ Delete undone');
@@ -3166,29 +3181,25 @@ function hwCreatedAtMs(h) {
 // FIX: centralizes filter + sort logic per tab (previously only a filter,
 // with sorting left to whatever order the initial query happened to return
 // and a fragile in-place sort in addHomework() — see below).
+function sortHomeworkItems(list) {
+  return list.slice().sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    if (!a.due_date && !b.due_date) return hwCreatedAtMs(a) - hwCreatedAtMs(b);
+    if (!a.due_date) return 1;
+    if (!b.due_date) return -1;
+    if (a.due_date !== b.due_date) return a.due_date < b.due_date ? -1 : 1;
+    return hwCreatedAtMs(a) - hwCreatedAtMs(b);
+  });
+}
+
 function getVisibleHomework() {
   switch (hwFilter) {
     case 'upcoming':
-      // FIX: 'nodate' and 'today' tabs removed and folded into 'upcoming',
-      // which now covers every not-done item regardless of due-date status
-      // — including overdue, which previously matched neither 'today' nor
-      // 'upcoming' (due_date > today) and so only ever showed under 'all'.
-      // Sort rule: dated items chronologically ascending — this alone
-      // naturally puts overdue first, then today, then future — then
-      // undated items are appended after, sorted by creation date same as
-      // the old 'nodate' tab.
-      return homework.filter(h => !h.done)
-                      .slice()
-                      .sort((a, b) => {
-                        if (!a.due_date && !b.due_date) return hwCreatedAtMs(a) - hwCreatedAtMs(b);
-                        if (!a.due_date) return 1;
-                        if (!b.due_date) return -1;
-                        return a.due_date < b.due_date ? -1 : a.due_date > b.due_date ? 1 : 0;
-                      });
+      return sortHomeworkItems(homework.filter(h => !h.done));
     case 'done':
-      return homework.filter(h => h.done);
+      return sortHomeworkItems(homework.filter(h => h.done));
     default:
-      return homework.slice(); // 'all' — everything, unfiltered
+      return sortHomeworkItems(homework);
   }
 }
 

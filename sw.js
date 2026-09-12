@@ -1,11 +1,9 @@
-/* ─── Money Record — Service Worker v29 ──────────────────────────────
-   Changes from v28:
-   ✅ Cache version bumped to v29 — index.html changed again (Homework
-      list row: dropped the subject from the meta line — it now shows
-      only the due-date info, i.e. "Overdue · Due ..." / "Due ..." /
-      "No due date" — subject is still set via the add/edit form, just
-      no longer shown in the row itself) so the old v28 cache was still
-      serving the previous index.html cache-first.
+/* ─── Money Record — Service Worker v30 ──────────────────────────────
+   Changes from v29:
+   ✅ Cache version bumped to v31 — index.html changed to fix sorting bug
+      where newly added or edited transactions were placed out of order (e.g.
+      yesterday's date header placed above today's) and to ensure consistent
+      sorting across transaction and homework lists.
    Changes from v27:
    ✅ Cache version bumped to v28 — index.html changed again (Homework
       filter tabs: "No due date" and "Today" removed and merged into
@@ -30,7 +28,7 @@
       index.html cache-first.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v30';
+const CACHE = 'money-app-v31';
 
 const STATIC_ASSETS = [
   '/',
