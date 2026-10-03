@@ -1,4 +1,4 @@
-/* ─── Money Record — Service Worker v30 ──────────────────────────────
+/* ─── Money Record — Service Worker v32 ──────────────────────────────
    Changes from v29:
    ✅ Cache version bumped to v31 — index.html changed to fix sorting bug
       where newly added or edited transactions were placed out of order (e.g.
@@ -28,7 +28,7 @@
       index.html cache-first.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v31';
+const CACHE = 'money-app-v32';
 
 const STATIC_ASSETS = [
   '/',
