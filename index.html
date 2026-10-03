@@ -1538,6 +1538,15 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // ── Add form ─────────────────────────────────────────────
   document.getElementById('add-btn').addEventListener('click', toggleForm);
+  // Description keywords can select a sensible category, without replacing a
+  // category that the person has deliberately picked themselves.
+  wireDescriptionCategory('f-desc', 'f-category', () => currentType);
+  wireDescriptionCategory('e-desc', 'e-category', () => editType);
+  ['f-category', 'e-category'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => {
+      delete document.getElementById(id).dataset.autoCategory;
+    });
+  });
   ['f-amount','e-amount'].forEach(id => {
     const _amtEl = document.getElementById(id);
     if (_amtEl) _amtEl.addEventListener('input', () => {
@@ -2870,6 +2879,7 @@ function toggleRecOpts(on) { document.getElementById('freq-wrap').classList.togg
 function clearForm() {
   ['f-desc','f-amount'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('f-category').value = '';
+  delete document.getElementById('f-category').dataset.autoCategory;
   document.getElementById('f-date').value = todayStr();
   document.getElementById('f-recurring').checked = false;
   document.getElementById('freq-wrap').classList.remove('show');
@@ -2896,6 +2906,31 @@ function buildCategorySelect(id, type, extraValue) {
 function buildCategorySelects() {
   buildCategorySelect('f-category', currentType);
   buildCategorySelect('e-category', editType);
+}
+
+/* ─── SMART CATEGORY SUGGESTIONS ─────────────────────────── */
+const FOOD_AND_DRINK_KEYWORDS = [
+  'food', 'drink', 'makan', 'makanan', 'minum', 'teh', 'tea', 'kopi', 'coffee',
+  'nasi', 'mee', 'mi', 'maggi', 'roti', 'kuih', 'cafe', 'restaurant', 'kedai',
+  'tapau', 'breakfast', 'lunch', 'dinner', 'burger', 'pizza', 'ayam', 'chicken'
+];
+function foodAndDrinkDetected(description) {
+  const words = String(description || '').toLowerCase().match(/[a-z]+/g) || [];
+  return words.some(word => FOOD_AND_DRINK_KEYWORDS.includes(word));
+}
+function wireDescriptionCategory(descriptionId, categoryId, getType) {
+  const description = document.getElementById(descriptionId);
+  const category = document.getElementById(categoryId);
+  description.addEventListener('input', () => {
+    if (getType() !== 'expense' || !foodAndDrinkDetected(description.value)) return;
+    // A manual category remains authoritative; only blank or earlier automatic
+    // choices may be updated as the description changes.
+    if (category.value && category.dataset.autoCategory !== 'true') return;
+    if ([...category.options].some(option => option.value === 'Food & Drinks')) {
+      category.value = 'Food & Drinks';
+      category.dataset.autoCategory = 'true';
+    }
+  });
 }
 
 /* ─── SAVE TRANSACTION ────────────────────────────────────── */
@@ -2982,6 +3017,7 @@ function openEditModal(id) {
   document.getElementById('e-desc').value     = t.description || '';
   document.getElementById('e-date').value     = t.date;
   document.getElementById('e-category').value = t.category || '';
+  delete document.getElementById('e-category').dataset.autoCategory;
   // FIX: photo state — show existing receipt photo if present. Also resets
   // the broken-photo message and the <img>'s own display style every time,
   // so if the previous transaction's photo had failed to load, that state
