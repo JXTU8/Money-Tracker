@@ -1,29 +1,24 @@
-/* ─── Money Record — Service Worker v40 ──────────────────────────────
-   v40 changes
-   ✅ Cache bump: index.html gained the Hush theme and per-theme chart
-      palettes. Without this bump the cache-first shell keeps serving the
-      old purple doughnut and a theme dropdown with no Hush option.
-   v39 changes
-   ✅ All asset URLs are resolved against the registration scope instead of
-      hard-coded "/" — the app now installs correctly when served from a
-      sub-path (GitHub Pages, /money-tracker/, etc.) instead of failing
-      install because /index.html does not exist there.
-   ✅ countdown.html is precached so the secondary page works offline.
-   ✅ CDN scripts are pinned to exact versions; only cdn.jsdelivr.net is
-      treated as a CDN (the old `url.includes('jsdelivr.net')` matched any
-      URL containing that string).
-   ✅ Only successful basic/CORS responses are cached — no 4xx/5xx, no
-      opaque responses, no partial 206 content.
-   ✅ Background revalidation failures are swallowed; the old code left a
-      rejected promise inside waitUntil whenever the network dropped.
-   ✅ Navigation requests fall back to the cached app shell when offline.
-   ✅ SKIP_WAITING message support, so "Refresh now" actually activates the
-      waiting worker instead of reloading onto the old one.
-   ✅ Removes the stale v29–v38 changelog; the file now documents behaviour,
-      not a running log of past cache bumps.
+/* ─── Money Record — Service Worker v41 ──────────────────────────────
+   v41 changes — fixes "I changed the theme but my phone still shows purple"
+   ✅ HTML + manifest.json are now NETWORK-FIRST. They used to be cache-first
+      with background revalidation, which meant the phone always rendered the
+      OLD cached index.html and kept reading the OLD cached manifest. That
+      manifest still had theme_color #a334d4 (Clove purple), so Android tinted
+      the system/bottom bar purple on EVERY in-app theme. A single refresh
+      now serves fresh HTML + a fresh manifest.
+   ✅ No artificial network timeout: a slow phone must NOT fall back to the
+      stale cached shell, or the old purple manifest comes straight back.
+      fetch() already rejects immediately when offline, so the cached-shell
+      fallback stays fast with no timer needed.
+   ✅ Only icons and the two pinned CDN scripts stay cache-first (immutable).
+   ✅ Auth/API reads are still network-first with a cached offline fallback.
+   ✅ SKIP_WAITING message support + navigation offline fallback retained.
+   v40 → Hush theme + per-theme chart palettes.
+   v39 → scope-relative assets, narrowed caching, offline shell fallback,
+         SKIP_WAITING, stale v29–v38 changelog removed.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v40';
+const CACHE = 'money-app-v41';
 const SCOPE = self.registration.scope;
 const asset = path => new URL(path, SCOPE).href;
 
@@ -31,11 +26,8 @@ const asset = path => new URL(path, SCOPE).href;
 const STATIC_ASSETS = ['./', './index.html', './manifest.json'].map(asset);
 
 /* Nice-to-have: missing files must never block installation. */
-const OPTIONAL_ASSETS = [
-  './countdown.html',
-  './icon-192.png',
-  './icon-512.png'
-].map(asset);
+const ICON_ASSETS = ['./icon-192.png', './icon-512.png'].map(asset);
+const OPTIONAL_ASSETS = ['./countdown.html', ...ICON_ASSETS];
 
 /* Keep these in sync with the pinned + SRI-tagged URLs in index.html. */
 const CDN_ASSETS = [
@@ -44,14 +36,12 @@ const CDN_ASSETS = [
 ];
 
 const APP_SHELL = new Set([...STATIC_ASSETS, ...OPTIONAL_ASSETS]);
+const ICON_SET = new Set(ICON_ASSETS);
 const CDN_HOSTS = new Set(['cdn.jsdelivr.net']);
 
 const isCdn = url => CDN_HOSTS.has(url.hostname);
 
-/* API reads are cached network-first so an already-loaded screen still has
-   data when the connection drops. Deliberately narrow: no auth endpoints,
-   no arbitrary third-party requests (which would pollute the cache with
-   credentials and unrelated data). */
+/* Narrow API cache: no auth endpoints, no arbitrary third-party requests. */
 const isApiRead = url =>
   (url.pathname.includes('/rest/v1/transactions') ||
    url.pathname.includes('/rest/v1/homework') ||
@@ -87,6 +77,25 @@ self.addEventListener('message', e => {
   if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
+/* ── HELPERS ─────────────────────────────────────────────────────── */
+function networkFirst(req, cache, allowShellFallback) {
+  return fetch(req).then(res => {
+    if (cacheableResponse(res)) cache.put(req, res.clone()).catch(() => {});
+    return res;
+  }).catch(async () => {
+    const cached = await cache.match(req);
+    if (cached) return cached;
+    if (allowShellFallback) {
+      const shell = (await cache.match(asset('./index.html'))) || (await cache.match(SCOPE));
+      if (shell) return shell;
+    }
+    return new Response(JSON.stringify({ message: 'Offline' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  });
+}
+
 /* ── FETCH ───────────────────────────────────────────────────────── */
 self.addEventListener('fetch', e => {
   const req = e.request;
@@ -95,13 +104,16 @@ self.addEventListener('fetch', e => {
   let url;
   try { url = new URL(req.url); } catch { return; }
 
-  const shell = APP_SHELL.has(url.href);
   const cdn   = isCdn(url);
+  const icon  = ICON_SET.has(url.href);
+  const shell = APP_SHELL.has(url.href);
+  const nav   = req.mode === 'navigate';
   const api   = isApiRead(url);
-  if (!shell && !cdn && !api) return; // let the browser handle everything else
 
-  if (shell || cdn) {
-    /* Cache-first with background revalidation (stale-while-revalidate). */
+  if (!cdn && !icon && !shell && !nav && !api) return;
+
+  if (cdn || icon) {
+    /* Immutable assets: cache-first with background revalidation. */
     e.respondWith((async () => {
       const cache   = await caches.open(CACHE);
       const cached  = await cache.match(req);
@@ -109,36 +121,15 @@ self.addEventListener('fetch', e => {
         if (cacheableResponse(res)) cache.put(req, res.clone()).catch(() => {});
         return res;
       }).catch(() => null); // offline revalidation must not reject
-
       if (cached) { e.waitUntil(refresh); return cached; }
-      const fresh = await refresh;
-      if (fresh) return fresh;
-
-      if (req.mode === 'navigate') {
-        const shellResponse = (await cache.match(asset('./index.html'))) ||
-                              (await cache.match(SCOPE));
-        if (shellResponse) return shellResponse;
-      }
-      return new Response('Offline', { status: 503, statusText: 'Offline' });
+      return (await refresh) || new Response('Offline', { status: 503, statusText: 'Offline' });
     })());
   } else {
-    /* Network-first for Supabase reads, with a cached fallback. */
+    /* HTML, manifest, navigation and API reads: ALWAYS try the network first
+       so one refresh is enough to pick up new code and a new theme_color. */
     e.respondWith((async () => {
       const cache = await caches.open(CACHE);
-      try {
-        const res = await fetch(req);
-        if (cacheableResponse(res)) cache.put(req, res.clone()).catch(() => {});
-        return res;
-      } catch {
-        const cached = await cache.match(req);
-        if (cached) return cached;
-        // A 503 makes the Supabase client throw, so the app keeps its
-        // in-memory state instead of showing a fake empty list.
-        return new Response(JSON.stringify({ message: 'Offline' }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
+      return networkFirst(req, cache, nav);
     })());
   }
 });

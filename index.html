@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Money Record</title>
   <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#1D9E75" />
+  <!-- Neutral by default; applyTheme() rewrites this on every theme change.
+       It must never be a theme-specific colour here, because this value is
+       what Android tints the system bar with before JS runs. -->
+  <meta name="theme-color" content="#f4f5f7" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Money Record" />
@@ -84,6 +87,9 @@
       --chart-text: #A6A9C9; --chart-grid: rgba(169,182,255,.13);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* Paint the root too, so the overscroll / bottom safe-area of the phone
+       always matches the active theme instead of showing a leftover colour. */
+    html { background: var(--bg); }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: var(--bg); color: var(--text);
@@ -1145,6 +1151,13 @@
       </div>
       <div class="settings-row">
         <div class="settings-row-label">
+          App display looks wrong?
+          <small>Clear cached theme files &amp; reload</small>
+        </div>
+        <button class="csv-btn" id="hard-refresh-btn" aria-label="Clear cached app files and reload">↻ Fix display</button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-label">
           Settings backup
           <small>Categories, planning notes, templates</small>
         </div>
@@ -1982,6 +1995,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('manual-sync-btn').addEventListener('click', manualSync);
   document.getElementById('new-cat-add-btn').addEventListener('click', addCustomCat);
   document.getElementById('reset-creds-btn').addEventListener('click', resetCredentials);
+  document.getElementById('hard-refresh-btn').addEventListener('click', hardRefresh);
   document.getElementById('export-settings-btn').addEventListener('click', exportSettings);
   document.getElementById('import-settings-btn').addEventListener('click', () => {
     document.getElementById('settings-import-input').click();
@@ -2313,6 +2327,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // ── Service worker ───────────────────────────────────────
   if ('serviceWorker' in navigator) {
+    // FIX: when a new worker takes over, reload once so the phone actually
+    // re-reads index.html AND manifest.json. Without this, the first launch
+    // after an update still renders the old cached shell (and the old purple
+    // theme_color) even though the new worker is already installed.
+    const _hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!_hadController) return;                       // first-ever install
+      if (sessionStorage.getItem('money_sw_reloaded')) return;
+      sessionStorage.setItem('money_sw_reloaded', '1');
+      location.reload();
+    });
     navigator.serviceWorker.register('sw.js').then(reg => {
       reg.addEventListener('updatefound', () => {
         const _nw = reg.installing;
@@ -4097,6 +4122,36 @@ function openSettingsModal() {
 function closeSettingsModal() {
   document.getElementById('settings-backdrop').classList.remove('open');
   document.body.style.overflow = '';
+}
+
+/* ─── FIX STALE SCREEN ──────────────────────────────────────
+   An installed PWA can hold on to an old manifest for days. The old
+   manifest had theme_color #a334d4 (Clove purple), which tinted the
+   phone's system/bottom bar purple on every theme. This purges every
+   cache, unregisters the workers and reloads so the phone is forced to
+   read the current manifest immediately — no reinstall needed.
+   Nothing in localStorage or Supabase is touched. */
+async function hardRefresh() {
+  showConfirm(
+    'Clears cached app files and reloads. Your transactions, settings and pending entries are NOT deleted.',
+    async () => {
+      closeSettingsModal();
+      showToast('♻ Clearing cached app files…');
+      try {
+        if (window.caches) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r => r.unregister()));
+        }
+      } catch {}
+      try { sessionStorage.removeItem('money_sw_reloaded'); } catch {}
+      setTimeout(() => location.reload(), 350);
+    },
+    { title: 'Fix the display?', confirmText: 'Fix it', icon: '♻', danger: false }
+  );
 }
 
 function renderCustomCatsList() {
