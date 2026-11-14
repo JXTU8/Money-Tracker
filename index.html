@@ -9,6 +9,19 @@
        It must never be a theme-specific colour here, because this value is
        what Android tints the system bar with before JS runs. -->
   <meta name="theme-color" content="#f4f5f7" />
+  <script>
+    /* Set the system-bar colour before the first paint so a dark theme never
+       flashes a light (or purple) bar. The manifest deliberately has NO
+       theme_color now — that field is baked into an installed PWA's nav bar
+       once, at install time, and cannot be overridden at runtime. */
+    (function () {
+      try {
+        var t = localStorage.getItem('money_theme');
+        var c = (t === 'light') ? '#f4f5f7' : '#0d1117';
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', c);
+      } catch (e) {}
+    })();
+  </script>
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Money Record" />
@@ -1151,11 +1164,14 @@
       </div>
       <div class="settings-row">
         <div class="settings-row-label">
-          App display looks wrong?
-          <small>Clear cached theme files &amp; reload</small>
+          Purple bar at the bottom?
+          <small>Android's system bar — one-time fix</small>
         </div>
-        <button class="csv-btn" id="hard-refresh-btn" aria-label="Clear cached app files and reload">↻ Fix display</button>
+        <button class="csv-btn" id="hard-refresh-btn" aria-label="Clear cached app files and show the fix steps">↻ Fix display</button>
       </div>
+      <p style="margin:2px 0 10px;font-size:11px;line-height:1.55;color:var(--muted)">
+        That purple strip is Android's navigation bar. Its colour was saved when you first added the app to your home screen, so no theme change can recolor it. <b>Remove the app icon from your home screen, then re-add it from Chrome</b> (Menu → Add to Home screen). Your transactions and settings are stored separately and stay safe.
+      </p>
       <div class="settings-row">
         <div class="settings-row-label">
           Settings backup
@@ -2379,7 +2395,13 @@ function saveSettings() {
 
 /* ─── THEMES — light, dark, Clove (ethereal) and Hush (telekinetic) ─ */
 const THEMES = ['light', 'dark', 'clove', 'hush'];
-const THEME_COLORS = { light: '#f4f5f7', dark: '#0d1117', clove: '#a334d4', hush: '#14172b' };
+/* Android bakes the manifest's theme_color into the system navigation bar at
+   install time and it CANNOT be changed afterwards by page JS. The original
+   manifest used #a334d4 (Clove purple), which is why a bright purple bar sat
+   at the bottom of the phone on every theme. The manifest no longer sets a
+   theme_color at all; these near-black values keep the bar neutral even on
+   first paint, before applyTheme() runs. */
+const THEME_COLORS = { light: '#f4f5f7', dark: '#0d1117', clove: '#0d1117', hush: '#0d1117' };
 function applyTheme(theme) {
   const resolved = THEMES.includes(theme) ? theme : 'light';
   document.documentElement.setAttribute('data-theme', resolved);
@@ -4133,7 +4155,7 @@ function closeSettingsModal() {
    Nothing in localStorage or Supabase is touched. */
 async function hardRefresh() {
   showConfirm(
-    'Clears cached app files and reloads. Your transactions, settings and pending entries are NOT deleted.',
+    'Step 1 clears cached app files and reloads. If the purple system bar is still there, step 2 is required: remove the app icon from your home screen and re-add it from Chrome (Menu → Add to Home screen). Android saved the bar colour when you first installed. Your data is NOT deleted.',
     async () => {
       closeSettingsModal();
       showToast('♻ Clearing cached app files…');

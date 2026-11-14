@@ -1,4 +1,13 @@
-/* ─── Money Record — Service Worker v41 ──────────────────────────────
+/* ─── Money Record — Service Worker v42 ──────────────────────────────
+   v42 changes — the actual purple bar
+   ✅ Confirmed via pixel sampling of a phone screenshot: the bottom band is
+      #a234d3, i.e. the ORIGINAL manifest theme_color #a334d4. It is Android's
+      system navigation bar, baked into the installed WebAPK at install time;
+      page CSS/JS cannot recolor it and the manifest value overrides any
+      theme-color meta tag. So theme_color has been REMOVED from the manifest
+      entirely — the app now never requests a purple system bar, and the
+      dynamic theme-color meta is free to control it in a browser tab.
+   ✅ Cache bump so the fresh (colour-free) manifest is precached.
    v41 changes — fixes "I changed the theme but my phone still shows purple"
    ✅ HTML + manifest.json are now NETWORK-FIRST. They used to be cache-first
       with background revalidation, which meant the phone always rendered the
@@ -18,7 +27,7 @@
          SKIP_WAITING, stale v29–v38 changelog removed.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v41';
+const CACHE = 'money-app-v42';
 const SCOPE = self.registration.scope;
 const asset = path => new URL(path, SCOPE).href;
 
