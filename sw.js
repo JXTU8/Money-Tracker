@@ -1,4 +1,8 @@
-/* ─── Money Record — Service Worker v39 ──────────────────────────────
+/* ─── Money Record — Service Worker v40 ──────────────────────────────
+   v40 changes
+   ✅ Cache bump: index.html gained the Hush theme and per-theme chart
+      palettes. Without this bump the cache-first shell keeps serving the
+      old purple doughnut and a theme dropdown with no Hush option.
    v39 changes
    ✅ All asset URLs are resolved against the registration scope instead of
       hard-coded "/" — the app now installs correctly when served from a
@@ -19,7 +23,7 @@
       not a running log of past cache bumps.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v39';
+const CACHE = 'money-app-v40';
 const SCOPE = self.registration.scope;
 const asset = path => new URL(path, SCOPE).href;
 

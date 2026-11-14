@@ -26,6 +26,12 @@
       --bg: #f4f5f7; --card: #ffffff;
       --text: #1a1a1a; --muted: #6b7280;
       --border: rgba(0,0,0,0.1); --radius: 12px;
+      /* --shadow was referenced by .momentum-card but never defined anywhere. */
+      --shadow: 0 5px 15px rgba(15,23,42,.045);
+      /* Chart colours live with the theme instead of being hard-coded in JS. */
+      --chart-income: #1D9E75; --chart-expense: #E24B4A;
+      --chart-projection: rgba(226,75,74,.4);
+      --chart-text: #6b7280; --chart-grid: rgba(0,0,0,.07);
     }
     [data-theme="dark"] {
       --bg: #0d1117; --card: #161b22;
@@ -36,6 +42,10 @@
       --blue-light: rgba(55,138,221,0.18);
       --amber-light: rgba(239,159,39,0.18);
       --green: #53D6A1; --red: #FF98A5; --blue: #7DB8FF; --amber: #FFD07A;
+      --shadow: 0 8px 22px rgba(0,0,0,.35);
+      --chart-income: #53D6A1; --chart-expense: #F06563;
+      --chart-projection: rgba(240,101,99,.35);
+      --chart-text: #9ca3af; --chart-grid: rgba(255,255,255,.08);
     }
     /* Clove-inspired theme: a deep violet field with electric pink energy. */
     [data-theme="clove"] {
@@ -46,6 +56,32 @@
       --bg: #14091f; --card: rgba(40,18,61,.88);
       --text: #fff4fd; --muted: #cfb8d9;
       --border: rgba(247,151,255,.22);
+      --shadow: 0 9px 26px rgba(4,0,14,.22);
+      /* The pink/lavender doughnut belongs to Clove only now. */
+      --chart-income: #ff79cf; --chart-expense: #ff8aad;
+      --chart-projection: rgba(255,138,173,.35);
+      --chart-text: #cfb8d9; --chart-grid: rgba(255,180,240,.14);
+    }
+    /* ─── HUSH ───────────────────────────────────────────────────────────
+       Hush — the telekinetic Duelist from Guangdong. Cold indigo slate
+       (#2A2E46 / #312639), a lavender-to-blue hair gradient (#E0BDEE →
+       #A9B6FF), hot-pink suspension sparks (#E13E9D) and the jade signal
+       accent (#8BEE8F). Everything is CSS geometry: floating diamond
+       "fragments" held in place with nothing visible supporting them —
+       no character art, no images. */
+    [data-theme="hush"] {
+      --green: #8BEE8F; --green-light: rgba(139,238,143,.13);
+      --red: #FF6FB5;   --red-light: rgba(225,62,157,.14);
+      --blue: #A9B6FF;  --blue-light: rgba(169,182,255,.14);
+      --amber: #E0BDEE; --amber-light: rgba(224,189,238,.13);
+      --bg: #10121f; --card: rgba(31,35,61,.92);
+      --text: #EEF0FF; --muted: #A6A9C9;
+      --border: rgba(169,182,255,.18);
+      --radius: 14px;
+      --shadow: 0 12px 30px rgba(3,5,16,.5);
+      --chart-income: #8BEE8F; --chart-expense: #E13E9D;
+      --chart-projection: rgba(225,62,157,.32);
+      --chart-text: #A6A9C9; --chart-grid: rgba(169,182,255,.13);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -58,6 +94,18 @@
         radial-gradient(ellipse 75% 42% at 102% -7%, rgba(255,63,184,.25), transparent 65%),
         radial-gradient(ellipse 72% 36% at -12% 22%, rgba(142,95,255,.25), transparent 67%),
         linear-gradient(145deg, #13091d 0%, #201034 52%, #100716 100%);
+      background-attachment: fixed;
+    }
+    /* Hush: a still, dark tactical field with two off-axis signal glows.
+       The faint grid reads as a targeting HUD without any imagery. */
+    [data-theme="hush"] body {
+      background:
+        radial-gradient(circle at 92% 4%, rgba(225,62,157,.17), transparent 22rem),
+        radial-gradient(circle at 2% 58%, rgba(139,238,143,.09), transparent 20rem),
+        linear-gradient(rgba(169,182,255,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(169,182,255,.035) 1px, transparent 1px),
+        linear-gradient(160deg, #14172b 0%, #1c1e3c 48%, #0c0e1b 100%);
+      background-size: auto, auto, 34px 34px, 34px 34px, auto;
       background-attachment: fixed;
     }
 
@@ -797,6 +845,98 @@
     [data-theme="clove"] .stat-card { background: linear-gradient(145deg, rgba(59,27,84,.96), rgba(38,18,59,.9)); }
     [data-theme="clove"] .tab-bar { padding: 4px; border-radius: 14px; }
     [data-theme="clove"] .tab-btn { border-radius: 10px; padding: 9px 4px; }
+
+    /* ─── HUSH · telekinetic detailing (strictly scoped to this theme) ── */
+    [data-theme="hush"] header {
+      background: rgba(17,20,38,.86); backdrop-filter: blur(14px);
+      border-bottom-color: rgba(169,182,255,.22);
+      box-shadow: 0 1px 0 rgba(139,238,143,.18);
+    }
+    [data-theme="hush"] header h1 { letter-spacing: .04em; }
+    [data-theme="hush"] header h1::before {
+      content: '◇'; color: #E13E9D; margin-right: 8px;
+      text-shadow: 0 0 10px rgba(225,62,157,.8);
+    }
+    [data-theme="hush"] .balance-card {
+      background: linear-gradient(118deg, #2A2E46 0%, #444976 46%, #312639 100%);
+      border: 1px solid rgba(224,189,238,.34);
+      box-shadow: 0 18px 38px rgba(4,6,20,.6), inset 0 1px 0 rgba(255,255,255,.22);
+    }
+    [data-theme="hush"] .balance-card.overdrawn {
+      background: linear-gradient(118deg, #3a1f3d 0%, #6b2455 52%, #2a1a3d 100%);
+      box-shadow: 0 18px 38px rgba(80,10,50,.45), inset 0 1px 0 rgba(255,255,255,.18);
+    }
+    /* A dashed "anchor ring" instead of Clove's soft orb — it turns slowly,
+       as if something is holding it in place from a distance. */
+    [data-theme="hush"] .balance-card::before {
+      width: 156px; height: 156px; top: -78px; right: -48px;
+      background: none; border: 1px dashed rgba(224,189,238,.5);
+      border-radius: 50%; transform: rotate(18deg);
+      animation: hushOrbit 18s linear infinite;
+    }
+    /* Four suspended fragments, each a signal colour: one square plus three
+       box-shadow clones. No image, no character art. */
+    [data-theme="hush"] .balance-card::after {
+      content: ''; position: absolute; left: 19px; bottom: 16px;
+      width: 7px; height: 7px; background: #E13E9D;
+      transform: rotate(45deg);
+      box-shadow: 19px -7px 0 -1px #E0BDEE, 38px 3px 0 -2px #8BEE8F, 57px -5px 0 -2px #A9B6FF;
+      opacity: .92; animation: hushFloat 3.6s ease-in-out infinite;
+    }
+    @keyframes hushOrbit { to { transform: rotate(378deg); } }
+    @keyframes hushFloat {
+      0%, 100% { transform: rotate(45deg) translateY(0); }
+      50%      { transform: rotate(45deg) translateY(-5px); }
+    }
+    [data-theme="hush"] .month-nav,
+    [data-theme="hush"] .stat-card,
+    [data-theme="hush"] .tab-bar,
+    [data-theme="hush"] .chart-card,
+    [data-theme="hush"] .tx-card,
+    [data-theme="hush"] .hw-card,
+    [data-theme="hush"] .sheet,
+    [data-theme="hush"] .setup-box,
+    [data-theme="hush"] .form-card {
+      box-shadow: 0 10px 26px rgba(3,5,16,.4), inset 0 1px 0 rgba(224,189,238,.09);
+    }
+    [data-theme="hush"] .stat-card {
+      background: linear-gradient(145deg, rgba(52,58,102,.9), rgba(30,33,60,.88));
+    }
+    [data-theme="hush"] .tab-btn.active {
+      background: rgba(169,182,255,.1);
+      box-shadow: inset 0 -2px 0 #8BEE8F;
+    }
+    [data-theme="hush"] .add-btn {
+      background: linear-gradient(110deg, #8BEE8F, #A9B6FF 92%);
+      color: #10121f; border: 1px solid rgba(238,240,255,.4);
+      box-shadow: 0 10px 24px rgba(139,238,143,.22);
+    }
+    [data-theme="hush"] .add-btn:hover { box-shadow: 0 13px 30px rgba(139,238,143,.34); }
+    [data-theme="hush"] .btn-save,
+    [data-theme="hush"] .setup-save,
+    [data-theme="hush"] .confirm-ok.primary,
+    [data-theme="hush"] .inline-input-row button {
+      background: linear-gradient(100deg, #8BEE8F, #A9B6FF);
+      color: #10121f;
+    }
+    [data-theme="hush"] .filter-btn.active {
+      background: rgba(169,182,255,.14); color: #8BEE8F; border-color: #8BEE8F;
+    }
+    [data-theme="hush"] .tx-card:hover,
+    [data-theme="hush"] .hw-card:hover { border-color: rgba(139,238,143,.42); }
+    [data-theme="hush"] .icon-btn:hover,
+    [data-theme="hush"] .mnav-btn:hover { background: rgba(169,182,255,.13); color: #EEF0FF; }
+    [data-theme="hush"] .theme-select {
+      border-color: rgba(169,182,255,.45); background-color: rgba(44,48,84,.9);
+    }
+    [data-theme="hush"] .sync-now-btn,
+    [data-theme="hush"] .badge.pending { background: #444976; color: #EEF0FF; }
+    [data-theme="hush"] .today-btn:hover { background: #8BEE8F; color: #10121f; }
+    [data-theme="hush"] .balance-label { letter-spacing: .14em; }
+    @media (prefers-reduced-motion: reduce) {
+      [data-theme="hush"] .balance-card::before,
+      [data-theme="hush"] .balance-card::after { animation: none; }
+    }
     @media (min-width: 600px) { main { padding-left: 20px; padding-right: 20px; } }
   </style>
 </head>
@@ -964,6 +1104,7 @@
           <option value="light">Standard light</option>
           <option value="dark">Standard dark</option>
           <option value="clove">Clove — Ethereal</option>
+          <option value="hush">Hush — Suspended</option>
         </select>
       </div>
     </div>
@@ -1711,7 +1852,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Keep old installs compatible, then remember the explicit three-way choice.
   const savedTheme = localStorage.getItem('money_theme');
-  if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'clove') {
+  if (THEMES.includes(savedTheme)) {
     applyTheme(savedTheme);
   } else {
     const savedDark = localStorage.getItem('money_dark');
@@ -2211,11 +2352,13 @@ function saveSettings() {
   writeStorage(LS_PLANNING, JSON.stringify(planningNotes));
 }
 
-/* ─── THEMES — standard light/dark plus Clove-inspired mode ─ */
+/* ─── THEMES — light, dark, Clove (ethereal) and Hush (telekinetic) ─ */
+const THEMES = ['light', 'dark', 'clove', 'hush'];
+const THEME_COLORS = { light: '#f4f5f7', dark: '#0d1117', clove: '#a334d4', hush: '#14172b' };
 function applyTheme(theme) {
-  const resolved = ['light', 'dark', 'clove'].includes(theme) ? theme : 'light';
+  const resolved = THEMES.includes(theme) ? theme : 'light';
   document.documentElement.setAttribute('data-theme', resolved);
-  const themeColor = resolved === 'clove' ? '#a334d4' : resolved === 'dark' ? '#0d1117' : '#f4f5f7';
+  const themeColor = THEME_COLORS[resolved];
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', themeColor);
 }
 function setTheme(theme) {
@@ -3048,15 +3191,24 @@ async function renderCharts() {
   renderBarChart();
 }
 
-const CHART_COLORS = ['#ff4fc3','#a78bfa','#ff8aad','#efb6ff','#9B59B6','#E67E22','#16A085','#E91E63','#2980B9','#D35400'];
-function chartText() {
-  const theme = document.documentElement.getAttribute('data-theme');
-  return theme === 'clove' ? '#cfb8d9' : theme === 'dark' ? '#9ca3af' : '#6b7280';
+/* FIX: the doughnut palette used to be a hard-coded pink/lavender Clove set,
+   so the "Ethereal" purple chart showed up in light and dark themes too.
+   Each theme now owns its palette, and text/grid/bar colours are read from
+   CSS variables so adding a theme never means editing the chart code. */
+const CHART_PALETTES = {
+  light: ['#1D9E75','#1D63B7','#9A5300','#B4233A','#7C3AED','#0891B2','#DB2777','#65A30D','#D97706','#4F46E5'],
+  dark:  ['#53D6A1','#7DB8FF','#FFD07A','#5EEAD4','#86EFAC','#93C5FD','#FDBA74','#C4B5FD','#F0ABFC','#FF98A5'],
+  clove: ['#ff4fc3','#a78bfa','#ff8aad','#efb6ff','#9B59B6','#E67E22','#16A085','#E91E63','#2980B9','#D35400'],
+  hush:  ['#E13E9D','#8BEE8F','#A9B6FF','#E0BDEE','#6C7BD9','#F3B05A','#4FD1C5','#C084FC','#7DD3FC','#F472B6']
+};
+function cssVar(name, fallback = '') {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }
-function chartGrid() {
-  const theme = document.documentElement.getAttribute('data-theme');
-  return theme === 'clove' ? 'rgba(255,180,240,0.14)' : theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
+function chartColors() {
+  return CHART_PALETTES[document.documentElement.getAttribute('data-theme')] || CHART_PALETTES.light;
 }
+function chartText() { return cssVar('--chart-text', '#6b7280'); }
+function chartGrid() { return cssVar('--chart-grid', 'rgba(0,0,0,.07)'); }
 
 function renderPieChart() {
   const expenses = monthTxs().filter(t => t.type==='expense' && !t.isPending);
@@ -3072,10 +3224,11 @@ function renderPieChart() {
   }
   if (!wrap.querySelector('canvas')) wrap.innerHTML = '<canvas id="pie-chart"></canvas>';
   const ctx = document.getElementById('pie-chart').getContext('2d');
+  const palette = chartColors();
   if (pieChart) pieChart.destroy();
   pieChart = new Chart(ctx, {
     type: 'doughnut',
-    data: { labels, datasets: [{ data: values, backgroundColor: labels.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]), borderWidth: 0 }] },
+    data: { labels, datasets: [{ data: values, backgroundColor: labels.map((_, i) => palette[i % palette.length]), borderWidth: 0 }] },
     options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: {
       legend: { position: 'right', labels: { font: { size: 11 }, color: chartText(), boxWidth: 12, padding: 8 } },
       tooltip: { callbacks: { label: c => ` ${c.label}: RM ${(+c.raw).toFixed(2)}` } }
@@ -3116,9 +3269,9 @@ function renderBarChart() {
   barChart = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets: [
-      { label: 'Income',           data: incs,  backgroundColor: '#1D9E75', borderRadius: 4, stack: 'income' },
-      { label: 'Expenses',         data: exps,  backgroundColor: '#E24B4A', borderRadius: 4, stack: 'expense' },
-      { label: 'Projected Spend',  data: projs, backgroundColor: 'rgba(226,75,74,0.4)', borderRadius: 4, stack: 'expense' }
+      { label: 'Income',           data: incs,  backgroundColor: cssVar('--chart-income', '#1D9E75'), borderRadius: 4, stack: 'income' },
+      { label: 'Expenses',         data: exps,  backgroundColor: cssVar('--chart-expense', '#E24B4A'), borderRadius: 4, stack: 'expense' },
+      { label: 'Projected Spend',  data: projs, backgroundColor: cssVar('--chart-projection', 'rgba(226,75,74,.4)'), borderRadius: 4, stack: 'expense' }
     ]},
     options: { responsive: true, maintainAspectRatio: false, plugins: {
       legend: { labels: { font: { size: 11 }, color: chartText() } }
@@ -4055,7 +4208,7 @@ function importSettings(file) {
           if (recs)  recTemplates  = recs;
           if (notes) planningNotes = notes;
           if (meta)  { homeworkMeta = meta; saveHomeworkMeta(); }
-          if (['light','dark','clove'].includes(data.theme)) {
+          if (THEMES.includes(data.theme)) {
             setTheme(data.theme);
             document.getElementById('theme-select').value = data.theme;
           }
