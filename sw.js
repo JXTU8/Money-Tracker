@@ -1,118 +1,140 @@
-/* ─── Money Record — Service Worker v33 ──────────────────────────────
-   Changes from v29:
-   ✅ Cache version bumped to v31 — index.html changed to fix sorting bug
-      where newly added or edited transactions were placed out of order (e.g.
-      yesterday's date header placed above today's) and to ensure consistent
-      sorting across transaction and homework lists.
-   Changes from v27:
-   ✅ Cache version bumped to v28 — index.html changed again (Homework
-      filter tabs: "No due date" and "Today" removed and merged into
-      "Upcoming", which now covers every not-done item — overdue, today,
-      future, and undated — sorted chronologically with undated items
-      last; tabs are now just Upcoming / Done / All) so the old v27 cache
-      was still serving the previous index.html cache-first.
-   Changes from v26:
-   ✅ Cache version bumped to v27 — index.html changed again (Homework's
-      Subject shortcut panel: scrolling the option list closed the panel
-      mid-touch because a document-level capture scroll listener meant to
-      close the panel on an outside/page scroll didn't exclude the panel's
-      OWN internal scroll, so the pending tap still landed as a selection
-      instead of a scroll; fixed) so the old v26 cache was still serving
-      the previous index.html cache-first.
-   Changes from v25:
-   ✅ Cache version bumped to v26 — index.html changed again (Homework's
-      Subject shortcut dropdown is now a small custom-built panel instead
-      of a native <select> — the native picker rendered full-screen on
-      Android, so this opens a compact anchored menu near the field
-      instead) so the old v25 cache was still serving the previous
-      index.html cache-first.
+/* ─── Money Record — Service Worker v39 ──────────────────────────────
+   v39 changes
+   ✅ All asset URLs are resolved against the registration scope instead of
+      hard-coded "/" — the app now installs correctly when served from a
+      sub-path (GitHub Pages, /money-tracker/, etc.) instead of failing
+      install because /index.html does not exist there.
+   ✅ countdown.html is precached so the secondary page works offline.
+   ✅ CDN scripts are pinned to exact versions; only cdn.jsdelivr.net is
+      treated as a CDN (the old `url.includes('jsdelivr.net')` matched any
+      URL containing that string).
+   ✅ Only successful basic/CORS responses are cached — no 4xx/5xx, no
+      opaque responses, no partial 206 content.
+   ✅ Background revalidation failures are swallowed; the old code left a
+      rejected promise inside waitUntil whenever the network dropped.
+   ✅ Navigation requests fall back to the cached app shell when offline.
+   ✅ SKIP_WAITING message support, so "Refresh now" actually activates the
+      waiting worker instead of reloading onto the old one.
+   ✅ Removes the stale v29–v38 changelog; the file now documents behaviour,
+      not a running log of past cache bumps.
 ─────────────────────────────────────────────────────────────────── */
 
-const CACHE = 'money-app-v33';
+const CACHE = 'money-app-v39';
+const SCOPE = self.registration.scope;
+const asset = path => new URL(path, SCOPE).href;
 
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json'
-];
+/* Core shell — install fails if any of these cannot be fetched. */
+const STATIC_ASSETS = ['./', './index.html', './manifest.json'].map(asset);
 
-/* Icons are optional — missing files must not block install */
-const ICON_ASSETS = [
-  '/icon-192.png',
-  '/icon-512.png'
-];
+/* Nice-to-have: missing files must never block installation. */
+const OPTIONAL_ASSETS = [
+  './countdown.html',
+  './icon-192.png',
+  './icon-512.png'
+].map(asset);
 
+/* Keep these in sync with the pinned + SRI-tagged URLs in index.html. */
 const CDN_ASSETS = [
-  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'
 ];
 
-/* True when the request is for a cacheable static or CDN resource */
-const isCacheable = req => {
-  try {
-    const url = new URL(req.url);
-    return STATIC_ASSETS.includes(url.pathname) || ICON_ASSETS.includes(url.pathname) || req.url.includes('jsdelivr.net');
-  } catch {
-    return false;
-  }
-};
+const APP_SHELL = new Set([...STATIC_ASSETS, ...OPTIONAL_ASSETS]);
+const CDN_HOSTS = new Set(['cdn.jsdelivr.net']);
 
-/* ── INSTALL: cache local assets first, then try CDN ─────────────── */
+const isCdn = url => CDN_HOSTS.has(url.hostname);
+
+/* API reads are cached network-first so an already-loaded screen still has
+   data when the connection drops. Deliberately narrow: no auth endpoints,
+   no arbitrary third-party requests (which would pollute the cache with
+   credentials and unrelated data). */
+const isApiRead = url =>
+  (url.pathname.includes('/rest/v1/transactions') ||
+   url.pathname.includes('/rest/v1/homework') ||
+   url.pathname.includes('/storage/v1/object/'));
+
+const cacheableResponse = res =>
+  !!res && res.ok && res.status !== 206 &&
+  (res.type === 'basic' || res.type === 'cors');
+
+/* ── INSTALL ─────────────────────────────────────────────────────── */
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c =>
-      // Core assets must succeed
-      c.addAll(STATIC_ASSETS).then(() =>
-        // Icons and CDN may be absent at first deploy — never block install
-        Promise.all([
-          c.addAll(ICON_ASSETS).catch(() => {}),
-          c.addAll(CDN_ASSETS).catch(() => {})
-        ])
-      )
-    )
-  );
+  e.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    await cache.addAll(STATIC_ASSETS);
+    await Promise.allSettled(
+      [...OPTIONAL_ASSETS, ...CDN_ASSETS].map(url => cache.add(url))
+    );
+  })());
   self.skipWaiting();
 });
 
-/* ── ACTIVATE: delete all old caches ─────────────────────────────── */
+/* ── ACTIVATE ────────────────────────────────────────────────────── */
 self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
+  e.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
+    await self.clients.claim();
+  })());
 });
 
-/* ── FETCH ────────────────────────────────────────────────────────── */
-self.addEventListener('fetch', e => {
-  // Only handle GET — let POST/PATCH/DELETE go straight to network
-  if (e.request.method !== 'GET') return;
+/* The app's "Refresh now" button posts this before reloading. */
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
 
-  if (isCacheable(e.request)) {
-    /* Cache-first: serve instantly from cache; update cache in background (stale-while-revalidate) */
-    e.respondWith(
-      caches.match(e.request).then(cached => {
-        const fetchPromise = fetch(e.request).then(res => {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-          return res;
-        });
-        if (cached) {
-          e.waitUntil(fetchPromise);
-          return cached;
-        }
-        return fetchPromise;
-      })
-    );
-  } else {
-    /* Network-first: for Supabase API calls and everything else */
-    e.respondWith(
-      fetch(e.request).then(res => {
-        const clone = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, clone));
+/* ── FETCH ───────────────────────────────────────────────────────── */
+self.addEventListener('fetch', e => {
+  const req = e.request;
+  if (req.method !== 'GET') return; // POST/PATCH/DELETE go straight to network
+
+  let url;
+  try { url = new URL(req.url); } catch { return; }
+
+  const shell = APP_SHELL.has(url.href);
+  const cdn   = isCdn(url);
+  const api   = isApiRead(url);
+  if (!shell && !cdn && !api) return; // let the browser handle everything else
+
+  if (shell || cdn) {
+    /* Cache-first with background revalidation (stale-while-revalidate). */
+    e.respondWith((async () => {
+      const cache   = await caches.open(CACHE);
+      const cached  = await cache.match(req);
+      const refresh = fetch(req).then(res => {
+        if (cacheableResponse(res)) cache.put(req, res.clone()).catch(() => {});
         return res;
-      }).catch(() => caches.match(e.request))
-    );
+      }).catch(() => null); // offline revalidation must not reject
+
+      if (cached) { e.waitUntil(refresh); return cached; }
+      const fresh = await refresh;
+      if (fresh) return fresh;
+
+      if (req.mode === 'navigate') {
+        const shellResponse = (await cache.match(asset('./index.html'))) ||
+                              (await cache.match(SCOPE));
+        if (shellResponse) return shellResponse;
+      }
+      return new Response('Offline', { status: 503, statusText: 'Offline' });
+    })());
+  } else {
+    /* Network-first for Supabase reads, with a cached fallback. */
+    e.respondWith((async () => {
+      const cache = await caches.open(CACHE);
+      try {
+        const res = await fetch(req);
+        if (cacheableResponse(res)) cache.put(req, res.clone()).catch(() => {});
+        return res;
+      } catch {
+        const cached = await cache.match(req);
+        if (cached) return cached;
+        // A 503 makes the Supabase client throw, so the app keeps its
+        // in-memory state instead of showing a fake empty list.
+        return new Response(JSON.stringify({ message: 'Offline' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    })());
   }
 });

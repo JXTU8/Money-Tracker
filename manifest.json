@@ -1,11 +1,15 @@
 {
-  "id": "/",
+  "id": "./",
   "name": "Money Record",
   "short_name": "Money",
   "description": "Track your income and expenses",
-  "start_url": "/",
+  "lang": "en",
+  "categories": ["finance", "productivity"],
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#f7f8fa",
+  "orientation": "portrait",
+  "background_color": "#f4f5f7",
   "theme_color": "#1D9E75",
   "icons": [
     {

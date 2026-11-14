@@ -10,14 +10,19 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Money Record" />
   <link rel="apple-touch-icon" href="icon-192.png" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Pinned to an exact version + Subresource Integrity: the old floating
+       "@2" tag could change under us on any CDN release, and an unverified
+       script would have full access to the Supabase anon key on this page. -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0"
+          integrity="sha384-gnyZit14c5lnGcarmA166QQjjJXpucw25ogZXuwH3HxxY904zHkBqmxVpelsPorb"
+          crossorigin="anonymous"></script>
   <!-- Chart.js is loaded lazily when the Charts tab is first opened -->
   <style>
     :root {
-      --green: #1D9E75; --green-light: #E1F5EE;
-      --red: #E24B4A;   --red-light: #FCEBEB;
-      --blue: #378ADD;  --blue-light: #E6F1FB;
-      --amber: #EF9F27; --amber-light: #FDF3E3;
+      --green: #087F5B; --green-light: #E1F5EE;
+      --red: #B4233A;   --red-light: #FCEBEB;
+      --blue: #1D63B7;  --blue-light: #E6F1FB;
+      --amber: #9A5300; --amber-light: #FDF3E3;
       --bg: #f4f5f7; --card: #ffffff;
       --text: #1a1a1a; --muted: #6b7280;
       --border: rgba(0,0,0,0.1); --radius: 12px;
@@ -30,12 +35,30 @@
       --red-light: rgba(226,75,74,0.18);
       --blue-light: rgba(55,138,221,0.18);
       --amber-light: rgba(239,159,39,0.18);
+      --green: #53D6A1; --red: #FF98A5; --blue: #7DB8FF; --amber: #FFD07A;
+    }
+    /* Clove-inspired theme: a deep violet field with electric pink energy. */
+    [data-theme="clove"] {
+      --green: #ff91dc; --green-light: rgba(255,79,195,.15);
+      --red: #ff9bb6; --red-light: rgba(255,138,173,.15);
+      --blue: #c4a8ff; --blue-light: rgba(167,139,250,.16);
+      --amber: #f0c5ff; --amber-light: rgba(239,182,255,.15);
+      --bg: #14091f; --card: rgba(40,18,61,.88);
+      --text: #fff4fd; --muted: #cfb8d9;
+      --border: rgba(247,151,255,.22);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: var(--bg); color: var(--text);
       min-height: 100vh; transition: background .2s, color .2s;
+    }
+    [data-theme="clove"] body {
+      background:
+        radial-gradient(ellipse 75% 42% at 102% -7%, rgba(255,63,184,.25), transparent 65%),
+        radial-gradient(ellipse 72% 36% at -12% 22%, rgba(142,95,255,.25), transparent 67%),
+        linear-gradient(145deg, #13091d 0%, #201034 52%, #100716 100%);
+      background-attachment: fixed;
     }
 
     /* ─── HEADER ──────────────────────────────────────────── */
@@ -82,13 +105,13 @@
     .dot-pulse { display:inline-block; width:7px; height:7px; border-radius:50%; background:currentColor; animation: pulse 1.4s infinite; }
 
     /* ─── MAIN ────────────────────────────────────────────── */
-    main { max-width: 480px; margin: 0 auto; padding: 14px; }
+    main { max-width: 540px; margin: 0 auto; padding: 18px 14px 88px; }
 
     /* ─── MONTH NAV ───────────────────────────────────────── */
     .month-nav {
       display: flex; align-items: center; justify-content: space-between;
       background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 10px 14px; margin-bottom: 10px;
+      border-radius: 16px; padding: 11px 14px; margin-bottom: 12px;
     }
     .mnav-btn {
       background: none; border: none; font-size: 20px;
@@ -117,7 +140,7 @@
     /* ─── BALANCE CARD ────────────────────────────────────── */
     .balance-card {
       background: linear-gradient(135deg,#0b6b54 0%,#1d9e75 58%,#4bc49b 100%);
-      border-radius: 18px; padding: 24px;
+      border-radius: 20px; padding: 26px 24px;
       color: white; margin-bottom: 12px; text-align: center;
       box-shadow: 0 12px 28px rgba(15,110,86,.22); position: relative;
       overflow: hidden; transition: background .25s ease, box-shadow .25s ease;
@@ -132,8 +155,38 @@
     .overdrawn-alert { display: none; align-items: center; justify-content: center; gap: 6px; margin: 12px auto 0; width: fit-content; padding: 5px 10px; border-radius: 999px; background: rgba(90,12,24,.24); border: 1px solid rgba(255,255,255,.25); font-size: 11px; font-weight: 700; }
     .balance-card.overdrawn .overdrawn-alert { display: inline-flex; }
 
-    .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-    .stat-card { background: var(--card); border-radius: 14px; padding: 14px; border: 1px solid var(--border); box-shadow: 0 3px 10px rgba(15,23,42,.04); }
+    [data-theme="clove"] header {
+      background: rgba(26,10,41,.82); backdrop-filter: blur(16px);
+      border-bottom-color: rgba(255,139,222,.2);
+    }
+    [data-theme="clove"] header h1 { letter-spacing: .045em; }
+    [data-theme="clove"] header h1::before { content: '✦'; color: #ff65cd; margin-right: 7px; text-shadow: 0 0 12px rgba(255,79,195,.9); }
+    [data-theme="clove"] .balance-card {
+      background: linear-gradient(125deg, #4b176d 0%, #aa288d 50%, #fa5cc7 100%);
+      box-shadow: 0 18px 38px rgba(147,34,142,.34), inset 0 1px 0 rgba(255,255,255,.32);
+      border: 1px solid rgba(255,207,247,.34);
+    }
+    [data-theme="clove"] .balance-card::before { width: 230px; height: 230px; top: -130px; right: -55px; background: radial-gradient(circle, rgba(255,255,255,.28), rgba(255,255,255,0) 67%); }
+    [data-theme="clove"] .balance-card::after { content: '✦  ·  ✧'; position: absolute; left: 17px; bottom: 13px; color: rgba(255,255,255,.65); font-size: 12px; letter-spacing: 5px; }
+    [data-theme="clove"] .month-nav,
+    [data-theme="clove"] .stat-card,
+    [data-theme="clove"] .tab-bar,
+    [data-theme="clove"] .chart-card,
+    [data-theme="clove"] .tx-card,
+    [data-theme="clove"] .hw-card,
+    [data-theme="clove"] .sheet,
+    [data-theme="clove"] .setup-box { box-shadow: 0 9px 26px rgba(4,0,14,.22); }
+    [data-theme="clove"] .tab-btn.active { background: rgba(255,255,255,.08); box-shadow: inset 0 -2px 0 #ff58c8, 0 0 15px rgba(255,79,195,.16); }
+    [data-theme="clove"] .icon-btn:hover,
+    [data-theme="clove"] .mnav-btn:hover { background: rgba(255,79,195,.13); color: #fff4fd; }
+    [data-theme="clove"] .btn-save,
+    [data-theme="clove"] .setup-save,
+    [data-theme="clove"] .confirm-ok.primary { background: linear-gradient(100deg, #a334d4, #ff53bd); color: white; box-shadow: 0 5px 16px rgba(226,61,178,.3); }
+    [data-theme="clove"] .tx-card:hover,
+    [data-theme="clove"] .hw-card:hover { border-color: rgba(255,143,221,.46); }
+
+    .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .stat-card { background: var(--card); border-radius: 16px; padding: 15px; border: 1px solid var(--border); box-shadow: 0 3px 10px rgba(15,23,42,.04); }
     .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
     .stat-amount { font-size: 19px; font-weight: 600; }
     .stat-card.income .stat-amount { color: var(--green); }
@@ -248,12 +301,12 @@
     .form-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
     .form-group { margin-bottom: 11px; }
     .form-group label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
-    .form-group input, .form-group select {
+    .form-group input, .form-group select, .form-group textarea {
       width: 100%; padding: 10px 12px; border: 1px solid var(--border);
       border-radius: 8px; font-size: 14px; background: var(--card);
       color: var(--text); outline: none; transition: border-color .15s; font-family: inherit;
     }
-    .form-group input:focus, .form-group select:focus { border-color: var(--blue); }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--blue); }
     .type-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .type-btn { padding: 9px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--card); font-size: 14px; font-weight: 500; cursor: pointer; transition: all .15s; color: var(--muted); font-family: inherit; }
     .type-btn.active-income  { border-color: var(--green); background: var(--green-light); color: var(--green); }
@@ -371,6 +424,15 @@
     .settings-row:last-child { border-bottom: none; }
     .settings-row-label { flex: 1; }
     .settings-row-label small { display: block; font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .theme-select {
+      appearance: none; -webkit-appearance: none; min-width: 124px;
+      padding: 8px 30px 8px 10px; border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); background: var(--bg);
+      font: 600 12px/1.2 inherit; cursor: pointer;
+      background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+      background-position: calc(100% - 13px) 52%, calc(100% - 9px) 52%; background-size: 4px 4px, 4px 4px; background-repeat: no-repeat;
+    }
+    [data-theme="clove"] .theme-select { border-color: rgba(255,112,210,.45); background-color: rgba(76,32,94,.82); box-shadow: 0 0 14px rgba(255,79,195,.12); }
     .toggle { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
     .toggle input { opacity: 0; width: 0; height: 0; }
     .slider { position: absolute; inset: 0; background: var(--border); border-radius: 12px; cursor: pointer; transition: background .2s; }
@@ -461,6 +523,15 @@
     .balance-forecast { font-size: 11px; opacity: .65; margin-top: 4px; }
     /* ─── BALANCE SAVINGS RATE ───────────────────────────────── */
     .balance-savings { font-size: 11px; opacity: .72; margin-top: 2px; }
+    /* ─── MONEY MOMENTUM ────────────────────────────────────── */
+    .momentum-card { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin: 12px 0; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); }
+    .momentum-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: var(--green-light); color: var(--green); font-size: 17px; }
+    .momentum-card.needs-checkin .momentum-icon { background: var(--blue-light); color: var(--blue); }
+    .momentum-title { font-size: 13px; font-weight: 700; }
+    .momentum-copy { margin-top: 2px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .momentum-action { border: 0; border-radius: 8px; padding: 8px 10px; background: var(--text); color: var(--card); font: 600 12px inherit; cursor: pointer; white-space: nowrap; }
+    .momentum-action:hover { opacity: .86; }
+    .momentum-action:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
     /* ─── INSTALL BANNER ─────────────────────────────────────── */
     .install-banner {
       background: var(--blue); color: white; padding: 8px 16px;
@@ -551,6 +622,22 @@
     .hw-card.hw-done .hw-title { text-decoration: line-through; }
     .hw-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
     .hw-meta.hw-overdue { color: var(--red); font-weight: 600; }
+    .hw-priority { display: inline-flex; align-items: center; margin-left: 6px; padding: 2px 6px; border-radius: 999px; font-size: 10px; font-weight: 700; line-height: 1.2; }
+    .hw-priority.high { color: #a92738; background: var(--red-light); }
+    .hw-priority.medium { color: #946015; background: var(--amber-light); }
+    .hw-priority.low { color: #2670ae; background: var(--blue-light); }
+    .hw-summary { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin: 0 0 12px; }
+    .hw-summary-item { border: 1px solid var(--border); background: var(--card); border-radius: 12px; padding: 10px 8px; text-align: center; }
+    .hw-summary-count { display: block; font-size: 20px; font-weight: 750; line-height: 1; font-variant-numeric: tabular-nums; }
+    .hw-summary-label { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .hw-summary-item.overdue .hw-summary-count { color: var(--red); }
+    .hw-summary-item.today .hw-summary-count { color: var(--amber); }
+    .hw-subtasks { display: flex; flex-direction: column; gap: 5px; margin-top: 9px; }
+    .hw-subtask { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; }
+    .hw-subtask input { accent-color: var(--green); width: 14px; height: 14px; cursor: pointer; }
+    .hw-subtask.done { text-decoration: line-through; opacity: .65; }
+    .hw-subtask-progress { margin-top: 7px; font-size: 10px; color: var(--muted); }
+    .homework-textarea { min-height: 74px; resize: vertical; }
     /* FEATURE: "Added" timestamp shown at the top of the homework edit modal —
        tells you exactly when the item was created (from its created_at
        column), e.g. "Friday 13th June 2026 12:08 pm". Hidden via JS when a
@@ -672,6 +759,45 @@
     }
     .load-more-btn:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
     .load-more-btn:disabled { opacity: .6; cursor: default; }
+
+    /* ─── MODERN POLISH + ACCESSIBLE INTERACTION STATES ─────── */
+    button, select, input { -webkit-tap-highlight-color: transparent; }
+    button, .tab-btn, .filter-btn, .quick-add-btn, .icon-btn, .csv-btn, .load-more-btn {
+      transition: transform .16s ease, background-color .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease;
+    }
+    button:focus-visible, select:focus-visible, input:focus-visible, .alltime-chip:focus-visible {
+      outline: 3px solid var(--blue); outline-offset: 3px;
+    }
+    .icon-btn, .csv-btn, .quick-add-btn, .filter-btn, .load-more-btn { font-weight: 600; }
+    .add-btn { background: linear-gradient(135deg, #087f5b, #056747); box-shadow: 0 8px 18px rgba(8,127,91,.23); }
+    .add-btn:hover { box-shadow: 0 11px 23px rgba(8,127,91,.30); }
+    .sync-now-btn { background: #8a4900; color: #fff; }
+    .badge.pending { background: #8a4900; color: #fff; }
+    .today-btn:hover { background: #066846; color: #fff; }
+    .tab-btn.active { border: 1px solid transparent; }
+    .month-nav, .stat-card, .tab-bar, .chart-card, .tx-card, .hw-card, .form-card { box-shadow: 0 5px 15px rgba(15,23,42,.045); }
+    @media (hover: hover) {
+      .stat-card:hover, .chart-card:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--blue) 28%, var(--border)); }
+    }
+
+    [data-theme="dark"] .add-btn { background: linear-gradient(135deg, #087f5b, #056747); color: #fff; }
+    [data-theme="dark"] .sync-now-btn, [data-theme="dark"] .badge.pending { background: #84520a; color: #fff; }
+    [data-theme="clove"] .add-btn { background: linear-gradient(115deg, #7d174f, #b31d74 52%, #a735c9); color: #fff; border: 1px solid rgba(255,208,245,.32); box-shadow: 0 10px 24px rgba(214,47,169,.31); }
+    [data-theme="clove"] .add-btn:hover { box-shadow: 0 13px 28px rgba(214,47,169,.42); }
+    [data-theme="clove"] .sync-now-btn, [data-theme="clove"] .badge.pending { background: #74316f; color: #fff; }
+    [data-theme="clove"] .today-btn:hover { background: #9d216d; color: #fff; }
+    [data-theme="clove"] .btn-save, [data-theme="clove"] .setup-save, [data-theme="clove"] .confirm-ok.primary,
+    [data-theme="clove"] .inline-input-row button { background: linear-gradient(100deg, #761852, #a9289b); color: #fff; }
+    [data-theme="clove"] .filter-btn.active { background: #7d174f; color: #fff; border-color: #f27acd; }
+    [data-theme="clove"] .month-nav,
+    [data-theme="clove"] .stat-card,
+    [data-theme="clove"] .tab-bar,
+    [data-theme="clove"] .form-card { backdrop-filter: blur(12px); }
+    [data-theme="clove"] .month-nav { border-color: rgba(255,157,224,.28); }
+    [data-theme="clove"] .stat-card { background: linear-gradient(145deg, rgba(59,27,84,.96), rgba(38,18,59,.9)); }
+    [data-theme="clove"] .tab-bar { padding: 4px; border-radius: 14px; }
+    [data-theme="clove"] .tab-btn { border-radius: 10px; padding: 9px 4px; }
+    @media (min-width: 600px) { main { padding-left: 20px; padding-right: 20px; } }
   </style>
 </head>
 <body>
@@ -701,6 +827,7 @@
     <div class="setup-field"><label for="input-url">Project URL</label><input id="input-url" type="url" placeholder="https://xxxx.supabase.co" autocomplete="off" /></div>
     <div class="setup-field"><label for="input-key">Anon Public Key</label><input id="input-key" type="text" placeholder="eyJhbGciOiJIUzI1NiIs…" autocomplete="off" /></div>
     <button class="setup-save" id="setup-save-btn">Save &amp; Connect</button>
+    <button type="button" id="setup-cancel-btn" style="display:none;width:100%;margin-top:10px;background:none;border:1px solid var(--border);border-radius:8px;padding:9px;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">Keep current connection</button>
     <p class="setup-hint">Find these in Supabase → Project Settings → API.</p>
   </div>
 </div>
@@ -770,6 +897,7 @@
     </div>
     <div class="hw-e-added" id="hw-e-added-at"></div>
     <div class="form-group"><label for="hw-e-title">Title</label><input type="text" id="hw-e-title" /></div>
+    <div class="form-group"><label for="hw-e-priority">Priority</label><select id="hw-e-priority"><option value="medium">Medium</option><option value="high">High</option><option value="low">Low</option></select></div>
     <div class="form-group">
       <label for="hw-e-subject">Subject <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label>
       <div class="subject-dropdown" id="hw-e-subject-dropdown">
@@ -797,6 +925,7 @@
       </div>
       <input type="text" id="hw-e-subject" placeholder="Choose a shortcut above, or type your own" />
     </div>
+    <div class="form-group"><label for="hw-e-subtasks">Subtasks <span style="font-size:11px;color:#9ca3af;font-weight:400">(one per line)</span></label><textarea class="homework-textarea" id="hw-e-subtasks" placeholder="Research sources&#10;Write first draft&#10;Submit"></textarea></div>
     <div class="form-group">
       <label for="hw-e-due">Due date</label>
       <input type="date" id="hw-e-due" />
@@ -830,8 +959,12 @@
     <div class="settings-group">
       <div class="settings-group-label">Appearance</div>
       <div class="settings-row">
-        <div class="settings-row-label">Dark mode</div>
-        <label class="toggle"><input type="checkbox" id="dark-toggle" /><span class="slider"></span></label>
+        <div class="settings-row-label">Theme<small>Choose your interface mood</small></div>
+        <select class="theme-select" id="theme-select" aria-label="Choose color theme">
+          <option value="light">Standard light</option>
+          <option value="dark">Standard dark</option>
+          <option value="clove">Clove — Ethereal</option>
+        </select>
       </div>
     </div>
 
@@ -953,6 +1086,15 @@
       <span id="add-icon">＋</span><span id="add-text">Add Transaction</span>
     </button>
 
+    <section class="momentum-card needs-checkin" id="momentum-card" aria-live="polite" aria-label="Recording momentum">
+      <div class="momentum-icon" id="momentum-icon" aria-hidden="true">✦</div>
+      <div>
+        <div class="momentum-title" id="momentum-title">A 10-second money check-in</div>
+        <div class="momentum-copy" id="momentum-copy">Log just one thing today—even a small snack counts.</div>
+      </div>
+      <button class="momentum-action" id="momentum-action" type="button">Check in</button>
+    </section>
+
     <div class="form-card" id="form-card">
       <h3>New Transaction</h3>
       <div class="form-group"><label>Type</label>
@@ -1038,6 +1180,7 @@
     <div class="form-card open">
       <h3>Add homework</h3>
       <div class="form-group"><label for="hw-title">Title</label><input type="text" id="hw-title" placeholder="e.g. Math worksheet ch.4" /></div>
+      <div class="form-group"><label for="hw-priority">Priority</label><select id="hw-priority"><option value="medium">Medium</option><option value="high">High</option><option value="low">Low</option></select></div>
       <div class="form-group">
         <label for="hw-subject">Subject <span style="font-size:11px;color:#9ca3af;font-weight:400">(optional)</span></label>
         <div class="subject-dropdown" id="subject-dropdown">
@@ -1065,6 +1208,7 @@
         </div>
         <input type="text" id="hw-subject" placeholder="Choose a shortcut above, or type your own" />
       </div>
+      <div class="form-group"><label for="hw-subtasks">Subtasks <span style="font-size:11px;color:#9ca3af;font-weight:400">(one per line, optional)</span></label><textarea class="homework-textarea" id="hw-subtasks" placeholder="Research sources&#10;Write first draft&#10;Submit"></textarea></div>
       <div class="form-group">
         <label for="hw-due">Due date</label>
         <input type="date" id="hw-due" />
@@ -1079,9 +1223,10 @@
       <div class="form-actions"><button class="btn-save" id="hw-add-btn" style="width:100%">＋ Add homework</button></div>
     </div>
     <div class="section-header"><h2>📚 Homework</h2></div>
+    <div class="hw-summary" id="hw-summary" aria-label="Homework overview"></div>
     <div class="filter-row" role="group" aria-label="Filter homework">
       <button class="filter-btn active" data-hwfilter="upcoming">Upcoming</button>
-      <button class="filter-btn"        data-hwfilter="done">Done</button>
+      <button class="filter-btn"        data-hwfilter="done">Completed archive</button>
       <button class="filter-btn"        data-hwfilter="all">All</button>
     </div>
     <div id="hw-list"></div>
@@ -1219,6 +1364,9 @@ let homework    = [];
 let hwFilter    = 'upcoming'; // FIX: 'nodate' and 'today' tabs removed and merged into 'upcoming' (see getVisibleHomework); dashboard now opens on "Upcoming" instead of "No due date"
 let hwEditingId = null;     // FEATURE: id of the homework item open in the edit modal
 let hwUpdatesInFlight = new Set();
+// Extra homework details are kept separately so this upgrade works with the
+// existing Supabase homework table without requiring a database migration.
+let homeworkMeta = readJSON('money_homework_meta', {}, 'object');
 
 // FIX: Callback maps replace eval() in swipe-to-delete
 const txClickCallbacks  = {};
@@ -1237,11 +1385,87 @@ const LS_PLANNING = 'money_planning_notes';
 const LS_SB_URL  = 'money_sb_url';
 const LS_SB_KEY  = 'money_sb_key';
 
+/* ─── SAFE LOCAL STORAGE ────────────────────────────────────
+   A single corrupted value used to throw out of loadSettings() at the very
+   top of DOMContentLoaded and take the whole app down with a blank screen.
+   Reads are now total (never throw) and shape-checked; writes are guarded
+   because Safari private mode and a full quota both throw on setItem. */
+function readJSON(key, fallback, expected = 'any') {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+    const value = JSON.parse(raw);
+    if (expected === 'array')  return Array.isArray(value) ? value : fallback;
+    if (expected === 'object') return (value && typeof value === 'object' && !Array.isArray(value)) ? value : fallback;
+    return value;
+  } catch { return fallback; }
+}
+function writeStorage(key, value) {
+  try { localStorage.setItem(key, value); return true; }
+  catch {
+    // showToast is a hoisted function declaration, safe to call from here.
+    try { showToast('⚠ Local storage is full or blocked — this change may not persist'); } catch {}
+    return false;
+  }
+}
+
+/* ─── MONEY MOMENTUM ──────────────────────────────────────
+   This rewards showing up, not spending less. A transaction on any calendar
+   day counts as a check-in, so income and expenses both build the habit. */
+function localDateKey(date = new Date()) {
+  return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+}
+function recordedDateSet() {
+  return new Set(_mergedTxs.map(tx => tx.date).filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date)));
+}
+function recordingStreak(recordedDates) {
+  let streak = 0;
+  const cursor = new Date();
+  // If today has not been logged yet, start from yesterday: this preserves a
+  // completed streak while keeping today's invitation positive.
+  if (!recordedDates.has(localDateKey(cursor))) cursor.setDate(cursor.getDate() - 1);
+  while (recordedDates.has(localDateKey(cursor))) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+function updateMomentum() {
+  const card = document.getElementById('momentum-card');
+  if (!card) return;
+  const recordedDates = recordedDateSet();
+  const checkedInToday = recordedDates.has(todayStr());
+  const streak = recordingStreak(recordedDates);
+  const monthCount = monthTxs().length;
+  const title = document.getElementById('momentum-title');
+  const copy = document.getElementById('momentum-copy');
+  const action = document.getElementById('momentum-action');
+  const icon = document.getElementById('momentum-icon');
+  card.classList.toggle('needs-checkin', !checkedInToday);
+  if (checkedInToday) {
+    icon.textContent = '✓';
+    title.textContent = 'Today is recorded—nice follow-through.';
+    copy.textContent = `${streak ? `${streak}-day recording streak · ` : ''}${monthCount} ${monthCount === 1 ? 'entry' : 'entries'} this month`;
+    action.textContent = 'Add another';
+  } else {
+    icon.textContent = '✦';
+    title.textContent = streak ? `Keep your ${streak}-day recording streak` : 'A 10-second money check-in';
+    copy.textContent = monthCount ? `You have ${monthCount} entries this month. One small record keeps your picture clear.` : 'Log just one thing today—even a small snack counts.';
+    action.textContent = 'Check in';
+  }
+}
+function startMoneyCheckIn() {
+  const form = document.getElementById('form-card');
+  if (!form.classList.contains('open')) toggleForm();
+  document.getElementById('f-date').value = todayStr();
+  document.getElementById('f-amount').focus();
+}
+
 /* ══════════════════════════════════════════════════════════
    OFFLINE QUEUE
 ══════════════════════════════════════════════════════════ */
-function getQueue()      { return JSON.parse(localStorage.getItem(LS_PENDING) || '[]'); }
-function saveQueue(q)    { localStorage.setItem(LS_PENDING, JSON.stringify(q)); }
+function getQueue()      { return readJSON(LS_PENDING, [], 'array'); }
+function saveQueue(q)    { writeStorage(LS_PENDING, JSON.stringify(q)); }
 function enqueue(item)   { const q = getQueue(); q.unshift(item); saveQueue(q); }
 function dequeue(tempId) { saveQueue(getQueue().filter(t => t.tempId !== tempId)); }
 
@@ -1276,25 +1500,27 @@ async function syncQueue() {
   if (!queue.length || !navigator.onLine || !db) return 0;
   
   _isSyncing = true;
+  showSyncBanner(true);
   try {
-    showSyncBanner(true);
-  let synced = 0, failed = 0;
-  for (const item of [...queue]) {
-    try {
-      const { tempId, isPending, createdLocal, id, ...payload } = item;
-      const { error } = await db.from('transactions').insert([payload]);
-      if (!error) { dequeue(tempId); synced++; } else failed++;
-    } catch { failed++; }
-  }
-  showSyncBanner(false);
-  updatePendingUI();
-  if (synced > 0) {
-    showToast(`✅ ${synced} offline transaction${synced>1?'s':''} synced!`);
-    await loadTransactions();
-  }
-  if (failed > 0) showToast(`⚠ ${failed} transaction${failed>1?'s':''} couldn't sync — will retry`);
+    let synced = 0, failed = 0;
+    for (const item of [...queue]) {
+      try {
+        const { tempId, isPending, createdLocal, id, ...payload } = item;
+        const { error } = await db.from('transactions').insert([payload]);
+        if (!error) { dequeue(tempId); synced++; } else failed++;
+      } catch { failed++; }
+    }
+    if (synced > 0) {
+      showToast(`✅ ${synced} offline transaction${synced>1?'s':''} synced!`);
+      await loadTransactions();
+    }
+    if (failed > 0) showToast(`⚠ ${failed} transaction${failed>1?'s':''} couldn't sync — will retry`);
     return synced;
   } finally {
+    // FIX: the banner and flag were only cleared on the happy path. Any
+    // unexpected throw left "syncing…" stuck on screen forever.
+    showSyncBanner(false);
+    updatePendingUI();
     _isSyncing = false;
   }
 }
@@ -1321,7 +1547,11 @@ let _confirmCb = null;
 let _confirmCancelCb = null;
 
 function showConfirm(message, onConfirm, { title = 'Are you sure?', confirmText = 'Confirm', icon = '❓', danger = true, onCancel = null } = {}) {
-  document.getElementById('confirm-icon').innerHTML      = icon;
+  // Only the one trusted SVG constant needs HTML; everything else is plain
+  // text so no caller can ever inject markup into the dialog.
+  const iconEl = document.getElementById('confirm-icon');
+  if (icon === BIN_SVG_RED) iconEl.innerHTML = icon;
+  else                      iconEl.textContent = icon;
   document.getElementById('confirm-heading').textContent = title;
   document.getElementById('confirm-body').textContent    = message;
   const okBtn = document.getElementById('confirm-ok-btn');
@@ -1439,8 +1669,12 @@ function loadChartJS() {
   chartJsPromise = new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+    s.integrity = 'sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g';
+    s.crossOrigin = 'anonymous';
     s.onload  = () => { chartJsLoaded = true; resolve(); };
-    s.onerror = reject;
+    // Reset the cached promise on failure so "Charts" can be retried
+    // instead of staying permanently broken after one bad connection.
+    s.onerror = () => { chartJsPromise = null; s.remove(); reject(new Error('Chart.js failed to load')); };
     document.head.appendChild(s);
   });
   return chartJsPromise;
@@ -1472,21 +1706,24 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) lock
 ══════════════════════════════════════════════════════════ */
 window.addEventListener('DOMContentLoaded', () => {
 
-  // ── Settings & dark mode ────────────────────────────────
+  // ── Settings & theme ────────────────────────────────────
   loadSettings();
 
-  // FIX: respect prefers-color-scheme on first visit
-  const savedDark = localStorage.getItem('money_dark');
-  if (savedDark !== null) {
-    applyDarkMode(savedDark === 'true');
-    document.getElementById('dark-toggle').checked = savedDark === 'true';
+  // Keep old installs compatible, then remember the explicit three-way choice.
+  const savedTheme = localStorage.getItem('money_theme');
+  if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'clove') {
+    applyTheme(savedTheme);
   } else {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    applyDarkMode(prefersDark);
-    document.getElementById('dark-toggle').checked = prefersDark;
+    const savedDark = localStorage.getItem('money_dark');
+    applyTheme(savedDark !== null ? (savedDark === 'true' ? 'dark' : 'light') :
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
   }
+  document.getElementById('theme-select').value = document.documentElement.getAttribute('data-theme');
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-    if (localStorage.getItem('money_dark') === null) applyDarkMode(e.matches);
+    if (localStorage.getItem('money_theme') === null && localStorage.getItem('money_dark') === null) {
+      applyTheme(e.matches ? 'dark' : 'light');
+      document.getElementById('theme-select').value = document.documentElement.getAttribute('data-theme');
+    }
   });
 
   // ── UI init ──────────────────────────────────────────────
@@ -1555,6 +1792,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btn-cancel').addEventListener('click', toggleForm);
   document.getElementById('save-btn').addEventListener('click', saveTransaction);
+  document.getElementById('momentum-action').addEventListener('click', startMoneyCheckIn);
 
   // FIX: data-ftype instead of onclick
   document.querySelectorAll('[data-ftype]').forEach(btn => {
@@ -1599,7 +1837,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (e.target === document.getElementById('settings-backdrop')) closeSettingsModal();
   });
   document.getElementById('sheet-close-settings').addEventListener('click', closeSettingsModal);
-  document.getElementById('dark-toggle').addEventListener('change', e => setDarkMode(e.target.checked));
+  document.getElementById('theme-select').addEventListener('change', e => setTheme(e.target.value));
   document.getElementById('manual-sync-btn').addEventListener('click', manualSync);
   document.getElementById('new-cat-add-btn').addEventListener('click', addCustomCat);
   document.getElementById('reset-creds-btn').addEventListener('click', resetCredentials);
@@ -1655,6 +1893,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // ── Setup overlay ────────────────────────────────────────
   document.getElementById('setup-save-btn').addEventListener('click', saveCredentials);
+  document.getElementById('setup-cancel-btn').addEventListener('click', cancelSetup);
   ['edit-backdrop','settings-backdrop','confirm-backdrop', 'hw-edit-backdrop', 'photo-lightbox-backdrop', 'setup-overlay'].forEach(makeFocusTrap);
 
   // ── CSV import ───────────────────────────────────────────
@@ -1771,8 +2010,10 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('hw-list').addEventListener('click', e => {
     const check = e.target.closest('[data-hw-check]');
     const del   = e.target.closest('[data-hw-del]');
+    const subtask = e.target.closest('[data-hw-subtask]');
     if (check) { toggleHomeworkDone(check.dataset.hwCheck); return; }
     if (del)   { deleteHomework(del.dataset.hwDel); return; }
+    if (subtask) { toggleHomeworkSubtask(subtask.dataset.hwSubtask, Number(subtask.dataset.hwSubtaskIndex)); return; }
     const card  = e.target.closest('[data-hw-edit]');
     if (card) openHwEditModal(card.dataset.hwEdit);
   });
@@ -1866,7 +2107,7 @@ window.addEventListener('DOMContentLoaded', () => {
     _iclose.textContent = '✕';
     _iclose.style.cssText = 'background:none;border:none;cursor:pointer;color:inherit;margin-left:4px;font-size:15px;line-height:1;';
     _iclose.addEventListener('click', () => {
-      localStorage.setItem('money_install_dismissed', Date.now());
+      writeStorage('money_install_dismissed', String(Date.now()));
       _ib.remove();
     });
     _ib.appendChild(_itxt);
@@ -1878,20 +2119,33 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   // ── Keyboard shortcuts ───────────────────────────────────
+  const MODAL_BACKDROPS = ['edit-backdrop','settings-backdrop','confirm-backdrop','hw-edit-backdrop','photo-lightbox-backdrop','setup-overlay'];
+  const anyModalOpen = () => MODAL_BACKDROPS.some(id => document.getElementById(id)?.classList.contains('open'));
+
   document.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && document.getElementById('form-card').classList.contains('open') && !isSaving) saveTransaction();
     if (e.key === 'Escape') { closeEditModal(); closeSettingsModal(); _closeConfirm(); closeHwEditModal(); closePhotoLightbox(); }
     // 'N' shortcut opens the Add form when no modal/input is active
     if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const _tag = document.activeElement?.tagName?.toLowerCase();
       const _inInput = ['input','textarea','select'].includes(_tag);
-      const _modalOpen = ['edit-backdrop','settings-backdrop','confirm-backdrop','hw-edit-backdrop','photo-lightbox-backdrop'].some(
-        id => document.getElementById(id)?.classList.contains('open')
-      );
-      if (!_inInput && !_modalOpen && !document.getElementById('form-card').classList.contains('open')) {
+      if (!_inInput && !anyModalOpen() && !document.getElementById('form-card').classList.contains('open')) {
         e.preventDefault(); toggleForm();
       }
     }
+  });
+
+  // FIX: Enter-to-save used to be a document-level handler, so pressing Enter
+  // in the search box, a settings field or a confirm dialog silently saved a
+  // half-filled transaction — and Enter on a focused button fired both the
+  // native click and saveTransaction. Scope it to the form itself and let
+  // native button activation win.
+  document.getElementById('form-card').addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || isSaving) return;
+    const tag = e.target?.tagName?.toLowerCase();
+    if (['button','textarea','select'].includes(tag)) return;
+    if (anyModalOpen()) return;
+    e.preventDefault();
+    saveTransaction();
   });
 
   // ── Pull to refresh (mobile) ──────────────────────────────
@@ -1908,7 +2162,9 @@ window.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('touchend', async e => {
     document.getElementById('ptr-indicator')?.classList.remove('show');
     if (!_ptrOn) return; _ptrOn = false;
-    if (e.changedTouches[0].clientY - _ptrY > Math.max(60, window.innerHeight * 0.12)) {
+    const touch = e.changedTouches && e.changedTouches[0];
+    if (!touch) return;
+    if (touch.clientY - _ptrY > Math.max(60, window.innerHeight * 0.12)) {
       showToast('↻ Refreshing…');
       await Promise.all([loadTransactions(), loadHomework()]);
     }
@@ -1919,18 +2175,24 @@ window.addEventListener('DOMContentLoaded', () => {
     navigator.serviceWorker.register('sw.js').then(reg => {
       reg.addEventListener('updatefound', () => {
         const _nw = reg.installing;
+        if (!_nw) return;
         _nw.addEventListener('statechange', () => {
-          if (_nw.state === 'installed' && navigator.serviceWorker.controller) {
-            const _b    = document.createElement('div');
-            _b.className = 'update-banner';
-            const _bTxt = document.createTextNode('🆕 App update ready — ');
-            const _bBtn = document.createElement('button');
-            _bBtn.textContent = 'Refresh now';
-            _bBtn.addEventListener('click', () => location.reload());
-            _b.appendChild(_bTxt);
-            _b.appendChild(_bBtn);
-            document.body.prepend(_b);
-          }
+          if (_nw.state !== 'installed' || !navigator.serviceWorker.controller) return;
+          if (document.querySelector('.update-banner')) return; // one banner only
+          const _b    = document.createElement('div');
+          _b.className = 'update-banner';
+          const _bTxt = document.createTextNode('🆕 App update ready — ');
+          const _bBtn = document.createElement('button');
+          _bBtn.textContent = 'Refresh now';
+          _bBtn.addEventListener('click', () => {
+            // Tell the waiting worker to activate before reloading, otherwise
+            // the reload can just re-attach to the old worker.
+            _nw.postMessage({ type: 'SKIP_WAITING' });
+            location.reload();
+          });
+          _b.appendChild(_bTxt);
+          _b.appendChild(_bBtn);
+          document.body.prepend(_b);
         });
       });
     }).catch(() => {});
@@ -1939,45 +2201,84 @@ window.addEventListener('DOMContentLoaded', () => {
 
 /* ─── LOCAL SETTINGS ──────────────────────────────────────── */
 function loadSettings() {
-  customCats    = JSON.parse(localStorage.getItem(LS_CATS)     || '[]');
-  recTemplates  = JSON.parse(localStorage.getItem(LS_REC)      || '[]');
-  planningNotes = JSON.parse(localStorage.getItem(LS_PLANNING) || '{}');
+  customCats    = readJSON(LS_CATS, [], 'array');
+  recTemplates  = readJSON(LS_REC, [], 'array');
+  planningNotes = readJSON(LS_PLANNING, {}, 'object');
 }
 function saveSettings() {
-  localStorage.setItem(LS_CATS,     JSON.stringify(customCats));
-  localStorage.setItem(LS_REC,      JSON.stringify(recTemplates));
-  localStorage.setItem(LS_PLANNING, JSON.stringify(planningNotes));
+  writeStorage(LS_CATS,     JSON.stringify(customCats));
+  writeStorage(LS_REC,      JSON.stringify(recTemplates));
+  writeStorage(LS_PLANNING, JSON.stringify(planningNotes));
 }
 
-/* ─── DARK MODE — FIX: system preference respected ───────── */
-function applyDarkMode(on) {
-  document.documentElement.setAttribute('data-theme', on ? 'dark' : 'light');
+/* ─── THEMES — standard light/dark plus Clove-inspired mode ─ */
+function applyTheme(theme) {
+  const resolved = ['light', 'dark', 'clove'].includes(theme) ? theme : 'light';
+  document.documentElement.setAttribute('data-theme', resolved);
+  const themeColor = resolved === 'clove' ? '#a334d4' : resolved === 'dark' ? '#0d1117' : '#f4f5f7';
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', themeColor);
 }
-function setDarkMode(on) {
-  localStorage.setItem('money_dark', on);
-  applyDarkMode(on);
+function setTheme(theme) {
+  writeStorage('money_theme', theme);
+  // Retain the legacy value for a safe downgrade path to the earlier UI.
+  writeStorage('money_dark', String(theme === 'dark'));
+  applyTheme(theme);
   if (barChart || pieChart) setTimeout(renderCharts, 100);
 }
 
-/* ─── SUPABASE — FIX: no hardcoded credentials ───────────── */
+/* ─── SUPABASE — no hardcoded credentials ────────────────── */
+let _previousCreds = null; // lets "Reset" be undone without losing the connection
+
 function saveCredentials() {
   const url = document.getElementById('input-url').value.trim();
   const key = document.getElementById('input-key').value.trim();
   if (!url || !key) { showToast('Please fill both fields'); return; }
   if (!url.startsWith('https://')) { showToast('URL must start with https://'); return; }
-  // FIX: store to localStorage before connecting
-  localStorage.setItem(LS_SB_URL, url);
-  localStorage.setItem(LS_SB_KEY, key);
+  writeStorage(LS_SB_URL, url);
+  writeStorage(LS_SB_KEY, key);
+  _previousCreds = null;
+  document.getElementById('setup-cancel-btn').style.display = 'none';
   initSupabase(url, key);
 }
 function resetCredentials() {
   showConfirm(
-    'Your Supabase data is NOT deleted. You\'ll re-enter your credentials once.',
-    () => { closeSettingsModal(); document.getElementById('setup-overlay').classList.add('open'); },
+    'Your Supabase data is NOT deleted. You\'ll re-enter your credentials, or keep the current connection.',
+    () => {
+      // FIX: "Reset" used to only open the overlay while leaving the old
+      // credentials active — and with no way out, a mis-tap trapped the user.
+      _previousCreds = {
+        url: localStorage.getItem(LS_SB_URL),
+        key: localStorage.getItem(LS_SB_KEY)
+      };
+      try { localStorage.removeItem(LS_SB_URL); localStorage.removeItem(LS_SB_KEY); } catch {}
+      db = null;
+      document.getElementById('setup-cancel-btn').style.display = _previousCreds.url ? 'block' : 'none';
+      closeSettingsModal();
+      document.getElementById('setup-overlay').classList.add('open');
+    },
     { title: 'Reset connection?', confirmText: 'Reset', icon: '🔌', danger: false }
   );
 }
+function cancelSetup() {
+  if (!_previousCreds?.url || !_previousCreds?.key) {
+    showToast('Connect to a project to continue');
+    return;
+  }
+  writeStorage(LS_SB_URL, _previousCreds.url);
+  writeStorage(LS_SB_KEY, _previousCreds.key);
+  const { url, key } = _previousCreds;
+  _previousCreds = null;
+  document.getElementById('setup-cancel-btn').style.display = 'none';
+  initSupabase(url, key);
+}
 function initSupabase(url, key) {
+  // A blocked / SRI-rejected CDN script leaves window.supabase undefined;
+  // the old catch reported "check credentials", which sent people chasing
+  // the wrong problem.
+  if (!window.supabase?.createClient) {
+    showToast('Could not load the Supabase library — check your connection and refresh');
+    return;
+  }
   try {
     db = window.supabase.createClient(url, key);
     document.getElementById('setup-overlay').classList.remove('open');
@@ -2437,6 +2738,7 @@ function renderAll() {
   _renderTimer = setTimeout(() => {
     _mergedTxs = sortTransactions([...pendingAsTxs(), ...allTxs]); // compute & sort once per batch
     updateSummary();
+    updateMomentum();
     renderList();
     const _activeTab = document.querySelector('.tab-btn.active')?.id?.replace('tab-','');
     if (_activeTab === 'homework') renderHomework();
@@ -2447,8 +2749,8 @@ function renderAll() {
 
 function updateSummary() {
   const txs = monthTxs();
-  const inc = txs.filter(t => t.type==='income').reduce((s,t)  => s + +t.amount, 0);
-  const exp = txs.filter(t => t.type==='expense').reduce((s,t) => s + +t.amount, 0);
+  const inc = sumAmount(txs.filter(t => t.type==='income'));
+  const exp = sumAmount(txs.filter(t => t.type==='expense'));
   const bal = inc - exp;
   const balanceCard = document.querySelector('.balance-card');
   const isOverdrawn = bal < 0;
@@ -2489,8 +2791,8 @@ function updateSummary() {
       return d.getFullYear() === ly && d.getMonth() === lm;
     });
     if (!lmTxs.length) { cmp.textContent = ''; return; }
-    const lmInc = lmTxs.filter(t=>t.type==='income').reduce((s,t)=>s+ +t.amount,0);
-    const lmExp = lmTxs.filter(t=>t.type==='expense').reduce((s,t)=>s+ +t.amount,0);
+    const lmInc = sumAmount(lmTxs.filter(t=>t.type==='income'));
+    const lmExp = sumAmount(lmTxs.filter(t=>t.type==='expense'));
     const delta = bal - (lmInc - lmExp);
     if (Math.abs(delta) < 0.01) cmp.textContent = '= Same as last month';
     else if (delta > 0) cmp.textContent = `↑ RM ${Math.abs(delta).toFixed(2)} better than last month`;
@@ -2556,7 +2858,7 @@ function renderList() {
   // Render transactions grouped by date, with that day's total expense beside the date label
   const _grps = groupByDate(visible);
   list.innerHTML = _grps.map(({ date, txs: _gt }) => {
-    const dayExpTotal = _gt.filter(x => x.type === 'expense').reduce((s,x) => s + +x.amount, 0);
+    const dayExpTotal = sumAmount(_gt.filter(x => x.type === 'expense'));
     const dayExpLabel = dayExpTotal > 0 ? '-' + fmt(dayExpTotal) : fmt(0);
     return '<div class="date-group-hdr"><span>' + labelDate(date) + '</span><span class="date-group-total">' + dayExpLabel + '</span></div>' +
     _gt.map(t => {
@@ -2746,15 +3048,21 @@ async function renderCharts() {
   renderBarChart();
 }
 
-const CHART_COLORS = ['#1D9E75','#378ADD','#E24B4A','#EF9F27','#9B59B6','#E67E22','#16A085','#E91E63','#2980B9','#D35400'];
-function chartText() { return document.documentElement.getAttribute('data-theme')==='dark'?'#9ca3af':'#6b7280'; }
-function chartGrid() { return document.documentElement.getAttribute('data-theme')==='dark'?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.07)'; }
+const CHART_COLORS = ['#ff4fc3','#a78bfa','#ff8aad','#efb6ff','#9B59B6','#E67E22','#16A085','#E91E63','#2980B9','#D35400'];
+function chartText() {
+  const theme = document.documentElement.getAttribute('data-theme');
+  return theme === 'clove' ? '#cfb8d9' : theme === 'dark' ? '#9ca3af' : '#6b7280';
+}
+function chartGrid() {
+  const theme = document.documentElement.getAttribute('data-theme');
+  return theme === 'clove' ? 'rgba(255,180,240,0.14)' : theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
+}
 
 function renderPieChart() {
   const expenses = monthTxs().filter(t => t.type==='expense' && !t.isPending);
-  const catMap = {};
-  expenses.forEach(t => { const c = t.category||'Uncategorised'; catMap[c] = (catMap[c]||0) + +t.amount; });
-  const labels = Object.keys(catMap), values = Object.values(catMap);
+  const catMap = {}; // accumulated in integer cents, converted at the end
+  expenses.forEach(t => { const c = t.category||'Uncategorised'; catMap[c] = (catMap[c]||0) + Math.round((+t.amount || 0) * 100); });
+  const labels = Object.keys(catMap), values = Object.values(catMap).map(c => c / 100);
   const wrap = document.getElementById('pie-wrap');
   if (!labels.length) {
     // Destroy first — Chart.js loses its canvas reference if we wipe innerHTML first
@@ -2785,8 +3093,8 @@ function renderBarChart() {
     if (m < 0) { m += 12; y--; }
     labels.push(`${MSHORT[m]} ${y}`);
     const mT = allTxsWithPending().filter(t => { const d = new Date(t.date+'T00:00:00'); return d.getFullYear()===y && d.getMonth()===m; });
-    incs.push(mT.filter(t=>t.type==='income').reduce((s,t)=>s+ +t.amount,0));
-    const exp = mT.filter(t=>t.type==='expense').reduce((s,t)=>s+ +t.amount,0);
+    incs.push(sumAmount(mT.filter(t=>t.type==='income')));
+    const exp = sumAmount(mT.filter(t=>t.type==='expense'));
     exps.push(exp);
 
     // Calculate projection if this is the current real-world month
@@ -2934,47 +3242,60 @@ function wireDescriptionCategory(descriptionId, categoryId, getType) {
 }
 
 /* ─── SAVE TRANSACTION ────────────────────────────────────── */
+/* One place for the "server unreachable, keep it locally" fallback so no
+   code path can ever drop a transaction the person just typed in. */
+function queueTransaction(payload, prefix = 'pending_') {
+  const tempId = prefix + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  enqueue({ ...payload, tempId, isPending: true, createdLocal: new Date().toISOString() });
+  updatePendingUI();
+  renderAll();
+}
+
 async function saveTransaction() {
   if (isSaving) return;
   const amount = parseFloat(document.getElementById('f-amount').value);
   const date   = document.getElementById('f-date').value;
-  if (!amount || amount <= 0) { showToast('Enter a valid amount'); document.getElementById('f-amount').focus(); return; }
-  if (!date) { showToast('Select a date'); return; }
+  // FIX: parseFloat('1e999') is Infinity and used to be accepted, producing
+  // a null amount in the database. Also reject impossible dates.
+  if (!Number.isFinite(amount) || amount <= 0) { showToast('Enter a valid amount'); document.getElementById('f-amount').focus(); return; }
+  if (!isValidISODate(date)) { showToast('Select a valid date'); document.getElementById('f-date').focus(); return; }
 
   isSaving = true;
   const btn = document.getElementById('save-btn');
   btn.disabled = true; btn.textContent = 'Saving…';
-
-  const isRec   = document.getElementById('f-recurring').checked;
-  const freq    = document.getElementById('f-freq').value;
-  const desc    = document.getElementById('f-desc').value.trim();
-  const cat     = document.getElementById('f-category').value;
-  const payload = { description: desc, amount, type: currentType, category: cat||null, date };
-
-  if (isRec) {
-    recTemplates.push({ id: Date.now().toString(), description: desc, amount, type: currentType, category: cat||null, frequency: freq, lastCreated: date });
-    saveSettings();
-  }
-
-  if (!navigator.onLine) {
-    if (pendingPhotoBlob) showToast('📡 Offline — photo skipped, transaction will sync without it');
-    const tempId = 'pending_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-    enqueue({ ...payload, tempId, isPending: true, createdLocal: new Date().toISOString() });
-    updatePendingUI(); renderAll(); toggleForm();
-    showToast('💾 Saved locally — will sync when online');
-    isSaving = false; btn.disabled = false; btn.textContent = 'Save';
-    return;
-  }
-
-  // FIX: upload receipt photo (if attached) before inserting — never blocks the save itself
-  if (pendingPhotoBlob) {
-    btn.textContent = 'Uploading photo…';
-    try { payload.photo_url = await uploadPhoto(pendingPhotoBlob, 'receipts'); }
-    catch (e) { showToast('Photo upload failed — saving without it'); }
-    btn.textContent = 'Saving…';
-  }
+  let payload = null;
 
   try {
+    const isRec = document.getElementById('f-recurring').checked;
+    const freq  = document.getElementById('f-freq').value;
+    const desc  = document.getElementById('f-desc').value.trim();
+    const cat   = document.getElementById('f-category').value;
+    payload = { description: desc, amount, type: currentType, category: cat||null, date };
+
+    if (isRec) {
+      recTemplates.push({ id: Date.now().toString(), description: desc, amount, type: currentType, category: cat||null, frequency: freq, lastCreated: date });
+      saveSettings();
+    }
+
+    // FIX: !db (setup not completed / CDN blocked) also queues. Previously
+    // db.from() threw a TypeError, the catch didn't recognise it as a
+    // network problem, and the transaction was silently lost.
+    if (!db || !navigator.onLine) {
+      queueTransaction(payload);
+      toggleForm();
+      showToast(pendingPhotoBlob ? '💾 Saved locally (photo skipped) — will sync when online'
+                                 : '💾 Saved locally — will sync when online');
+      return;
+    }
+
+    // Upload receipt photo (if attached) before inserting — never blocks the save itself
+    if (pendingPhotoBlob) {
+      btn.textContent = 'Uploading photo…';
+      try { payload.photo_url = await uploadPhoto(pendingPhotoBlob, 'receipts'); }
+      catch { showToast('Photo upload failed — saving without it'); }
+      btn.textContent = 'Saving…';
+    }
+
     const { data, error } = await db.from('transactions').insert([payload]).select();
     if (error) throw error;
     allTxs.unshift(data[0]);
@@ -2982,13 +3303,13 @@ async function saveTransaction() {
     renderAll(); toggleForm();
     showToast(currentType==='income' ? '✓ Income added!' : '✓ Expense added!');
   } catch (e) {
-    if (!navigator.onLine || e?.message?.includes('fetch') || e?.message?.includes('network')) {
-      const tempId = 'pending_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-      enqueue({ ...payload, tempId, isPending: true, createdLocal: new Date().toISOString() });
-      updatePendingUI(); renderAll(); toggleForm();
+    const msg = e?.message || '';
+    if (payload && (!db || !navigator.onLine || /fetch|network|offline|timeout/i.test(msg))) {
+      queueTransaction(payload);
+      toggleForm();
       showToast('💾 Saved locally — will sync when online');
     } else {
-      showToast('Error: ' + (e?.message || 'Unknown'));
+      showToast('Error: ' + (msg || 'Unknown'));
     }
   } finally {
     isSaving = false; btn.disabled = false; btn.textContent = 'Save';
@@ -3056,8 +3377,10 @@ function setEditType(type) {
 }
 async function saveEdit() {
   if (!editingId) return;
+  if (!requireOnline()) return; // keep the modal open, don't pretend to save
   const amount = parseFloat(document.getElementById('e-amount').value);
-  if (!amount || amount <= 0) { showToast('Enter a valid amount'); return; }
+  if (!Number.isFinite(amount) || amount <= 0) { showToast('Enter a valid amount'); return; }
+  if (!isValidISODate(document.getElementById('e-date').value)) { showToast('Select a valid date'); return; }
   const btn = document.getElementById('e-save-btn');
   btn.disabled = true; btn.textContent = 'Updating…';
   try {
@@ -3182,6 +3505,27 @@ function setFilter(f) {
 /* ══════════════════════════════════════════════════════════
    HOMEWORK
 ══════════════════════════════════════════════════════════ */
+function getHomeworkMeta(id) { return homeworkMeta[String(id)] || { priority: 'medium', subtasks: [] }; }
+function saveHomeworkMeta() { writeStorage('money_homework_meta', JSON.stringify(homeworkMeta)); }
+function setHomeworkMeta(id, changes) {
+  homeworkMeta[String(id)] = { ...getHomeworkMeta(id), ...changes };
+  saveHomeworkMeta();
+}
+function normaliseSubtasks(value) {
+  return String(value || '').split('\n').map(text => text.trim()).filter(Boolean).map(text => ({ text, done: false }));
+}
+function subtasksToText(subtasks) { return (subtasks || []).map(task => task.text).join('\n'); }
+function mergeSubtasks(value, existing) {
+  const completedByText = new Set((existing || []).filter(task => task.done).map(task => task.text));
+  return normaliseSubtasks(value).map(task => ({ ...task, done: completedByText.has(task.text) }));
+}
+function priorityRank(h) { return ({ high: 0, medium: 1, low: 2 })[getHomeworkMeta(h.id).priority] ?? 1; }
+function priorityLabel(h) { return getHomeworkMeta(h.id).priority || 'medium'; }
+function formatCompletedAt(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  return isNaN(d) ? '' : `Completed ${d.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+}
 async function loadHomework() {
   if (!db) return;
   try {
@@ -3233,6 +3577,8 @@ function hwCreatedAtMs(h) {
 function sortHomeworkItems(list) {
   return list.slice().sort((a, b) => {
     if (a.done !== b.done) return a.done ? 1 : -1;
+    if (a.done && b.done) return (getHomeworkMeta(b.id).completedAt || '').localeCompare(getHomeworkMeta(a.id).completedAt || '');
+    if (!a.done && priorityRank(a) !== priorityRank(b)) return priorityRank(a) - priorityRank(b);
     if (!a.due_date && !b.due_date) return hwCreatedAtMs(a) - hwCreatedAtMs(b);
     if (!a.due_date) return 1;
     if (!b.due_date) return -1;
@@ -3264,8 +3610,20 @@ function updateHomeworkBadge() {
   }
 }
 
+function renderHomeworkSummary() {
+  const summary = document.getElementById('hw-summary');
+  if (!summary) return;
+  const today = todayStr();
+  const active = homework.filter(h => !h.done);
+  const overdue = active.filter(h => h.due_date && h.due_date < today).length;
+  const dueToday = active.filter(h => h.due_date === today).length;
+  const upcoming = active.filter(h => !h.due_date || h.due_date > today).length;
+  summary.innerHTML = `<div class="hw-summary-item overdue"><span class="hw-summary-count">${overdue}</span><span class="hw-summary-label">Overdue</span></div><div class="hw-summary-item today"><span class="hw-summary-count">${dueToday}</span><span class="hw-summary-label">Due today</span></div><div class="hw-summary-item"><span class="hw-summary-count">${upcoming}</span><span class="hw-summary-label">Upcoming</span></div>`;
+}
+
 function renderHomework() {
   updateHomeworkBadge();
+  renderHomeworkSummary();
   const list = document.getElementById('hw-list');
   if (!list) return;
   const today = todayStr();
@@ -3293,6 +3651,11 @@ function renderHomework() {
     // an item with no due date should never be able to read as overdue.
     const overdue = !h.done && !!h.due_date && h.due_date < today;
     const dueText = h.due_date ? `Due ${formatDate(h.due_date)}` : 'No due date';
+    const meta = getHomeworkMeta(h.id);
+    const priority = priorityLabel(h);
+    const subtasks = Array.isArray(meta.subtasks) ? meta.subtasks : [];
+    const doneSubtasks = subtasks.filter(task => task.done).length;
+    const completedText = h.done ? formatCompletedAt(meta.completedAt) : '';
     return `
     <div class="hw-wrapper" id="hw-wrap-${h.id}">
       <div class="hw-swipe-bg" id="hw-bg-${h.id}"><span class="bin-icon">${BIN_SVG}</span></div>
@@ -3300,7 +3663,8 @@ function renderHomework() {
         <button class="hw-check" data-hw-check="${h.id}" aria-label="${h.done ? 'Mark incomplete' : 'Mark complete'}">${h.done ? '✓' : ''}</button>
         <div class="hw-info">
           <div class="hw-title">${esc(h.title)}</div>
-          <div class="hw-meta${overdue ? ' hw-overdue' : ''}">${overdue ? 'Overdue · ' : ''}${dueText}</div>
+          <div class="hw-meta${overdue ? ' hw-overdue' : ''}">${overdue ? 'Overdue · ' : ''}${h.done && completedText ? completedText : dueText}<span class="hw-priority ${priority}">${esc(priority)}</span></div>
+          ${subtasks.length ? `<div class="hw-subtasks">${subtasks.map((task, index) => `<label class="hw-subtask${task.done ? ' done' : ''}" data-hw-subtask="${h.id}" data-hw-subtask-index="${index}"><input type="checkbox" ${task.done ? 'checked' : ''} /><span>${esc(task.text)}</span></label>`).join('')}</div><div class="hw-subtask-progress">${doneSubtasks}/${subtasks.length} subtasks complete</div>` : ''}
         </div>
         <button class="hw-del" data-hw-del="${h.id}" aria-label="Delete ${esc(h.title)}">${BIN_SVG}</button>
       </div>
@@ -3314,8 +3678,11 @@ function renderHomework() {
   });
 }
 async function addHomework() {
+  if (!requireOnline()) return;
   const title = document.getElementById('hw-title').value.trim();
   const subject = document.getElementById('hw-subject').value.trim();
+  const priority = document.getElementById('hw-priority').value;
+  const subtasks = normaliseSubtasks(document.getElementById('hw-subtasks').value);
   // FIX: blank due-date field now means "no due date" (stored as null),
   // instead of silently defaulting to today.
   const due = document.getElementById('hw-due').value || null;
@@ -3332,8 +3699,11 @@ async function addHomework() {
     // insertion order for the very list this ships alongside). renderHomework()
     // now sorts freshly per active filter via getVisibleHomework() instead.
     homework.push(data[0]);
+    setHomeworkMeta(data[0].id, { priority, subtasks, completedAt: null });
     document.getElementById('hw-title').value = '';
     document.getElementById('hw-subject').value = '';
+    document.getElementById('hw-priority').value = 'medium';
+    document.getElementById('hw-subtasks').value = '';
     syncSubjectSelect('subject-dropdown', 'hw-subject');
     document.getElementById('hw-due').value = '';
     syncDueChipHighlight();
@@ -3345,9 +3715,11 @@ async function addHomework() {
 }
 async function toggleHomeworkDone(id) {
   const h = homework.find(x => String(x.id) === String(id));
-  if (!h || !db) return;
+  if (!h) return;
+  if (!requireOnline()) return;
   const done = !h.done;
   h.done = done; // optimistic
+  setHomeworkMeta(h.id, { completedAt: done ? new Date().toISOString() : null });
   renderHomework();
   const idStr = String(h.id);
   hwUpdatesInFlight.add(idStr);
@@ -3357,21 +3729,32 @@ async function toggleHomeworkDone(id) {
     updateHomeworkCache();
   } catch (e) {
     h.done = !done; renderHomework();
+    setHomeworkMeta(h.id, { completedAt: h.done ? new Date().toISOString() : null });
     showToast('Could not update: ' + (e?.message || 'Unknown'));
   } finally {
     hwUpdatesInFlight.delete(idStr);
   }
 }
+function toggleHomeworkSubtask(id, index) {
+  const meta = getHomeworkMeta(id);
+  const subtasks = Array.isArray(meta.subtasks) ? meta.subtasks.slice() : [];
+  if (!subtasks[index]) return;
+  subtasks[index] = { ...subtasks[index], done: !subtasks[index].done };
+  setHomeworkMeta(id, { subtasks });
+  renderHomework();
+}
 function deleteHomework(id, onCancel) {
   showConfirm(
     'This homework item will be removed.',
     async () => {
-      if (!db) return;
+      if (!requireOnline()) return;
       const h = homework.find(x => String(x.id) === String(id));
       if (!h) return;
       const { error } = await db.from('homework').delete().eq('id', h.id);
       if (error) { showToast('Error: ' + error.message); return; }
       homework = homework.filter(item => String(item.id) !== String(id));
+      delete homeworkMeta[String(id)];
+      saveHomeworkMeta();
       renderHomework();
       updateHomeworkCache();
       showToast('Homework removed');
@@ -3388,6 +3771,8 @@ function openHwEditModal(id) {
   document.getElementById('hw-e-title').value   = h.title || '';
   document.getElementById('hw-e-subject').value = h.subject || '';
   document.getElementById('hw-e-due').value     = h.due_date || '';
+  document.getElementById('hw-e-priority').value = priorityLabel(h);
+  document.getElementById('hw-e-subtasks').value = subtasksToText(getHomeworkMeta(h.id).subtasks);
   // FEATURE: "Added <date/time>" line — see formatAddedAt(). Hidden entirely
   // if this row has no created_at (e.g. the homework table doesn't have that
   // column yet — see the note above hwCreatedAtMs() for how to add it).
@@ -3408,6 +3793,7 @@ function closeHwEditModal() {
 }
 async function saveHwEdit() {
   if (!hwEditingId) return;
+  if (!requireOnline()) return;
   const title = document.getElementById('hw-e-title').value.trim();
   if (!title) { showToast('Enter a homework title'); return; }
   if (!db) { showToast('Not connected'); return; }
@@ -3423,6 +3809,11 @@ async function saveHwEdit() {
     };
     const { error } = await db.from('homework').update(updates).eq('id', h.id);
     if (error) throw error;
+    const oldMeta = getHomeworkMeta(h.id);
+    setHomeworkMeta(h.id, {
+      priority: document.getElementById('hw-e-priority').value,
+      subtasks: mergeSubtasks(document.getElementById('hw-e-subtasks').value, oldMeta.subtasks)
+    });
     const idx = homework.findIndex(x => String(x.id) === String(hwEditingId));
     if (idx !== -1) homework[idx] = { ...homework[idx], ...updates };
     renderHomework();
@@ -3446,6 +3837,10 @@ async function updateHomeworkCache() {
           const res = new Response(JSON.stringify(homework), {
             headers: {
               'Content-Type': 'application/json',
+              // Supabase calls are cross-origin CORS requests; a synthetic
+              // response without this header is rejected by the browser even
+              // though it came straight from the service worker cache.
+              'Access-Control-Allow-Origin': '*',
               'Cache-Control': 'no-cache'
             }
           });
@@ -3462,16 +3857,22 @@ function exportCSV() {
   if (!txs.length) { showToast('No transactions to export'); return; }
   const rows = [
     ['Date','Type','Category','Description','Amount (RM)'],
-    ...txs.map(t => [t.date, t.type, (t.category||'').replace(/,/g,';'), (t.description||'').replace(/,/g,';'), (+t.amount).toFixed(2)])
+    // FIX: commas used to be replaced with ";" (data loss) and fields were
+    // never quoted, so any description with a comma or a line break broke
+    // the CSV. Proper RFC 4180 quoting makes export -> import lossless.
+    ...txs.map(t => [t.date, t.type, t.category || '', t.description || '', (+t.amount).toFixed(2)])
   ];
-  const csv  = rows.map(r => r.join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const a    = Object.assign(document.createElement('a'), {
-    href: URL.createObjectURL(blob),
-    download: `money-record-${isAllTime ? 'all' : viewYear + '-' + String(viewMonth+1).padStart(2,'0')}.csv`
-  });
+  const csv  = rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }); // BOM keeps Excel UTF-8 correct
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `money-record-${isAllTime ? 'all' : viewYear + '-' + String(viewMonth+1).padStart(2,'0')}.csv`;
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(a.href);
+  a.remove();
+  // Revoking synchronously can cancel the download in Safari.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
   showToast('✓ CSV downloaded');
 }
 
@@ -3480,38 +3881,27 @@ function importCSV(file) {
   const reader = new FileReader();
   reader.onload = async e => {
     try {
-      const lines = e.target.result.split('\n').map(l => l.trim()).filter(Boolean);
-      if (lines.length < 2) { showToast('File is empty or has no data rows'); return; }
+      // FIX: a naive split(',') / split('\n') could not read the app's own
+      // exports once a description contained a comma or a newline. Use the
+      // shared RFC 4180 parser and detect the header instead of blindly
+      // discarding line 1 (which dropped a real row on header-less files).
+      const rows = parseCSV(e.target.result);
+      if (!rows.length) { showToast('File is empty'); return; }
+      const first = rows[0].map(c => c.trim().toLowerCase());
+      const hasHeader = first.includes('date') && first.some(c => c.includes('amount'));
+      const dataRows = hasHeader ? rows.slice(1) : rows;
       const imported = [];
-      // FIX: this used to also strip &, ", and ' — esc() already escapes
-      // everything at render time, so stripping them here just corrupted
-      // legitimate data (e.g. the built-in "Food & Drinks" category came
-      // back as "Food  Drinks" after an export→reimport round trip, no
-      // longer matching the real category). < and > stay stripped as a
-      // defence-in-depth measure since they're the only ones that can
-      // actually open/close an HTML tag.
+      // esc() escapes everything at render time, so only < and > are stripped
+      // here as defence-in-depth (they are the only chars that can open a tag).
       const _sanitizeCSV = s => String(s||'').replace(/[<>]/g,'').trim().slice(0,500);
-      // FIX: previously any non-empty string passed as a "date" — a
-      // malformed or differently-formatted value (e.g. from a non-app
-      // CSV) would import as literal text, and later comparisons like
-      // `new Date(t.date + 'T00:00:00')` would silently produce Invalid
-      // Date, making the row disappear from every month view.
-      const _isValidDateStr = s => {
-        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-        if (!m) return false;
-        const y = +m[1], mo = +m[2], d = +m[3];
-        const dt = new Date(y, mo - 1, d);
-        return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d;
-      };
-      for (const row of lines.slice(1)) { // skip header
-        const parts = row.split(',');
+      for (const parts of dataRows) {
         if (parts.length < 5) continue;
         const date        = _sanitizeCSV(parts[0]);
         const type        = _sanitizeCSV(parts[1]).toLowerCase();
         const category    = _sanitizeCSV(parts[2]) || null;
         const description = _sanitizeCSV(parts[3]);
         const amt         = parseFloat(parts[4]);
-        if (!_isValidDateStr(date) || !['income','expense'].includes(type) || !amt || amt <= 0) continue;
+        if (!isValidISODate(date) || !['income','expense'].includes(type) || !Number.isFinite(amt) || amt <= 0) continue;
         imported.push({ date, type, category, description, amount: amt });
       }
       if (!imported.length) { showToast('No valid rows found in CSV'); return; }
@@ -3626,14 +4016,21 @@ function removeRecTemplate(i) {
 
 /* ─── SETTINGS BACKUP — FIX: new feature ─────────────────── */
 function exportSettings() {
-  const data = { version: 1, exported: new Date().toISOString(), customCats, recTemplates, planningNotes };
+  // FIX: homework priorities/subtasks and the chosen theme used to be left
+  // out of the backup, so a restore silently lost them.
+  const data = {
+    version: 2, exported: new Date().toISOString(),
+    customCats, recTemplates, planningNotes, homeworkMeta,
+    theme: document.documentElement.getAttribute('data-theme')
+  };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const a    = Object.assign(document.createElement('a'), {
-    href: URL.createObjectURL(blob),
-    download: 'money-settings-' + todayStr() + '.json'
-  });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'money-settings-' + todayStr() + '.json';
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(a.href);
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
   showToast('✓ Settings exported');
 }
 function importSettings(file) {
@@ -3641,19 +4038,33 @@ function importSettings(file) {
   reader.onload = e => {
     try {
       const data = JSON.parse(e.target.result);
-      if (!data.version) { showToast('Unrecognised settings file'); return; }
+      if (!data || typeof data !== 'object' || !data.version) { showToast('Unrecognised settings file'); return; }
+      // Shape-check every field: an arbitrary JSON file used to be assigned
+      // straight into state and would crash the next render (e.g. customCats
+      // as a string has no .map()).
+      const cats  = Array.isArray(data.customCats) ? data.customCats.filter(c => c && typeof c.name === 'string') : null;
+      const recs  = Array.isArray(data.recTemplates) ? data.recTemplates : null;
+      const notes = (data.planningNotes && typeof data.planningNotes === 'object' && !Array.isArray(data.planningNotes)) ? data.planningNotes : null;
+      const meta  = (data.homeworkMeta && typeof data.homeworkMeta === 'object' && !Array.isArray(data.homeworkMeta)) ? data.homeworkMeta : null;
+      if (!cats && !recs && !notes && !meta) { showToast('Unrecognised settings file'); return; }
 
       showConfirm(
-        'Categories, planning notes and recurring templates will be replaced.',
+        'Categories, planning notes, homework details and recurring templates will be replaced.',
         () => {
-          if (data.customCats)    customCats    = data.customCats;
-          if (data.recTemplates)  recTemplates  = data.recTemplates;
-          if (data.planningNotes) planningNotes = data.planningNotes;
+          if (cats)  customCats    = cats;
+          if (recs)  recTemplates  = recs;
+          if (notes) planningNotes = notes;
+          if (meta)  { homeworkMeta = meta; saveHomeworkMeta(); }
+          if (['light','dark','clove'].includes(data.theme)) {
+            setTheme(data.theme);
+            document.getElementById('theme-select').value = data.theme;
+          }
           saveSettings();
           buildCategorySelects();
           renderCustomCatsList();
           renderRecurringList();
           if (document.getElementById('panel-planning').classList.contains('open')) renderPlanning();
+          if (document.getElementById('panel-homework').classList.contains('open')) renderHomework();
           showToast('✓ Settings imported');
         },
         { title: 'Import settings?', confirmText: 'Import', icon: '⬇', danger: false }
@@ -3665,6 +4076,63 @@ function importSettings(file) {
 }
 
 /* ─── UTILS ───────────────────────────────────────────────── */
+/* Sum money as integer cents. Floating-point accumulation of RM 0.10 +
+   RM 0.20 produces 0.30000000000000004, which leaks into "is overdrawn"
+   checks and chart values; rounding each amount to cents before adding
+   keeps totals exact. */
+function sumAmount(list) {
+  return list.reduce((cents, t) => cents + Math.round((Number(t.amount) || 0) * 100), 0) / 100;
+}
+/* Validates a real calendar date, not just the YYYY-MM-DD shape —
+   '2026-02-30' must never reach the database. */
+function isValidISODate(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ''));
+  if (!m) return false;
+  const y = +m[1], mo = +m[2], d = +m[3];
+  const dt = new Date(y, mo - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d;
+}
+/* Writes that need Supabase should say "nothing was discarded" rather than
+   throwing a generic network error and leaving the user guessing. */
+function requireOnline() {
+  if (db && navigator.onLine) return true;
+  showToast('📡 This change needs a connection — nothing was discarded');
+  return false;
+}
+/* RFC 4180 CSV helpers: quote/escape on export, parse quoted fields with
+   embedded commas/newlines on import. */
+function csvCell(value) {
+  const s = String(value ?? '');
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function parseCSV(text) {
+  const rows = [];
+  const src = String(text || '').replace(/^\uFEFF/, '');
+  let row = [], field = '', quoted = false;
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (quoted) {
+      if (ch === '"') {
+        if (src[i + 1] === '"') { field += '"'; i++; }
+        else quoted = false;
+      } else field += ch;
+    } else if (ch === '"' && field === '') {
+      quoted = true;
+    } else if (ch === ',') {
+      row.push(field); field = '';
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && src[i + 1] === '\n') i++;
+      row.push(field); field = '';
+      if (row.some(cell => cell !== '')) rows.push(row);
+      row = [];
+    } else {
+      field += ch;
+    }
+  }
+  row.push(field);
+  if (row.some(cell => cell !== '')) rows.push(row);
+  return rows;
+}
 function fmt(n) { return 'RM ' + Math.abs(+n).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function fmtBalance(n) { return (+n < 0 ? '−' : '') + fmt(n); }
 function formatDate(d) { if (!d) return '—'; const _dt = new Date(d + 'T00:00:00'); return isNaN(_dt) ? '—' : _dt.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }); }
